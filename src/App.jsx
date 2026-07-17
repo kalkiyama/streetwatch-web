@@ -1,4 +1,9 @@
 import StreetWatch from "./StreetWatch.jsx";
+import ErrorBoundary from "./ErrorBoundary.jsx";
 export default function App() {
-  return <StreetWatch />;
+  return (
+    <ErrorBoundary>
+      <StreetWatch />
+    </ErrorBoundary>
+  );
 }
