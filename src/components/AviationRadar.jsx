@@ -81,7 +81,7 @@ export default function AviationRadar({ center }) {
       setTick((t) => t + 1);
     }, 250);
     return () => { alive = false; if (pollId) clearInterval(pollId); clearInterval(tickId); };
-  }, [center, radius]); // eslint-disable-line
+  }, [center.lat, center.lng, radius]); // primitives only — object identity changes every render
 
   const R = 180, cx = 200, cy = 200;
   const plotted = Object.values(acRef.current).map((a) => {
