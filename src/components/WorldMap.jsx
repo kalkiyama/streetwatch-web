@@ -19,6 +19,12 @@ export default function WorldMap({ feeds, selectedId, onSelect }) {
     return () => { try { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } } catch {} };
   }, []);
   useEffect(() => {
+    const map = mapRef.current; if (!map) return;
+    const f = feeds.find((x) => x.id === selectedId);
+    if (f) map.flyTo([f.lat, f.lng], Math.max(map.getZoom(), 5), { duration: 1.1 });
+  }, [selectedId]);
+
+  useEffect(() => {
     const lg = layerRef.current; if (!lg) return;
     lg.clearLayers();
     feeds.forEach((f) => {

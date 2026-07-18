@@ -40,7 +40,10 @@ export default function MarineRadar({ center }) {
         if (!r.ok) throw new Error();
         const j = await r.json(); if (!alive) return;
         const inc = (j.vessels || []).filter((v) => typeof v.lat === "number");
-        if (inc.length) { const prev = acRef.current, merged = {}; inc.forEach((v) => { const o = prev[v.id]; merged[v.id] = { ...v, tLat: v.lat, tLon: v.lon, lat: o ? o.lat : v.lat, lon: o ? o.lon : v.lon }; }); acRef.current = merged; }
+        { const seen = Date.now(); const prev = acRef.current, merged = {};
+          Object.values(prev).forEach((o) => { if (seen - (o.seenAt || 0) < 45000) merged[o.id] = o; }); // grace: AIS reports are sparse
+          inc.forEach((v) => { const o = prev[v.id]; merged[v.id] = { ...v, seenAt: seen, tLat: v.lat, tLon: v.lon, lat: o ? o.lat : v.lat, lon: o ? o.lon : v.lon }; });
+          acRef.current = merged; }
         liveRef.current = true; failRef.current = 0; setStatus("live");
       } catch {
         if (!alive) return;
