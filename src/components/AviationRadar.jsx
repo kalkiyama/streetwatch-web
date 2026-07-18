@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Wifi, WifiOff } from "lucide-react";
+import { Wifi, WifiOff, X } from "lucide-react";
 import { C } from "../theme.js";
 import { BACKEND_URL, AIS_BACKEND_URL } from "../config.js";
 import { RAD, rnd } from "../geo.js";
@@ -29,6 +29,7 @@ export default function AviationRadar({ center }) {
   const [status, setStatus] = useState("sim");
   const [, setTick] = useState(0);
   const [sel, setSel] = useState(null);
+  const [uavInfo, setUavInfo] = useState(false);
   const [radius, setRadius] = useState(100);
   const acRef = useRef({}); const lastRef = useRef(Date.now()); const liveRef = useRef(false); const failRef = useRef(0);
 
@@ -101,12 +102,39 @@ export default function AviationRadar({ center }) {
           {status === "live" ? <Wifi size={12} /> : <WifiOff size={12} />}{status === "live" ? "LIVE" : status === "error" ? "PROXY DOWN" : "SIM"}
         </span>
         <div className="flex items-center gap-1">
+          <button onClick={() => setUavInfo((v) => !v)} className="px-1.5 py-0.5 rounded font-mono flex items-center gap-1"
+            title="About UAV tracking"
+            style={{ fontSize: 10, color: uavInfo ? "#0A0E14" : "#C084FC", background: uavInfo ? "#C084FC" : "rgba(192,132,252,0.14)", border: "1px solid rgba(192,132,252,0.4)" }}>
+            ◇ UAV{(() => { const d = plotted.filter((a) => a.isDrone).length; return d ? ` ${d}` : ""; })()}
+          </button>
           {[60, 120, 250].map((r) => (
             <button key={r} onClick={() => setRadius(r)} className="px-1.5 py-0.5 rounded font-mono"
               style={{ fontSize: 10, color: radius === r ? C.ink : C.dim, background: radius === r ? C.cyan : "rgba(28,32,41,0.8)" }}>{r}nm</button>
           ))}
         </div>
       </div>
+      {uavInfo && (
+        <div className="absolute z-20 left-3 right-3 top-11 rounded-lg p-3"
+          style={{ background: "rgba(10,14,20,0.96)", border: "1px solid rgba(192,132,252,0.4)" }}>
+          <div className="font-mono flex items-center justify-between" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
+            <span>◇ UAV TRACKING — HOW IT WORKS</span>
+            <button onClick={() => setUavInfo(false)} aria-label="close" style={{ color: "#C084FC" }}><X size={13} /></button>
+          </div>
+          <div className="mt-1.5" style={{ fontSize: 12, color: C.text, lineHeight: 1.55 }}>
+            Drones broadcasting ADS-B category <b>B6</b> (large military, government, and test
+            platforms) appear here as violet quad-rotor marks — live, real aircraft.
+          </div>
+          <div className="mt-1.5" style={{ fontSize: 12, color: C.dim, lineHeight: 1.55 }}>
+            <b style={{ color: C.text }}>Most radars show 0 UAVs most of the time — that's accurate, not a fault.</b>{" "}
+            Small consumer drones use short-range Remote ID and can't be tracked globally.
+          </div>
+          <div className="mt-1.5" style={{ fontSize: 12, color: C.dim, lineHeight: 1.55 }}>
+            <b style={{ color: "#C084FC" }}>Best odds:</b> US Southwest test ranges — try the{" "}
+            <b style={{ color: C.text }}>Phoenix, Las-Vegas-area, or Southern California</b> radars at 250nm —
+            plus borders and conflict-adjacent airspace.
+          </div>
+        </div>
+      )}
       <svg viewBox="0 0 400 400" className="w-full" style={{ display: "block", maxHeight: 420 }}>
         <defs>
           <radialGradient id="sc" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#0F1620" /><stop offset="100%" stopColor="#090D12" /></radialGradient>
