@@ -1,6 +1,6 @@
 // StreetWatch — main shell. Views live in ./components, data in catalog.json.
 import React, { useState, useEffect, useMemo } from "react";
-import { Search, MapPin, Radio, Plane, X, Globe, ExternalLink, SignalHigh, Star, Navigation } from "lucide-react";
+import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation } from "lucide-react";
 import CATALOG from "./catalog.json";
 import { C, LAYERS, layerKeys, resolveUrl, openLive } from "./theme.js";
 import { distKm } from "./geo.js";
@@ -128,16 +128,19 @@ export default function StreetWatch() {
 
       <header className="flex items-center justify-between px-4 md:px-6 py-3" style={{ borderBottom: `1px solid ${C.line}` }}>
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center rounded" style={{ width: 30, height: 30, background: C.amber }}>
-            <Radio size={17} color={C.ink} strokeWidth={2.4} />
-          </div>
+          <svg width="30" height="30" viewBox="0 0 64 64" aria-label="StreetWatch">
+            <rect width="64" height="64" rx="14" fill={C.amber} />
+            <circle cx="32" cy="32" r="21" fill="none" stroke={C.ink} strokeWidth="3" opacity="0.5" />
+            <path d="M32 32 L32 9 A23 23 0 0 1 51.5 21.5 Z" fill={C.ink} />
+            <circle cx="32" cy="32" r="4" fill={C.ink} />
+          </svg>
           <div>
             <div style={{ fontWeight: 700, letterSpacing: 0.3, fontSize: 15 }}>STREETWATCH</div>
-            <div className="font-mono" style={{ fontSize: 10, color: C.faint, letterSpacing: 1 }}>GLOBAL PUBLIC-FEED CONSOLE · DEMO</div>
+            <div className="font-mono" style={{ fontSize: 10, color: C.faint, letterSpacing: 1 }}>LIVE PLANET CONSOLE</div>
           </div>
         </div>
         <nav className="flex items-center gap-1">
-          {[{ k: "world", label: "World", icon: Globe, on: true }, { k: "drones", label: "Drones", icon: Plane, on: false }].map((t) => (
+          {[{ k: "world", label: "World", icon: Globe, on: true }].map((t) => (
             <button key={t.k} onClick={() => t.on && setTab(t.k)} disabled={!t.on}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded font-mono"
               style={{ fontSize: 12, letterSpacing: 0.5, color: tab === t.k ? C.ink : t.on ? C.dim : C.faint,
@@ -290,6 +293,20 @@ export default function StreetWatch() {
           </section>
         </main>
       </div>
+      <footer className="px-4 md:px-6 py-2.5 font-mono flex flex-wrap items-center justify-between gap-x-4 gap-y-1"
+        style={{ borderTop: `1px solid ${C.line}`, fontSize: 9.5, color: C.faint, letterSpacing: 0.4 }}>
+        <span>
+          DATA&nbsp;
+          <a href="https://airplanes.live" target="_blank" rel="noreferrer" style={{ color: C.dim }}>airplanes.live</a> ·{" "}
+          <a href="https://aisstream.io" target="_blank" rel="noreferrer" style={{ color: C.dim }}>aisstream.io</a> ·{" "}
+          <a href="https://www.digitraffic.fi" target="_blank" rel="noreferrer" style={{ color: C.dim }}>Fintraffic</a> ·{" "}
+          <a href="https://worldview.earthdata.nasa.gov" target="_blank" rel="noreferrer" style={{ color: C.dim }}>NASA</a> ·{" "}
+          <a href="https://wheretheiss.at" target="_blank" rel="noreferrer" style={{ color: C.dim }}>wheretheiss.at</a> ·{" "}
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" style={{ color: C.dim }}>© OpenStreetMap</a> ·{" "}
+          <a href="https://carto.com/attributions" target="_blank" rel="noreferrer" style={{ color: C.dim }}>© CARTO</a>
+        </span>
+        <span>PUBLIC FEEDS ONLY · © 2026 STREETWATCH · v1.0</span>
+      </footer>
     </div>
   );
 }
