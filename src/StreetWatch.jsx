@@ -1,6 +1,6 @@
 // StreetWatch — main shell. Views live in ./components, data in catalog.json.
 import React, { useState, useEffect, useMemo } from "react";
-import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation } from "lucide-react";
+import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane } from "lucide-react";
 import CATALOG from "./catalog.json";
 import { C, LAYERS, layerKeys, resolveUrl, openLive } from "./theme.js";
 import { distKm } from "./geo.js";
@@ -55,9 +55,10 @@ export default function StreetWatch() {
     return CATALOG.filter((c) => {
       const hitQ = !q || [c.name, c.city, c.region, c.country, c.continent, c.id, LAYERS[c.layer].label].join(" ").toLowerCase().includes(q);
       const hitReg = (continent === "All" || c.continent === continent) && (country === "All" || c.country === country);
-      return hitQ && hitReg && active.includes(c.layer) && (!favOnly || favorites.includes(c.id));
+      const hitTab = tab !== "drones" || c.tag === "uav";
+      return hitQ && hitReg && hitTab && active.includes(c.layer) && (!favOnly || favorites.includes(c.id));
     });
-  }, [query, active, continent, country, favOnly, favorites]);
+  }, [query, active, continent, country, favOnly, favorites, tab]);
 
   const selected = CATALOG.find((c) => c.id === selectedId) || results[0] || CATALOG[0];
 
@@ -140,7 +141,7 @@ export default function StreetWatch() {
           </div>
         </div>
         <nav className="flex items-center gap-1">
-          {[{ k: "world", label: "World", icon: Globe, on: true }].map((t) => (
+          {[{ k: "world", label: "World", icon: Globe, on: true }, { k: "drones", label: "Drones", icon: Plane, on: true }].map((t) => (
             <button key={t.k} onClick={() => t.on && setTab(t.k)} disabled={!t.on}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded font-mono"
               style={{ fontSize: 12, letterSpacing: 0.5, color: tab === t.k ? C.ink : t.on ? C.dim : C.faint,
@@ -212,6 +213,12 @@ export default function StreetWatch() {
           </div>
 
           <div style={{ maxHeight: "46vh", overflowY: "auto" }} className="lg:max-h-none">
+            {tab === "drones" && (
+              <div className="mx-4 mt-2 mb-1 rounded px-3 py-2" style={{ background: "rgba(192,132,252,0.10)", border: "1px solid rgba(192,132,252,0.35)", fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
+                <b style={{ color: "#C084FC" }}>◇ UAV WATCH</b> — radars over airspaces where category-B6 drones actually fly.
+                Sightings are sporadic; an empty radar is honest. Use 250nm range.
+              </div>
+            )}
             <div className="px-4 py-2 font-mono flex items-center justify-between" style={{ fontSize: 10, color: C.faint, letterSpacing: 1 }}>
               <span>{results.length} FEEDS</span><span>{nearList ? "NEAREST FIRST" : grouped.length + " REGIONS"}</span>
             </div>
