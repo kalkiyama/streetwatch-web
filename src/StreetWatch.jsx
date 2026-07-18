@@ -5,7 +5,11 @@ import CATALOG from "./catalog.json";
 import { C, LAYERS, layerKeys, resolveUrl, openLive } from "./theme.js";
 import { distKm } from "./geo.js";
 import WorldMap from "./components/WorldMap.jsx";
-import Frame from "./components/FeedViewer.jsx";
+import Frame, { useClock, LiveViewport, DataPreview } from "./components/FeedViewer.jsx";
+import AviationRadar from "./components/AviationRadar.jsx";
+import MarineRadar from "./components/MarineRadar.jsx";
+import EarthView from "./components/EarthView.jsx";
+import SpaceView from "./components/SpaceView.jsx";
 
 export default function StreetWatch() {
   const now = useClock();
