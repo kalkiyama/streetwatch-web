@@ -6,14 +6,14 @@ import MarineRadar from "./MarineRadar.jsx";
 import EarthView from "./EarthView.jsx";
 import SpaceView from "./SpaceView.jsx";
 
-function useClock() {
+export function useClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
   return now;
 }
 
 // Animated live preview for camera layers.
-function LiveViewport({ cam, now, onOpen }) {
+export function LiveViewport({ cam, now, onOpen }) {
   const canvasRef = useRef(null);
   const color = LAYERS[cam.layer].color;
   useEffect(() => {
@@ -47,7 +47,7 @@ function LiveViewport({ cam, now, onOpen }) {
 }
 
 // Static preview for data layers (aviation, marine, weather, space).
-function DataPreview({ cam, now, onOpen }) {
+export function DataPreview({ cam, now, onOpen }) {
   const L = LAYERS[cam.layer]; const Icon = L.icon;
   return (
     <Frame cam={cam} now={now} onOpen={onOpen}>
