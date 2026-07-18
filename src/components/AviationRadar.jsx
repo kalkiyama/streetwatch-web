@@ -43,7 +43,10 @@ export default function AviationRadar({ center }) {
         if (!r.ok) throw new Error();
         const j = await r.json(); if (!alive) return;
         const inc = (j.aircraft || []).filter((a) => a.headingDeg != null && a.groundSpeedKt != null);
-        if (inc.length) { const prev = acRef.current, merged = {}; inc.forEach((a) => { const o = prev[a.id]; merged[a.id] = { ...a, tLat: a.lat, tLon: a.lon, lat: o ? o.lat : a.lat, lon: o ? o.lon : a.lon }; }); acRef.current = merged; }
+        { const seen = Date.now(); const prev = acRef.current, merged = {};
+          Object.values(prev).forEach((o) => { if (seen - (o.seenAt || 0) < 15000) merged[o.id] = o; }); // grace: ride through missed polls
+          inc.forEach((a) => { const o = prev[a.id]; merged[a.id] = { ...a, seenAt: seen, tLat: a.lat, tLon: a.lon, lat: o ? o.lat : a.lat, lon: o ? o.lon : a.lon }; });
+          acRef.current = merged; }
         liveRef.current = true; failRef.current = 0; setStatus("live");
       } catch {
         if (!alive) return;
