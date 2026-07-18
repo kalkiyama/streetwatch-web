@@ -119,11 +119,19 @@ export default function AviationRadar({ center }) {
         {[["N",200,32],["E",372,204],["S",200,376],["W",26,204]].map(([d, x, y]) => <text key={d} x={x} y={y} fill={C.dim} fontSize="11" fontFamily="monospace" textAnchor="middle">{d}</text>)}
         {!reduce && status !== "error" && <g className="rsweep"><polygon points="200,200 200,24 258,42" fill="url(#sw)" /></g>}
         {plotted.map((a) => {
-          const col = altColor(a), isSel = a.id === sel;
+          const col = a.isDrone ? "#C084FC" : altColor(a), isSel = a.id === sel;
           return (
             <g key={a.id} transform={`translate(${a.x} ${a.y})`} onClick={() => setSel(a.id)} style={{ cursor: "pointer" }}>
               {isSel && <circle r="11" fill="none" stroke={col} strokeWidth="1" />}
-              <g transform={`rotate(${a.headingDeg || 0})`}><polygon className={isSel ? "" : "rblip"} points="0,-6 4,5 0,2.5 -4,5" fill={col} stroke="#0A0E14" strokeWidth="0.5" /></g>
+              {a.isDrone ? (
+                <g className={isSel ? "" : "rblip"}>
+                  <circle r="4.5" fill="none" stroke={col} strokeWidth="1.4" />
+                  <circle cx="-4.5" cy="-4.5" r="1.7" fill={col} /><circle cx="4.5" cy="-4.5" r="1.7" fill={col} />
+                  <circle cx="-4.5" cy="4.5" r="1.7" fill={col} /><circle cx="4.5" cy="4.5" r="1.7" fill={col} />
+                </g>
+              ) : (
+                <g transform={`rotate(${a.headingDeg || 0})`}><polygon className={isSel ? "" : "rblip"} points="0,-6 4,5 0,2.5 -4,5" fill={col} stroke="#0A0E14" strokeWidth="0.5" /></g>
+              )}
               {isSel && <text x="10" y="3" fill={col} fontSize="9" fontFamily="monospace">{a.callsign || a.id}</text>}
             </g>
           );
@@ -133,8 +141,8 @@ export default function AviationRadar({ center }) {
       <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2 font-mono"
         style={{ background: "linear-gradient(0deg, rgba(10,14,20,0.92), rgba(10,14,20,0))", fontSize: 11 }}>
         {chosen ? (
-          <span style={{ color: altColor(chosen) }}>{chosen.callsign} · {chosen.typeCode || "—"} · {chosen.onGround ? "GND" : (chosen.altFt / 1000).toFixed(0) + "k ft"} · {chosen.groundSpeedKt}kt · {Math.round(chosen.headingDeg)}°</span>
-        ) : (<span style={{ color: C.faint }}>Tap an aircraft · {plotted.length} in range</span>)}
+          <span style={{ color: chosen.isDrone ? "#C084FC" : altColor(chosen) }}>{chosen.isDrone ? "◇ UAV · " : ""}{chosen.callsign || chosen.id} · {chosen.typeCode || "—"} · {chosen.onGround ? "GND" : (chosen.altFt / 1000).toFixed(0) + "k ft"} · {chosen.groundSpeedKt}kt · {Math.round(chosen.headingDeg)}°</span>
+        ) : (<span style={{ color: C.faint }}>Tap an aircraft · {plotted.length} in range{(() => { const d = plotted.filter((a) => a.isDrone).length; return d ? ` · ${d} UAV` : ""; })()}</span>)}
         <span style={{ color: C.dim }}>{center.name.split("·").pop().trim() || center.city}</span>
       </div>
     </div>
