@@ -175,7 +175,7 @@ export default function StreetWatch() {
               })}
             </div>
             <div className="font-mono mt-3 mb-1.5" style={{ fontSize: 10, color: C.faint, letterSpacing: 1 }}>REGION</div>
-            <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            <div className="flex flex-wrap gap-1.5 pb-1">
               {continents.map((ct) => (
                 <button key={ct} onClick={() => { setContinent(ct); setCountry("All"); }}
                   className="px-2 py-1 rounded font-mono flex-shrink-0"
