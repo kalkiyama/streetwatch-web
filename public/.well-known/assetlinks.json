@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.kalkiyama.streetwatch",
+        "sha256_cert_fingerprints": ["1D:48:64:3A:40:B0:C9:7E:84:BA:0D:3D:53:D6:FD:23:F0:C1:1D:D7:50:77:C4:8F:A4:D1:B4:39:03:6C:37:2E"]
+      }
+    }]
