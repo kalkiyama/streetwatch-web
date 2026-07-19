@@ -31,6 +31,9 @@ export default function DroneSweep({ onOpen }) {
   const all = (data && data.drones) || [];
   const drones = kind === "all" ? all : all.filter((d) => d.kind === kind);
   const KIND = { uav: { c: "#C084FC", label: "UAV" }, military: { c: "#F87171", label: "MIL" } };
+  const styleOf = (d) => (d.confidence === "disputed"
+    ? { c: "#F6A821", label: "UAV?" }
+    : (KIND[d.kind] || KIND.uav));
   const ago = (t) => {
     const m = Math.round((Date.now() - t) / 60000);
     return m < 1 ? "now" : m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`;
@@ -82,9 +85,9 @@ export default function DroneSweep({ onOpen }) {
         <button key={d.id} onClick={() => onOpen(d)}
           className="w-full text-left px-3 py-2 flex items-center gap-2"
           style={{ borderTop: "1px solid rgba(192,132,252,0.18)" }}>
-          <span style={{ color: (KIND[d.kind] || KIND.uav).c, fontSize: 12, fontWeight: 700, minWidth: 74 }}>
+          <span style={{ color: styleOf(d).c, fontSize: 12, fontWeight: 700, minWidth: 74 }}>
             {d.callsign || d.id.toUpperCase()}
-            <span style={{ display: "block", fontSize: 8, opacity: 0.75 }}>{(KIND[d.kind] || KIND.uav).label}</span>
+            <span style={{ display: "block", fontSize: 8, opacity: 0.75 }}>{styleOf(d).label}</span>
           </span>
           <span className="flex-1" style={{ fontSize: 11, color: C.text, minWidth: 0 }}>
             {d.site} <span style={{ color: C.faint }}>· {d.country}</span>
@@ -99,7 +102,9 @@ export default function DroneSweep({ onOpen }) {
       ))}
       {state === "ok" && data.sweep && (
         <div className="px-3 py-1.5 font-mono" style={{ fontSize: 9, color: C.faint, borderTop: "1px solid rgba(192,132,252,0.18)" }}>
-          {data.sweep.cycles} cycles · {data.sweep.tracked24h} tracked in 24h · ADS-B broadcasters only — aircraft with transponders off are invisible to every public feed
+          {data.sweep.cycles} cycles · {data.sweep.tracked24h} tracked in 24h
+          {data.counts && data.counts.disputed > 0 && ` · ${data.counts.disputed} disputed (broadcast says unmanned, registry says manned)`}
+          {" "}· ADS-B broadcasters only — aircraft with transponders off are invisible to every public feed
         </div>
       )}
     </div>
