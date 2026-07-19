@@ -1,6 +1,6 @@
 // StreetWatch — main shell. Views live in ./components, data in catalog.json.
 import React, { useState, useEffect, useMemo } from "react";
-import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane } from "lucide-react";
+import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2 } from "lucide-react";
 // Catalog is fetched at runtime from /catalog.json (5,000+ feeds — too big to bundle).
 import { C, LAYERS, layerKeys, resolveUrl, openLive } from "./theme.js";
 import { distKm } from "./geo.js";
@@ -20,6 +20,17 @@ export default function StreetWatch() {
     fetch("/catalog.json").then((r) => { if (!r.ok) throw 0; return r.json(); })
       .then(setCatalog).catch(() => setCatalogErr(true));
   }, []);
+  const deepLinked = React.useRef(false);
+  useEffect(() => {
+    if (deepLinked.current || !CATALOG.length || typeof window === "undefined") return;
+    deepLinked.current = true;
+    const want = new URLSearchParams(window.location.search).get("feed");
+    if (want && CATALOG.some((c) => c.id === want)) {
+      setSelectedId(want);
+      const f = CATALOG.find((c) => c.id === want);
+      if (f && f.tag === "uav") setTab("drones");
+    }
+  }, [CATALOG]);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState([...layerKeys]);
   const [continent, setContinent] = useState("All");
@@ -35,6 +46,24 @@ export default function StreetWatch() {
   const [geoErr, setGeoErr] = useState(null);
 
   const toggle = (k) => setActive((a) => a.includes(k) ? a.filter((x) => x !== k) : [...a, k]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !CATALOG.length || !selectedId) return;
+    if (selectedId === "ME-AV" || selectedId === "ME-MR") return; // location-specific: not shareable
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("feed") === selectedId) return;
+    url.searchParams.set("feed", selectedId);
+    window.history.replaceState(null, "", url);
+  }, [selectedId, CATALOG]);
+
+  const [copied, setCopied] = useState(false);
+  const shareFeed = () => {
+    const url = `${window.location.origin}/?feed=${encodeURIComponent(selected.id)}`;
+    const done = () => { setCopied(true); setTimeout(() => setCopied(false), 1600); };
+    if (navigator.share) { navigator.share({ title: `StreetWatch — ${selected.name}`, url }).catch(() => {}); return; }
+    if (navigator.clipboard) { navigator.clipboard.writeText(url).then(done).catch(() => {}); return; }
+    window.prompt("Copy this link:", url);
+  };
 
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
@@ -71,7 +100,7 @@ export default function StreetWatch() {
     return CATALOG.filter((c) => {
       const hitQ = !q || [c.name, c.city, c.region, c.country, c.continent, c.id, LAYERS[c.layer].label].join(" ").toLowerCase().includes(q);
       const hitReg = (continent === "All" || c.continent === continent) && (country === "All" || c.country === country);
-      const hitTab = tab !== "drones" || c.tag === "uav";
+      const hitTab = tab === "drones" ? c.tag === "uav" : c.tag !== "uav"; // UAV feeds live only in the Drones tab
       return hitQ && hitReg && hitTab && active.includes(c.layer) && (!favOnly || favorites.includes(c.id));
     });
   }, [query, active, continent, country, favOnly, favorites, tab, CATALOG]);
@@ -327,7 +356,15 @@ export default function StreetWatch() {
                   <Star size={16} color={isFav(selected.id) ? C.amber : C.faint} fill={isFav(selected.id) ? C.amber : "none"} />
                 </button>
               </div>
-              <div style={{ fontSize: 16, fontWeight: 700, marginTop: 6 }}>{selected.name}</div>
+              <div className="flex items-start gap-2" style={{ marginTop: 6 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, flex: 1 }}>{selected.name}</div>
+                {selected.id !== "ME-AV" && selected.id !== "ME-MR" && (
+                  <button onClick={shareFeed} className="px-2 py-1 rounded font-mono flex items-center gap-1" title="Copy a link to this feed"
+                    style={{ fontSize: 10, color: copied ? C.ink : C.dim, background: copied ? LAYERS[selected.layer].color : "transparent", border: `1px solid ${C.line}`, flexShrink: 0 }}>
+                    <Share2 size={11} />{copied ? "COPIED" : "SHARE"}
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-1.5 mt-1" style={{ color: C.dim, fontSize: 13 }}>
                 <MapPin size={13} color={LAYERS[selected.layer].color} /> {selected.city}, {selected.country}
               </div>
