@@ -302,7 +302,7 @@ export default function StreetWatch() {
 
         <main className="flex-1 p-4 md:p-6 flex flex-col gap-4">
           <section ref={viewerRef} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.line}`, height: 300, flexShrink: 0, scrollMarginTop: 8 }}>
-            <WorldMap feeds={results.length > 2000 ? results.filter((c) => c.layer !== "aviation" || c.major || c.tag === "uav") : results} selectedId={selected.id} onSelect={setSelectedId} />
+            <WorldMap feeds={results.length > 2000 ? results.filter((c) => c.major || c.tag === "uav" || !["aviation", "marine"].includes(c.layer)) : results} selectedId={selected.id} onSelect={setSelectedId} />
           </section>
 
           <section className="flex flex-col md:flex-row gap-4">
