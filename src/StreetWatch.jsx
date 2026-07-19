@@ -45,21 +45,27 @@ export default function StreetWatch() {
   const firstRender = React.useRef(true);
   const [geoErr, setGeoErr] = useState(null);
 
+  const [viewRadius, setViewRadius] = useState(null);
+  const urlRadius = React.useRef(
+    typeof window !== "undefined" ? Number(new URLSearchParams(window.location.search).get("r")) || null : null
+  );
   const toggle = (k) => setActive((a) => a.includes(k) ? a.filter((x) => x !== k) : [...a, k]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !CATALOG.length || !selectedId) return;
     if (selectedId === "ME-AV" || selectedId === "ME-MR") return; // location-specific: not shareable
     const url = new URL(window.location.href);
-    if (url.searchParams.get("feed") === selectedId) return;
+    if (url.searchParams.get("feed") === selectedId && url.searchParams.get("r") === String(viewRadius || "")) return;
     url.searchParams.set("feed", selectedId);
+    if (viewRadius) url.searchParams.set("r", String(viewRadius));
     window.history.replaceState(null, "", url);
-  }, [selectedId, CATALOG]);
+  }, [selectedId, CATALOG, viewRadius]);
 
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const shareFeed = () => {
-    const url = `${window.location.origin}/?feed=${encodeURIComponent(selected.id)}`;
+    const url = `${window.location.origin}/?feed=${encodeURIComponent(selected.id)}`
+      + (viewRadius ? `&r=${viewRadius}` : "");
     setShareUrl((u) => (u === url ? "" : url)); // toggle the visible link row
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url)
@@ -342,9 +348,11 @@ export default function StreetWatch() {
           <section className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 min-w-0">
               {selected.layer === "aviation"
-                ? <AviationRadar center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }} />
+                ? <AviationRadar key={selected.id} center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
+                    initialRadius={urlRadius.current} onRadius={setViewRadius} />
                 : selected.layer === "marine"
-                ? <MarineRadar center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }} />
+                ? <MarineRadar key={selected.id} center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
+                    initialRadius={urlRadius.current} onRadius={setViewRadius} />
                 : selected.layer === "weather"
                 ? <EarthView center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }} />
                 : selected.layer === "space"

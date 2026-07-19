@@ -25,12 +25,13 @@ function seedSim(clat, clon, radiusNm, n = 14) {
 }
 
 // Embedded ADS-B radar centered on the selected airport.
-export default function AviationRadar({ center }) {
+export default function AviationRadar({ center, initialRadius, onRadius }) {
   const [status, setStatus] = useState("sim");
   const [, setTick] = useState(0);
   const [sel, setSel] = useState(null);
   const [uavInfo, setUavInfo] = useState(false);
-  const [radius, setRadius] = useState(100);
+  const [radius, setRadius] = useState([60, 120, 250].includes(initialRadius) ? initialRadius : 100);
+  useEffect(() => { if (onRadius) onRadius(radius); }, [radius, onRadius]);
   const acRef = useRef({}); const lastRef = useRef(Date.now()); const liveRef = useRef(false); const failRef = useRef(0);
 
   useEffect(() => {
