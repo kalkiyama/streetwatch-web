@@ -25,13 +25,38 @@ function seedSim(clat, clon, radiusNm, n = 14) {
 }
 
 // Embedded ADS-B radar centered on the selected airport.
-export default function AviationRadar({ center, initialRadius, onRadius }) {
+
+function bearingOf(o, c) {
+  const dy = o.lat - c.lat, dx = (o.lon - c.lng) * Math.cos(c.lat * Math.PI / 180);
+  return String(Math.round((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360).padStart(3, "0");
+}
+// Track length of a trail in nautical miles (flat-earth approx — fine at radar scale).
+function trackNm(trail, lat0) {
+  let d = 0;
+  for (let i = 1; i < trail.length; i++) {
+    const dy = (trail[i][0] - trail[i - 1][0]) * 60;
+    const dx = (trail[i][1] - trail[i - 1][1]) * 60 * Math.cos(lat0 * Math.PI / 180);
+    d += Math.hypot(dx, dy);
+  }
+  return d;
+}
+export default function AviationRadar({ center, initialRadius, onRadius, initialSel, onSelect }) {
   const [status, setStatus] = useState("sim");
   const [, setTick] = useState(0);
   const [sel, setSel] = useState(null);
   const [uavInfo, setUavInfo] = useState(false);
   const [radius, setRadius] = useState([60, 120, 250].includes(initialRadius) ? initialRadius : 100);
   useEffect(() => { if (onRadius) onRadius(radius); }, [radius, onRadius]);
+  useEffect(() => { if (onSelect) onSelect(sel); }, [sel, onSelect]);
+  const wantSel = useRef(initialSel || null);
+  useEffect(() => {                              // deep-linked aircraft may take a poll to appear
+    if (!wantSel.current) return;
+    const id = setInterval(() => {
+      if (acRef.current[wantSel.current]) { setSel(wantSel.current); wantSel.current = null; clearInterval(id); }
+    }, 1000);
+    const stop = setTimeout(() => clearInterval(id), 30000); // give up politely
+    return () => { clearInterval(id); clearTimeout(stop); };
+  }, []);
   const acRef = useRef({}); const lastRef = useRef(Date.now()); const liveRef = useRef(false); const failRef = useRef(0);
 
   useEffect(() => {
@@ -182,7 +207,14 @@ export default function AviationRadar({ center, initialRadius, onRadius }) {
       <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2 font-mono"
         style={{ background: "linear-gradient(0deg, rgba(10,14,20,0.92), rgba(10,14,20,0))", fontSize: 11 }}>
         {chosen ? (
-          <span style={{ color: chosen.isDrone ? "#C084FC" : altColor(chosen) }}>{chosen.isDrone ? "◇ UAV · " : ""}{chosen.callsign || chosen.id} · {chosen.typeCode || "—"} · {chosen.onGround ? "GND" : (chosen.altFt / 1000).toFixed(0) + "k ft"} · {chosen.groundSpeedKt}kt · {Math.round(chosen.headingDeg)}°</span>
+          <span style={{ color: chosen.isDrone ? "#C084FC" : altColor(chosen), lineHeight: 1.5 }}>
+            {chosen.isDrone ? "◇ UAV · " : ""}{chosen.callsign || chosen.id} · {chosen.typeCode || "—"} · {chosen.onGround ? "GND" : (chosen.altFt / 1000).toFixed(0) + "k ft"} · {chosen.groundSpeedKt}kt · {Math.round(chosen.headingDeg)}°
+            <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
+              {chosen.lat.toFixed(4)}, {chosen.lon.toFixed(4)} · {chosen.d.toFixed(1)}nm {bearingOf(chosen, center)}° from centre
+              {(() => { const raw = acRef.current[chosen.id]; const t = raw && raw.trail;
+                return t && t.length > 1 ? ` · path ${trackNm(t, center.lat).toFixed(1)}nm / ${Math.max(1, Math.round(t.length * 2 / 60))}min` : ""; })()}
+            </span>
+          </span>
         ) : status === "live" && plotted.length === 0 ? (
           <span style={{ color: C.faint }}>0 in range — thin ADS-B receiver coverage here · real data, sparse net</span>
         ) : (<span style={{ color: C.faint }}>Tap an aircraft · {plotted.length} in range{(() => { const d = plotted.filter((a) => a.isDrone).length; return d ? ` · ${d} UAV` : ""; })()}</span>)}
