@@ -1,8 +1,13 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "com.kalkiyama.streetwatch",
-        "sha256_cert_fingerprints": ["1D:48:64:3A:40:B0:C9:7E:84:BA:0D:3D:53:D6:FD:23:F0:C1:1D:D7:50:77:C4:8F:A4:D1:B4:39:03:6C:37:2E"]
-      }
-    }]
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.kalkiyama.streetwatch",
+      "sha256_cert_fingerprints": [
+        "68:B9:46:64:DB:10:6F:7D:9D:7B:56:D1:C3:A8:0F:D0:C4:F9:84:2C:37:44:19:45:5C:78:92:AB:3B:53:07:76",
+        "1D:48:64:3A:40:B0:C9:7E:84:BA:0D:3D:53:D6:FD:23:F0:C1:1D:D7:50:77:C4:8F:A4:D1:B4:39:03:6C:37:2E"
+      ]
+    }
+  }
+]
