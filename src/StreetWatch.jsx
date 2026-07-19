@@ -57,12 +57,17 @@ export default function StreetWatch() {
   }, [selectedId, CATALOG]);
 
   const [copied, setCopied] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
   const shareFeed = () => {
     const url = `${window.location.origin}/?feed=${encodeURIComponent(selected.id)}`;
-    const done = () => { setCopied(true); setTimeout(() => setCopied(false), 1600); };
-    if (navigator.share) { navigator.share({ title: `StreetWatch — ${selected.name}`, url }).catch(() => {}); return; }
-    if (navigator.clipboard) { navigator.clipboard.writeText(url).then(done).catch(() => {}); return; }
-    window.prompt("Copy this link:", url);
+    setShareUrl((u) => (u === url ? "" : url)); // toggle the visible link row
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url)
+        .then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); })
+        .catch(() => {});
+    }
+    const touch = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+    if (touch && navigator.share) navigator.share({ title: `StreetWatch — ${selected.name}`, url }).catch(() => {});
   };
 
   useEffect(() => {
@@ -365,6 +370,15 @@ export default function StreetWatch() {
                   </button>
                 )}
               </div>
+              {shareUrl && (
+                <div className="mt-1.5 flex items-center gap-2 rounded px-2 py-1.5" style={{ background: C.panel2, border: `1px solid ${C.line}` }}>
+                  <input readOnly value={shareUrl} onFocus={(e) => e.target.select()} onClick={(e) => e.target.select()}
+                    className="font-mono flex-1" style={{ fontSize: 11, color: C.text, background: "transparent", border: "none", outline: "none", minWidth: 0 }} />
+                  <span className="font-mono" style={{ fontSize: 9, color: copied ? LAYERS[selected.layer].color : C.faint, whiteSpace: "nowrap" }}>
+                    {copied ? "COPIED ✓" : "tap to select"}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-1.5 mt-1" style={{ color: C.dim, fontSize: 13 }}>
                 <MapPin size={13} color={LAYERS[selected.layer].color} /> {selected.city}, {selected.country}
               </div>
