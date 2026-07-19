@@ -63,7 +63,8 @@ export default function AviationRadar({ center }) {
       const now = Date.now(), dt = (now - lastRef.current) / 1000; lastRef.current = now;
       Object.values(acRef.current).forEach((a) => {
         a.tn = (a.tn || 0) + 1;
-        if (a.tn % 8 === 0) { const t = a.trail || (a.trail = []); t.push([a.lat, a.lon]); if (t.length > 45) t.shift(); }
+        // Drones loiter for hours — keep a much longer track for them than for airliners.
+        if (a.tn % 8 === 0) { const t = a.trail || (a.trail = []); t.push([a.lat, a.lon]); if (t.length > (a.isDrone ? 450 : 45)) t.shift(); }
         if (liveRef.current) {
           if (a.tLat != null) { a.lat += (a.tLat - a.lat) * 0.15; a.lon += (a.tLon - a.lon) * 0.15; }
           return;

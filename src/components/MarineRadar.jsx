@@ -58,7 +58,8 @@ export default function MarineRadar({ center }) {
       const now = Date.now(), dt = (now - lastRef.current) / 1000; lastRef.current = now;
       Object.values(acRef.current).forEach((v) => {
         v.tn = (v.tn || 0) + 1;
-        if (v.tn % 8 === 0) { const t = v.trail || (v.trail = []); t.push([v.lat, v.lon]); if (t.length > 45) t.shift(); }
+        // Ships are slow: a 90s trail is sub-pixel. Sample every 5s, keep ~25 min of track.
+        if (v.tn % 20 === 0) { const t = v.trail || (v.trail = []); t.push([v.lat, v.lon]); if (t.length > 300) t.shift(); }
         if (liveRef.current) {
           if (v.tLat != null) { v.lat += (v.tLat - v.lat) * 0.15; v.lon += (v.tLon - v.lon) * 0.15; }
           return;
