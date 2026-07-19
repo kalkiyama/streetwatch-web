@@ -10,6 +10,7 @@ import AviationRadar from "./components/AviationRadar.jsx";
 import MarineRadar from "./components/MarineRadar.jsx";
 import EarthView from "./components/EarthView.jsx";
 import SpaceView from "./components/SpaceView.jsx";
+import DroneSweep from "./components/DroneSweep.jsx";
 
 export default function StreetWatch() {
   const now = useClock();
@@ -47,6 +48,7 @@ export default function StreetWatch() {
 
   const [viewRadius, setViewRadius] = useState(null);
   const [viewSel, setViewSel] = useState(null);
+  const [pendingSel, setPendingSel] = useState(null);
   const urlRadius = React.useRef(
     typeof window !== "undefined" ? Number(new URLSearchParams(window.location.search).get("r")) || null : null
   );
@@ -67,6 +69,15 @@ export default function StreetWatch() {
     if (viewSel) url.searchParams.set("ac", viewSel); else url.searchParams.delete("ac");
     window.history.replaceState(null, "", url);
   }, [selectedId, CATALOG, viewRadius, viewSel]);
+
+  const openSighting = (d) => {
+    const feed = CATALOG.find((c) => c.tag === "uav" && c.name.endsWith(d.site))
+      || CATALOG.find((c) => c.tag === "uav" && Math.hypot(c.lat - (d.siteLat || 0), c.lng - (d.siteLon || 0)) < 0.5);
+    if (!feed) return;
+    setPendingSel(d.id);
+    setViewRadius(250);
+    setSelectedId(feed.id);
+  };
 
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
@@ -296,6 +307,7 @@ export default function StreetWatch() {
           </div>
 
           <div style={{ maxHeight: "46vh", overflowY: "auto" }} className="lg:max-h-none">
+            {tab === "drones" && <DroneSweep onOpen={openSighting} />}
             {tab === "drones" && (
               <div className="mx-4 mt-2 mb-1 rounded px-3 py-2" style={{ background: "rgba(192,132,252,0.10)", border: "1px solid rgba(192,132,252,0.35)", fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
                 <b style={{ color: "#C084FC" }}>◇ UAV WATCH</b> — radars over airspaces where category-B6 drones actually fly.
@@ -356,9 +368,10 @@ export default function StreetWatch() {
           <section className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 min-w-0">
               {selected.layer === "aviation"
-                ? <AviationRadar key={selected.id} center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
-                    initialRadius={urlRadius.current} onRadius={setViewRadius}
-                    initialSel={urlSel.current} onSelect={setViewSel} />
+                ? <AviationRadar key={`${selected.id}:${pendingSel || ""}`}
+                    center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
+                    initialRadius={pendingSel ? 250 : urlRadius.current} onRadius={setViewRadius}
+                    initialSel={pendingSel || urlSel.current} onSelect={setViewSel} />
                 : selected.layer === "marine"
                 ? <MarineRadar key={selected.id} center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
                     initialRadius={urlRadius.current} onRadius={setViewRadius}
