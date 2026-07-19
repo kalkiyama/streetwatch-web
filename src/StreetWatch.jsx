@@ -23,9 +23,19 @@ export default function StreetWatch() {
   const [favOnly, setFavOnly] = useState(false);
   const [userLoc, setUserLoc] = useState(null);
   const [nearMe, setNearMe] = useState(false);
+  const [openGroups, setOpenGroups] = useState({});
+  const viewerRef = React.useRef(null);
+  const firstRender = React.useRef(true);
   const [geoErr, setGeoErr] = useState(null);
 
   const toggle = (k) => setActive((a) => a.includes(k) ? a.filter((x) => x !== k) : [...a, k]);
+
+  useEffect(() => {
+    if (firstRender.current) { firstRender.current = false; return; }
+    if (typeof window !== "undefined" && window.innerWidth < 1024 && viewerRef.current) {
+      viewerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedId]);
 
   useEffect(() => {
     try { const v = localStorage.getItem("favorites"); if (v) setFavorites(JSON.parse(v)); } catch {}
@@ -231,19 +241,25 @@ export default function StreetWatch() {
             )}
             {nearList
               ? nearList.map((c) => renderRow(c))
-              : grouped.map(([continent, items]) => (
-                <div key={continent}>
-                  <div className="px-4 py-1.5 font-mono flex items-center gap-1.5" style={{ fontSize: 10, color: C.faint, letterSpacing: 1, background: C.ink, borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}` }}>
-                    <Globe size={11} />{continent.toUpperCase()} · {items.length}
+              : grouped.map(([cont, items]) => {
+                const open = !!query.trim() || favOnly || !!openGroups[cont];
+                return (
+                  <div key={cont}>
+                    <button onClick={() => setOpenGroups((g) => ({ ...g, [cont]: !g[cont] }))}
+                      className="w-full px-4 py-2.5 font-mono flex items-center justify-between"
+                      style={{ fontSize: 10, color: C.faint, letterSpacing: 1, background: C.ink, borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}` }}>
+                      <span className="flex items-center gap-1.5"><Globe size={11} />{cont.toUpperCase()} · {items.length}</span>
+                      <span style={{ color: C.dim, fontSize: 12, transform: open ? "rotate(90deg)" : "none", transition: "transform 120ms" }}>›</span>
+                    </button>
+                    {open && items.map((c) => renderRow(c))}
                   </div>
-                  {items.map((c) => renderRow(c))}
-                </div>
-              ))}
+                );
+              })}
           </div>
         </aside>
 
         <main className="flex-1 p-4 md:p-6 flex flex-col gap-4">
-          <section className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.line}`, height: 300, flexShrink: 0 }}>
+          <section ref={viewerRef} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.line}`, height: 300, flexShrink: 0, scrollMarginTop: 8 }}>
             <WorldMap feeds={results} selectedId={selected.id} onSelect={setSelectedId} />
           </section>
 
