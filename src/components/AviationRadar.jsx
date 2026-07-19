@@ -46,7 +46,7 @@ export default function AviationRadar({ center }) {
         const inc = (j.aircraft || []).filter((a) => a.headingDeg != null && a.groundSpeedKt != null);
         { const seen = Date.now(); const prev = acRef.current, merged = {};
           Object.values(prev).forEach((o) => { if (seen - (o.seenAt || 0) < 15000) merged[o.id] = o; }); // grace: ride through missed polls
-          inc.forEach((a) => { const o = prev[a.id]; merged[a.id] = { ...a, seenAt: seen, tLat: a.lat, tLon: a.lon, lat: o ? o.lat : a.lat, lon: o ? o.lon : a.lon }; });
+          inc.forEach((a) => { const o = prev[a.id]; merged[a.id] = { ...a, seenAt: seen, tLat: a.lat, tLon: a.lon, lat: o ? o.lat : a.lat, lon: o ? o.lon : a.lon, trail: (o && o.trail) || [] }; });
           acRef.current = merged; }
         liveRef.current = true; failRef.current = 0; setStatus("live");
       } catch {
@@ -62,6 +62,8 @@ export default function AviationRadar({ center }) {
     const tickId = setInterval(() => {
       const now = Date.now(), dt = (now - lastRef.current) / 1000; lastRef.current = now;
       Object.values(acRef.current).forEach((a) => {
+        a.tn = (a.tn || 0) + 1;
+        if (a.tn % 8 === 0) { const t = a.trail || (a.trail = []); t.push([a.lat, a.lon]); if (t.length > 45) t.shift(); }
         if (liveRef.current) {
           if (a.tLat != null) { a.lat += (a.tLat - a.lat) * 0.15; a.lon += (a.tLon - a.lon) * 0.15; }
           return;
@@ -87,7 +89,12 @@ export default function AviationRadar({ center }) {
   const plotted = Object.values(acRef.current).map((a) => {
     const dx = (a.lon - center.lng) * Math.cos(center.lat * RAD) * 60, dy = (a.lat - center.lat) * 60;
     const d = Math.hypot(dx, dy);
-    return { ...a, d, x: cx + (dx / radius) * R, y: cy - (dy / radius) * R };
+    const x = cx + (dx / radius) * R, y = cy - (dy / radius) * R;
+    const trail = (a.trail || []).map(([la, lo]) => [
+      cx + (((lo - center.lng) * Math.cos(center.lat * RAD) * 60) / radius) * R,
+      cy - (((la - center.lat) * 60) / radius) * R,
+    ]);
+    return { ...a, d, x, y, trail };
   }).filter((a) => a.d <= radius).sort((a, b) => a.d - b.d);
   const chosen = plotted.find((a) => a.id === sel);
   const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -150,6 +157,10 @@ export default function AviationRadar({ center }) {
           const col = a.isDrone ? "#C084FC" : altColor(a), isSel = a.id === sel;
           return (
             <g key={a.id} transform={`translate(${a.x} ${a.y})`} onClick={() => setSel(a.id)} style={{ cursor: "pointer" }}>
+              {(isSel || a.isDrone) && a.trail.length > 1 && (
+                <polyline points={a.trail.map((p) => `${p[0] - a.x},${p[1] - a.y}`).join(" ")}
+                  fill="none" stroke={col} strokeWidth="1.2" strokeOpacity="0.45" strokeLinejoin="round" strokeLinecap="round" />
+              )}
               {isSel && <circle r="11" fill="none" stroke={col} strokeWidth="1" />}
               {a.isDrone ? (
                 <g className={isSel ? "" : "rblip"}>

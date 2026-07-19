@@ -42,7 +42,7 @@ export default function MarineRadar({ center }) {
         const inc = (j.vessels || []).filter((v) => typeof v.lat === "number");
         { const seen = Date.now(); const prev = acRef.current, merged = {};
           Object.values(prev).forEach((o) => { if (seen - (o.seenAt || 0) < 45000) merged[o.id] = o; }); // grace: AIS reports are sparse
-          inc.forEach((v) => { const o = prev[v.id]; merged[v.id] = { ...v, seenAt: seen, tLat: v.lat, tLon: v.lon, lat: o ? o.lat : v.lat, lon: o ? o.lon : v.lon }; });
+          inc.forEach((v) => { const o = prev[v.id]; merged[v.id] = { ...v, seenAt: seen, tLat: v.lat, tLon: v.lon, lat: o ? o.lat : v.lat, lon: o ? o.lon : v.lon, trail: (o && o.trail) || [] }; });
           acRef.current = merged; }
         liveRef.current = true; failRef.current = 0; setStatus("live");
       } catch {
@@ -57,6 +57,8 @@ export default function MarineRadar({ center }) {
     const tickId = setInterval(() => {
       const now = Date.now(), dt = (now - lastRef.current) / 1000; lastRef.current = now;
       Object.values(acRef.current).forEach((v) => {
+        v.tn = (v.tn || 0) + 1;
+        if (v.tn % 8 === 0) { const t = v.trail || (v.trail = []); t.push([v.lat, v.lon]); if (t.length > 45) t.shift(); }
         if (liveRef.current) {
           if (v.tLat != null) { v.lat += (v.tLat - v.lat) * 0.15; v.lon += (v.tLon - v.lon) * 0.15; }
           return;
@@ -83,7 +85,12 @@ export default function MarineRadar({ center }) {
   const plotted = Object.values(acRef.current).map((v) => {
     const dx = (v.lon - center.lng) * Math.cos(center.lat * RAD) * 60, dy = (v.lat - center.lat) * 60;
     const d = Math.hypot(dx, dy);
-    return { ...v, d, x: cx + (dx / radius) * R, y: cy - (dy / radius) * R };
+    const x = cx + (dx / radius) * R, y = cy - (dy / radius) * R;
+    const trail = (v.trail || []).map(([la, lo]) => [
+      cx + (((lo - center.lng) * Math.cos(center.lat * RAD) * 60) / radius) * R,
+      cy - (((la - center.lat) * 60) / radius) * R,
+    ]);
+    return { ...v, d, x, y, trail };
   }).filter((v) => v.d <= radius).sort((a, b) => a.d - b.d);
   const chosen = plotted.find((v) => v.id === sel);
   const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -120,6 +127,10 @@ export default function MarineRadar({ center }) {
           const dir = (v.headingDeg != null ? v.headingDeg : v.cogDeg) || 0;
           return (
             <g key={v.id} transform={`translate(${v.x} ${v.y})`} onClick={() => setSel(v.id)} style={{ cursor: "pointer" }}>
+              {isSel && v.trail.length > 1 && (
+                <polyline points={v.trail.map((p) => `${p[0] - v.x},${p[1] - v.y}`).join(" ")}
+                  fill="none" stroke={col} strokeWidth="1.2" strokeOpacity="0.45" strokeLinejoin="round" strokeLinecap="round" />
+              )}
               {isSel && <circle r="11" fill="none" stroke={col} strokeWidth="1" />}
               {moving
                 ? <g transform={`rotate(${dir})`}><polygon className={isSel ? "" : "rblip"} points="0,-7 3,-1 2.5,6 -2.5,6 -3,-1" fill={col} stroke="#08130F" strokeWidth="0.5" /></g>
