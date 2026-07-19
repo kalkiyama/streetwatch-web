@@ -181,7 +181,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
         {[["N",200,32],["E",372,204],["S",200,376],["W",26,204]].map(([d, x, y]) => <text key={d} x={x} y={y} fill={C.dim} fontSize="11" fontFamily="monospace" textAnchor="middle">{d}</text>)}
         {!reduce && status !== "error" && <g className="rsweep"><polygon points="200,200 200,24 258,42" fill="url(#sw)" /></g>}
         {plotted.map((a) => {
-          const col = a.isDrone ? "#C084FC" : altColor(a), isSel = a.id === sel;
+          const col = a.isDrone ? "#C084FC" : a.military ? "#F87171" : altColor(a), isSel = a.id === sel;
           return (
             <g key={a.id} transform={`translate(${a.x} ${a.y})`} onClick={() => setSel(a.id)} style={{ cursor: "pointer" }}>
               {(isSel || a.isDrone) && a.trail.length > 1 && (
