@@ -169,14 +169,20 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
         <line x1="200" y1="22" x2="200" y2="378" stroke={C.line} /><line x1="22" y1="200" x2="378" y2="200" stroke={C.line} />
         {[["N", 200, 32], ["E", 372, 204], ["S", 200, 376], ["W", 26, 204]].map(([d, x, y]) => <text key={d} x={x} y={y} fill={C.dim} fontSize="11" fontFamily="monospace" textAnchor="middle">{d}</text>)}
         {!reduce && status !== "error" && <g className="rsweep"><polygon points="200,200 200,24 258,42" fill="url(#swm)" /></g>}
-        {plotted.map((v) => {
+        {plotted.map((v, idx) => {
           const col = shipColor(v), isSel = v.id === sel, moving = v.sogKt != null && v.sogKt >= 0.5;
+          // Ships are slow, so trails are always on — otherwise nobody would ever see them.
+          // Unselected trails are decimated and capped to the nearest 80 contacts so a busy
+          // port doesn't put tens of thousands of SVG points on screen.
+          const showTrail = v.trail.length > 1 && (isSel || (moving && idx < 80));
+          const pts = isSel ? v.trail : v.trail.filter((_, i) => i % 4 === 0);
           const dir = (v.headingDeg != null ? v.headingDeg : v.cogDeg) || 0;
           return (
             <g key={v.id} transform={`translate(${v.x} ${v.y})`} onClick={() => setSel(v.id)} style={{ cursor: "pointer" }}>
-              {isSel && v.trail.length > 1 && (
-                <polyline points={v.trail.map((p) => `${p[0] - v.x},${p[1] - v.y}`).join(" ")}
-                  fill="none" stroke={col} strokeWidth="1.2" strokeOpacity="0.45" strokeLinejoin="round" strokeLinecap="round" />
+              {showTrail && (
+                <polyline points={pts.map((p) => `${p[0] - v.x},${p[1] - v.y}`).join(" ")}
+                  fill="none" stroke={col} strokeWidth={isSel ? 1.4 : 1}
+                  strokeOpacity={isSel ? 0.55 : 0.28} strokeLinejoin="round" strokeLinecap="round" />
               )}
               {isSel && <circle r="11" fill="none" stroke={col} strokeWidth="1" />}
               {moving
