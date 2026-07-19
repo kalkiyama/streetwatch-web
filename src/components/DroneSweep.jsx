@@ -54,6 +54,12 @@ export default function DroneSweep({ onOpen }) {
         </span>
       </div>
 
+      {state === "ok" && data.sweep && data.sweep.cycles === 0 && (
+        <div className="px-3 pb-1.5" style={{ fontSize: 10, color: C.dim }}>
+          First sweep in progress — {data.sweep.visited}/{data.sweep.sites} airspaces checked.
+          Counts keep rising until the full pass completes.
+        </div>
+      )}
       {state === "ok" && (
         <div className="px-3 pb-2 flex items-center gap-1 font-mono">
           {[["all", "ALL", "#C084FC"], ["uav", `UAV ${(data.counts && data.counts.uav) || 0}`, "#C084FC"], ["military", `MIL ${(data.counts && data.counts.military) || 0}`, "#F87171"]].map(([k, label, col]) => (
