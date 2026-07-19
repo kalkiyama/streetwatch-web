@@ -130,21 +130,22 @@ export default function DroneSweep({ onOpen }) {
               </button>
             ))}
           </span>
-          {mode === "live" && [60, 360, 1440].map((m) => (
-            <button key={m} onClick={() => setMins(m)}
-              style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, border: "1px solid rgba(192,132,252,0.4)",
-                background: mins === m ? "#C084FC" : "transparent", color: mins === m ? "#0A0E14" : "#C084FC" }}>
-              {m === 1440 ? "24h" : m === 360 ? "6h" : "1h"}
-            </button>
-          ))}
-          {mode === "archive" && [1, 7, 30, 90].map((d) => (
-            <button key={d} onClick={() => setDays(d)}
-              style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, border: "1px solid rgba(192,132,252,0.4)",
-                background: days === d ? "#C084FC" : "transparent", color: days === d ? "#0A0E14" : "#C084FC" }}>
-              {d}d
-            </button>
-          ))}
         </span>
+      </div>
+
+      {/* time-window buttons on their own line so nothing runs off a narrow screen */}
+      <div className="px-3 pb-2 flex items-center gap-1 font-mono" style={{ flexWrap: "wrap" }}>
+        <span style={{ fontSize: 9, color: C.faint, marginRight: 2 }}>{mode === "live" ? "SEEN IN" : "LOOK BACK"}</span>
+        {(mode === "live" ? [[60, "1h"], [360, "6h"], [1440, "24h"]] : [[1, "1 day"], [7, "7 days"], [30, "30 days"], [90, "90 days"]]).map(([v, label]) => {
+          const active = mode === "live" ? mins === v : days === v;
+          return (
+            <button key={v} onClick={() => (mode === "live" ? setMins(v) : setDays(v))}
+              style={{ fontSize: 9, padding: "2px 7px", borderRadius: 3, border: "1px solid rgba(192,132,252,0.4)",
+                background: active ? "#C084FC" : "transparent", color: active ? "#0A0E14" : "#C084FC" }}>
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {mode === "live" && state === "ok" && data.sweep && data.sweep.cycles === 0 && (
