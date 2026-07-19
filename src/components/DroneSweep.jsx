@@ -118,7 +118,7 @@ export default function DroneSweep({ onOpen }) {
   return (
     <div className="mx-4 mt-2 mb-1 rounded" style={{ background: "rgba(192,132,252,0.08)", border: "1px solid rgba(192,132,252,0.35)" }}>
       <div className="px-3 py-2 flex items-center justify-between font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
-        <span className="flex items-center gap-1.5"><Radio size={11} /> MILITARY &amp; UAV SWEEP · {drones.length}</span>
+        <span className="flex items-center gap-1.5"><Radio size={11} /> GLOBAL SWEEP</span>
         <span className="flex items-center gap-1">
           <span className="flex rounded overflow-hidden" style={{ border: "1px solid rgba(192,132,252,0.45)" }}>
             {[["live", "LIVE"], ["archive", "ARCHIVE"]].map(([m, label]) => (
@@ -130,6 +130,15 @@ export default function DroneSweep({ onOpen }) {
               </button>
             ))}
           </span>
+        </span>
+      </div>
+
+      <div className="px-3 pb-1.5" style={{ fontSize: 12, color: C.text, fontWeight: 600 }}>
+        Military &amp; UAV aircraft worldwide
+        <span style={{ display: "block", fontSize: 10, color: C.faint, fontWeight: 400, marginTop: 1 }}>
+          {mode === "live"
+            ? `${drones.length} detected now · scanning 28 watch airspaces`
+            : `${(hist && hist.count) || 0} recorded · archive keeps 90 days`}
         </span>
       </div>
 
