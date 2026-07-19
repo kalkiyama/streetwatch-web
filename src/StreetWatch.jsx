@@ -86,6 +86,8 @@ export default function StreetWatch() {
           <div style={{ fontSize: 13, color: C.text, fontWeight: sel ? 600 : 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
           <div className="font-mono" style={{ fontSize: 10, color: C.faint }}>{c.city} · {c.country}{c.distKm != null ? ` · ${Math.round(c.distKm).toLocaleString()} km` : ""}</div>
         </div>
+        {["traffic", "webcam", "wildlife"].includes(c.layer) &&
+          <ExternalLink size={11} color={C.faint} style={{ flexShrink: 0 }} aria-label="opens external site" />}
         <span role="button" tabIndex={0} aria-label="favorite"
           onClick={(e) => { e.stopPropagation(); toggleFav(c.id); }}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); toggleFav(c.id); } }}
