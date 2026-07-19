@@ -1,7 +1,7 @@
 // StreetWatch — main shell. Views live in ./components, data in catalog.json.
 import React, { useState, useEffect, useMemo } from "react";
 import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane } from "lucide-react";
-import CATALOG from "./catalog.json";
+// Catalog is fetched at runtime from /catalog.json (5,000+ feeds — too big to bundle).
 import { C, LAYERS, layerKeys, resolveUrl, openLive } from "./theme.js";
 import { distKm } from "./geo.js";
 import WorldMap from "./components/WorldMap.jsx";
@@ -14,6 +14,12 @@ import SpaceView from "./components/SpaceView.jsx";
 export default function StreetWatch() {
   const now = useClock();
   const [tab, setTab] = useState("world");
+  const [CATALOG, setCatalog] = useState([]);
+  const [catalogErr, setCatalogErr] = useState(false);
+  useEffect(() => {
+    fetch("/catalog.json").then((r) => { if (!r.ok) throw 0; return r.json(); })
+      .then(setCatalog).catch(() => setCatalogErr(true));
+  }, []);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState([...layerKeys]);
   const [continent, setContinent] = useState("All");
@@ -124,6 +130,19 @@ export default function StreetWatch() {
   };
 
   const Preview = LAYERS[selected.layer].camera ? LiveViewport : DataPreview;
+
+  if (!CATALOG.length) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: C.ink, color: C.text }}>
+        <div className="text-center">
+          <div className="font-mono" style={{ fontSize: 12, color: C.amber, letterSpacing: 2 }}>STREETWATCH</div>
+          <div className="mt-2 font-mono" style={{ fontSize: 11, color: C.dim }}>
+            {catalogErr ? "Couldn't load the feed catalog — check connection and reload." : "loading 5,000+ live feeds…"}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: C.ink, color: C.text, minHeight: "100%", fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif" }}>
@@ -269,7 +288,12 @@ export default function StreetWatch() {
                       <span className="flex items-center gap-1.5"><Globe size={11} />{cont.toUpperCase()} · {items.length}</span>
                       <span style={{ color: C.dim, fontSize: 12, transform: open ? "rotate(90deg)" : "none", transition: "transform 120ms" }}>›</span>
                     </button>
-                    {open && items.map((c) => renderRow(c))}
+                    {open && items.slice(0, 300).map((c) => renderRow(c))}
+                    {open && items.length > 300 && (
+                      <div className="px-4 py-2.5 font-mono" style={{ fontSize: 10, color: C.faint }}>
+                        + {items.length - 300} more — narrow with search or the country filter
+                      </div>
+                    )}
                   </div>
                 );
               })}
