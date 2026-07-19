@@ -32,6 +32,27 @@ function trackNm(trail, lat0) {
   }
   return d;
 }
+// AIS ship-type and navigational-status codes → plain words.
+function shipTypeLabel(t) {
+  if (t == null) return null;
+  if (t === 30) return "Fishing"; if (t === 31 || t === 32) return "Towing";
+  if (t === 33) return "Dredging"; if (t === 34) return "Diving";
+  if (t === 35) return "Military ops"; if (t === 36) return "Sailing"; if (t === 37) return "Pleasure craft";
+  if (t === 50) return "Pilot"; if (t === 51) return "Search & rescue"; if (t === 52) return "Tug";
+  if (t === 53) return "Port tender"; if (t === 55) return "Law enforcement";
+  if (t >= 40 && t < 50) return "High-speed craft";
+  if (t >= 60 && t < 70) return "Passenger";
+  if (t >= 70 && t < 80) return "Cargo";
+  if (t >= 80 && t < 90) return "Tanker";
+  if (t >= 90) return "Other";
+  return null;
+}
+function navStatusLabel(s) {
+  const m = { 0: "under way (engine)", 1: "at anchor", 2: "not under command", 3: "restricted manoeuvrability",
+    4: "constrained by draught", 5: "moored", 6: "aground", 7: "fishing", 8: "under way (sailing)", 11: "towing astern",
+    12: "pushing ahead", 14: "AIS-SART" };
+  return m[s] || null;
+}
 function bearingOf(o, c) {
   const dy = o.lat - c.lat, dx = (o.lon - c.lng) * Math.cos(c.lat * Math.PI / 180);
   return String(Math.round((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360).padStart(3, "0");
@@ -172,6 +193,22 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
         {chosen ? (
           <span style={{ color: shipColor(chosen), lineHeight: 1.5 }}>
             {chosen.name || chosen.id} · {chosen.sogKt != null ? chosen.sogKt.toFixed(1) + "kt" : "—"} · {chosen.cogDeg != null ? Math.round(chosen.cogDeg) + "°" : "moored"}
+            {(shipTypeLabel(chosen.typeCode) || chosen.destination || chosen.lengthM) && (
+              <span style={{ display: "block", color: C.dim, fontSize: 10 }}>
+                {shipTypeLabel(chosen.typeCode) || "—"}
+                {navStatusLabel(chosen.navStatus) ? ` · ${navStatusLabel(chosen.navStatus)}` : ""}
+                {chosen.destination ? ` · → ${chosen.destination}` : ""}
+                {chosen.eta ? ` (ETA ${chosen.eta})` : ""}
+              </span>
+            )}
+            {(chosen.lengthM || chosen.draughtM || chosen.imo) && (
+              <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
+                {chosen.lengthM ? `${chosen.lengthM}m × ${chosen.beamM || "?"}m` : ""}
+                {chosen.draughtM ? ` · draught ${chosen.draughtM.toFixed(1)}m` : ""}
+                {chosen.imo ? ` · IMO ${chosen.imo}` : ""}
+                {chosen.callSign ? ` · ${chosen.callSign}` : ""}
+              </span>
+            )}
             <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
               MMSI {chosen.id} · {chosen.lat.toFixed(4)}, {chosen.lon.toFixed(4)} · {chosen.d.toFixed(1)}nm {bearingOf(chosen, center)}° from centre
               {(() => { const raw = acRef.current[chosen.id]; const t = raw && raw.trail;

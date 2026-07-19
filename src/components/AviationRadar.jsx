@@ -209,7 +209,19 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
         {chosen ? (
           <span style={{ color: chosen.isDrone ? "#C084FC" : altColor(chosen), lineHeight: 1.5 }}>
             {chosen.isDrone ? "◇ UAV · " : ""}{chosen.callsign || chosen.id} · {chosen.typeCode || "—"} · {chosen.onGround ? "GND" : (chosen.altFt / 1000).toFixed(0) + "k ft"} · {chosen.groundSpeedKt}kt · {Math.round(chosen.headingDeg)}°
+            {(chosen.desc || chosen.registration || chosen.operator || chosen.military) && (
+              <span style={{ display: "block", color: C.dim, fontSize: 10 }}>
+                {chosen.military && <b style={{ color: "#F87171" }}>MIL · </b>}
+                {chosen.desc || chosen.typeCode}
+                {chosen.registration ? ` · ${chosen.registration}` : ""}
+                {chosen.year ? ` · ${chosen.year}` : ""}
+                {chosen.operator ? ` · ${chosen.operator}` : ""}
+              </span>
+            )}
             <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
+              {chosen.verticalRateFpm ? `${chosen.verticalRateFpm > 0 ? "▲" : "▼"} ${Math.abs(chosen.verticalRateFpm)}fpm · ` : ""}
+              {chosen.squawk ? `SQ ${chosen.squawk}${chosen.squawk === "7700" ? " EMERGENCY" : chosen.squawk === "7600" ? " NO-RADIO" : chosen.squawk === "7500" ? " HIJACK" : ""} · ` : ""}
+              {chosen.category ? `${chosen.category} · ` : ""}
               {chosen.lat.toFixed(4)}, {chosen.lon.toFixed(4)} · {chosen.d.toFixed(1)}nm {bearingOf(chosen, center)}° from centre
               {(() => { const raw = acRef.current[chosen.id]; const t = raw && raw.trail;
                 return t && t.length > 1 ? ` · path ${trackNm(t, center.lat).toFixed(1)}nm / ${Math.max(1, Math.round(t.length * 2 / 60))}min` : ""; })()}
