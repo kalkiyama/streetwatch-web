@@ -51,11 +51,17 @@ export function DataPreview({ cam, now, onOpen }) {
   const L = LAYERS[cam.layer]; const Icon = L.icon;
   return (
     <Frame cam={cam} now={now} onOpen={onOpen}>
-      <div className="w-full h-full flex flex-col items-center justify-center gap-3" style={{ background:
+      <button onClick={onOpen} className="w-full h-full flex flex-col items-center justify-center gap-3" style={{ cursor: "pointer", background:
         `radial-gradient(600px 300px at 50% 30%, ${L.color}14, transparent), #0A0D12` }}>
         <Icon size={54} color={L.color} strokeWidth={1.4} />
-        <div className="font-mono" style={{ fontSize: 12, color: C.dim, letterSpacing: 1 }}>{cam.src.toUpperCase()}</div>
-      </div>
+        <span className="flex items-center gap-2 px-4 py-2 rounded-full font-mono"
+          style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1, color: "#0A0D12", background: L.color }}>
+          <ExternalLink size={15} /> WATCH LIVE
+        </span>
+        <span className="font-mono" style={{ fontSize: 11, color: C.dim, letterSpacing: 0.5 }}>
+          Opens {cam.src} in your browser
+        </span>
+      </button>
     </Frame>
   );
 }
