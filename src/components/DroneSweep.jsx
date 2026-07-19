@@ -5,6 +5,56 @@ import { BACKEND_URL } from "../config.js";
 
 // Planet-wide view of ADS-B category B6 (unmanned) contacts, aggregated
 // server-side so every user shares one sweep of the watched airspaces.
+
+// The recorded path for one archived contact, drawn inline under its row.
+function PathView({ track, onClose }) {
+  return (
+        <div className="px-3 py-2.5" style={{ borderTop: "1px solid rgba(192,132,252,0.35)", background: "rgba(10,14,20,0.6)" }}>
+          <div className="flex items-center justify-between font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
+            <span>PATH · {track.contact.callsign || track.contact.icao.toUpperCase()}</span>
+            <button onClick={onClose} aria-label="close" style={{ color: "#C084FC" }}><X size={13} /></button>
+          </div>
+          {!track.points && <div className="mt-1.5" style={{ fontSize: 11, color: C.dim }}>loading path…</div>}
+          {track.points && track.points.length === 0 && (
+            <div className="mt-1.5" style={{ fontSize: 11, color: C.dim }}>No stored positions for this contact.</div>
+          )}
+          {track.points && track.points.length > 0 && (() => {
+            const pts = track.points.map((p) => ({ lat: p.lat, lon: p.lon, ts: +new Date(p.ts) }));
+            const lats = pts.map((p) => p.lat), lons = pts.map((p) => p.lon);
+            const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+            const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+            const spanLat = Math.max(maxLat - minLat, 0.02), spanLon = Math.max(maxLon - minLon, 0.02);
+            const W = 300, H = 120, pad = 8;
+            const xy = (p) => [
+              pad + ((p.lon - minLon) / spanLon) * (W - pad * 2),
+              H - pad - ((p.lat - minLat) / spanLat) * (H - pad * 2),
+            ];
+            const d = pts.map(xy).map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+            const [ex, ey] = xy(pts[pts.length - 1]);
+            const km = pts.slice(1).reduce((acc, p, i) => {
+              const q = pts[i]; const dy = (p.lat - q.lat) * 111;
+              const dx = (p.lon - q.lon) * 111 * Math.cos((p.lat * Math.PI) / 180);
+              return acc + Math.hypot(dx, dy);
+            }, 0);
+            return (
+              <>
+                <svg viewBox={`0 0 ${W} ${H}`} className="w-full mt-1.5" style={{ display: "block", background: "#0A0D12", borderRadius: 4 }}>
+                  <polyline points={d} fill="none" stroke="#C084FC" strokeWidth="1.6" strokeOpacity="0.85" strokeLinejoin="round" />
+                  <circle cx={ex} cy={ey} r="3" fill="#C084FC" />
+                </svg>
+                <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.6 }}>
+                  {pts.length} recorded positions · {km.toFixed(0)}km of track
+                  <span style={{ display: "block" }}>
+                    {new Date(pts[0].ts).toLocaleString()} → {new Date(pts[pts.length - 1].ts).toLocaleString()}
+                  </span>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+  );
+}
+
 export default function DroneSweep({ onOpen }) {
   const [data, setData] = useState(null);
   const [state, setState] = useState("loading"); // loading | ok | error
@@ -70,12 +120,16 @@ export default function DroneSweep({ onOpen }) {
       <div className="px-3 py-2 flex items-center justify-between font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
         <span className="flex items-center gap-1.5"><Radio size={11} /> MILITARY &amp; UAV SWEEP · {drones.length}</span>
         <span className="flex items-center gap-1">
-          <button onClick={() => setMode(mode === "live" ? "archive" : "live")}
-            title="Switch between the live sweep and the 90-day archive"
-            style={{ fontSize: 9, padding: "1px 6px", borderRadius: 3, border: "1px solid rgba(192,132,252,0.4)",
-              background: mode === "archive" ? "#C084FC" : "transparent", color: mode === "archive" ? "#0A0E14" : "#C084FC" }}>
-            {mode === "archive" ? "ARCHIVE" : "LIVE"}
-          </button>
+          <span className="flex rounded overflow-hidden" style={{ border: "1px solid rgba(192,132,252,0.45)" }}>
+            {[["live", "LIVE"], ["archive", "ARCHIVE"]].map(([m, label]) => (
+              <button key={m} onClick={() => { setMode(m); setTrack(null); }}
+                title={m === "live" ? "Contacts detected right now" : "Everything recorded over the last 90 days"}
+                style={{ fontSize: 9, padding: "2px 7px", border: "none",
+                  background: mode === m ? "#C084FC" : "transparent", color: mode === m ? "#0A0E14" : "#C084FC" }}>
+                {label}
+              </button>
+            ))}
+          </span>
           {mode === "live" && [60, 360, 1440].map((m) => (
             <button key={m} onClick={() => setMins(m)}
               style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, border: "1px solid rgba(192,132,252,0.4)",
@@ -112,6 +166,9 @@ export default function DroneSweep({ onOpen }) {
       )}
       {mode === "archive" && (
         <>
+          <div className="px-3 pb-2" style={{ fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
+            Recorded sightings from the last {days} day{days > 1 ? "s" : ""} — <b style={{ color: C.text }}>tap any contact to replay its flight path.</b>
+          </div>
           {histState === "loading" && <div className="px-3 pb-2 font-mono" style={{ fontSize: 11, color: C.dim }}>reading the archive…</div>}
           {histState === "off" && <div className="px-3 pb-2" style={{ fontSize: 11, color: C.dim }}>No archive configured on this instance.</div>}
           {histState === "error" && <div className="px-3 pb-2" style={{ fontSize: 11, color: C.dim }}>Archive unavailable right now.</div>}
@@ -121,11 +178,13 @@ export default function DroneSweep({ onOpen }) {
             </div>
           )}
           {histState === "ok" && hist.contacts.map((c) => {
+            const isOpen = track && track.contact.icao === c.icao;
             const dur = Math.max(1, Math.round((new Date(c.last_seen) - new Date(c.first_seen)) / 60000));
             const st = c.confidence === "disputed" ? { c: "#F6A821", label: "UAV?" } : (KIND[c.kind] || KIND.uav);
             return (
-              <button key={c.icao + c.kind} onClick={() => openTrack(c)} className="w-full text-left px-3 py-2 flex items-center gap-2"
-                style={{ borderTop: "1px solid rgba(192,132,252,0.18)" }}>
+              <div key={c.icao + c.kind}>
+              <button onClick={() => (isOpen ? setTrack(null) : openTrack(c))} className="w-full text-left px-3 py-2 flex items-center gap-2"
+                style={{ borderTop: "1px solid rgba(192,132,252,0.18)", background: isOpen ? "rgba(192,132,252,0.10)" : "transparent" }}>
                 <span style={{ color: st.c, fontSize: 12, fontWeight: 700, minWidth: 74 }}>
                   {c.callsign || c.icao.toUpperCase()}
                   <span style={{ display: "block", fontSize: 8, opacity: 0.75 }}>{st.label}</span>
@@ -137,8 +196,12 @@ export default function DroneSweep({ onOpen }) {
                     {" · "}{new Date(c.last_seen).toLocaleDateString()}
                   </span>
                 </span>
-                <History size={12} color={C.faint} />
+                <span className="font-mono flex items-center gap-1" style={{ fontSize: 9, color: isOpen ? "#C084FC" : C.faint, whiteSpace: "nowrap" }}>
+                  <History size={11} />{isOpen ? "HIDE" : "PATH"}
+                </span>
               </button>
+              {isOpen && <PathView track={track} onClose={() => setTrack(null)} />}
+              </div>
             );
           })}
           {histState === "ok" && (
@@ -149,51 +212,6 @@ export default function DroneSweep({ onOpen }) {
         </>
       )}
 
-      {track && (
-        <div className="px-3 py-2.5" style={{ borderTop: "1px solid rgba(192,132,252,0.35)", background: "rgba(10,14,20,0.6)" }}>
-          <div className="flex items-center justify-between font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
-            <span>PATH · {track.contact.callsign || track.contact.icao.toUpperCase()}</span>
-            <button onClick={() => setTrack(null)} aria-label="close" style={{ color: "#C084FC" }}><X size={13} /></button>
-          </div>
-          {!track.points && <div className="mt-1.5" style={{ fontSize: 11, color: C.dim }}>loading path…</div>}
-          {track.points && track.points.length === 0 && (
-            <div className="mt-1.5" style={{ fontSize: 11, color: C.dim }}>No stored positions for this contact.</div>
-          )}
-          {track.points && track.points.length > 0 && (() => {
-            const pts = track.points.map((p) => ({ lat: p.lat, lon: p.lon, ts: +new Date(p.ts) }));
-            const lats = pts.map((p) => p.lat), lons = pts.map((p) => p.lon);
-            const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-            const minLon = Math.min(...lons), maxLon = Math.max(...lons);
-            const spanLat = Math.max(maxLat - minLat, 0.02), spanLon = Math.max(maxLon - minLon, 0.02);
-            const W = 300, H = 120, pad = 8;
-            const xy = (p) => [
-              pad + ((p.lon - minLon) / spanLon) * (W - pad * 2),
-              H - pad - ((p.lat - minLat) / spanLat) * (H - pad * 2),
-            ];
-            const d = pts.map(xy).map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-            const [ex, ey] = xy(pts[pts.length - 1]);
-            const km = pts.slice(1).reduce((acc, p, i) => {
-              const q = pts[i]; const dy = (p.lat - q.lat) * 111;
-              const dx = (p.lon - q.lon) * 111 * Math.cos((p.lat * Math.PI) / 180);
-              return acc + Math.hypot(dx, dy);
-            }, 0);
-            return (
-              <>
-                <svg viewBox={`0 0 ${W} ${H}`} className="w-full mt-1.5" style={{ display: "block", background: "#0A0D12", borderRadius: 4 }}>
-                  <polyline points={d} fill="none" stroke="#C084FC" strokeWidth="1.6" strokeOpacity="0.85" strokeLinejoin="round" />
-                  <circle cx={ex} cy={ey} r="3" fill="#C084FC" />
-                </svg>
-                <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.6 }}>
-                  {pts.length} recorded positions · {km.toFixed(0)}km of track
-                  <span style={{ display: "block" }}>
-                    {new Date(pts[0].ts).toLocaleString()} → {new Date(pts[pts.length - 1].ts).toLocaleString()}
-                  </span>
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      )}
 
       {mode === "live" && state === "loading" && (
         <div className="px-3 pb-2 font-mono flex items-center gap-1.5" style={{ fontSize: 11, color: C.dim }}>
