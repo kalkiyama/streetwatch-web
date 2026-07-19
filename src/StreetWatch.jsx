@@ -62,9 +62,9 @@ export default function StreetWatch() {
     );
   };
 
-  const continents = useMemo(() => ["All", ...Array.from(new Set(CATALOG.map((c) => c.continent))).sort()], []);
+  const continents = useMemo(() => ["All", ...Array.from(new Set(CATALOG.map((c) => c.continent))).sort()], [CATALOG]);
   const countries = useMemo(() => ["All", ...Array.from(new Set(
-    CATALOG.filter((c) => continent === "All" || c.continent === continent).map((c) => c.country))).sort()], [continent]);
+    CATALOG.filter((c) => continent === "All" || c.continent === continent).map((c) => c.country))).sort()], [continent, CATALOG]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -74,7 +74,7 @@ export default function StreetWatch() {
       const hitTab = tab !== "drones" || c.tag === "uav";
       return hitQ && hitReg && hitTab && active.includes(c.layer) && (!favOnly || favorites.includes(c.id));
     });
-  }, [query, active, continent, country, favOnly, favorites, tab]);
+  }, [query, active, continent, country, favOnly, favorites, tab, CATALOG]);
 
   const selected =
     (selectedId === "ME-AV" && userLoc && { id: "ME-AV", name: "Radar over my location", layer: "aviation", city: "Your location", region: "—", country: "", continent: "", src: "ADS-B live", url: "https://globe.adsbexchange.com/", lat: userLoc.lat, lng: userLoc.lng }) ||
@@ -302,7 +302,7 @@ export default function StreetWatch() {
 
         <main className="flex-1 p-4 md:p-6 flex flex-col gap-4">
           <section ref={viewerRef} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.line}`, height: 300, flexShrink: 0, scrollMarginTop: 8 }}>
-            <WorldMap feeds={results} selectedId={selected.id} onSelect={setSelectedId} />
+            <WorldMap feeds={results.length > 2000 ? results.filter((c) => c.layer !== "aviation" || c.major || c.tag === "uav") : results} selectedId={selected.id} onSelect={setSelectedId} />
           </section>
 
           <section className="flex flex-col md:flex-row gap-4">
