@@ -22,12 +22,36 @@ function seedSimShips(clat, clon, radiusNm, n = 16) {
 }
 
 // Embedded AIS radar centered on the selected port/harbour.
-export default function MarineRadar({ center, initialRadius, onRadius }) {
+// Track length of a trail in nautical miles (flat-earth approx — fine at radar scale).
+function trackNm(trail, lat0) {
+  let d = 0;
+  for (let i = 1; i < trail.length; i++) {
+    const dy = (trail[i][0] - trail[i - 1][0]) * 60;
+    const dx = (trail[i][1] - trail[i - 1][1]) * 60 * Math.cos(lat0 * Math.PI / 180);
+    d += Math.hypot(dx, dy);
+  }
+  return d;
+}
+function bearingOf(o, c) {
+  const dy = o.lat - c.lat, dx = (o.lon - c.lng) * Math.cos(c.lat * Math.PI / 180);
+  return String(Math.round((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360).padStart(3, "0");
+}
+export default function MarineRadar({ center, initialRadius, onRadius, initialSel, onSelect }) {
   const [status, setStatus] = useState("sim");
   const [, setTick] = useState(0);
   const [sel, setSel] = useState(null);
   const [radius, setRadius] = useState([20, 50, 100].includes(initialRadius) ? initialRadius : 40);
   useEffect(() => { if (onRadius) onRadius(radius); }, [radius, onRadius]);
+  useEffect(() => { if (onSelect) onSelect(sel); }, [sel, onSelect]);
+  const wantSel = useRef(initialSel || null);
+  useEffect(() => {                              // deep-linked vessel may take a poll to appear
+    if (!wantSel.current) return;
+    const id = setInterval(() => {
+      if (acRef.current[wantSel.current]) { setSel(wantSel.current); wantSel.current = null; clearInterval(id); }
+    }, 1000);
+    const stop = setTimeout(() => clearInterval(id), 45000);
+    return () => { clearInterval(id); clearTimeout(stop); };
+  }, []);
   const acRef = useRef({}); const lastRef = useRef(Date.now()); const liveRef = useRef(false); const failRef = useRef(0);
 
   useEffect(() => {
@@ -146,7 +170,14 @@ export default function MarineRadar({ center, initialRadius, onRadius }) {
       <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2 font-mono"
         style={{ background: "linear-gradient(0deg, rgba(8,19,15,0.92), rgba(8,19,15,0))", fontSize: 11 }}>
         {chosen ? (
-          <span style={{ color: shipColor(chosen) }}>{chosen.name || chosen.id} · {chosen.sogKt != null ? chosen.sogKt.toFixed(1) + "kt" : "—"} · {chosen.cogDeg != null ? Math.round(chosen.cogDeg) + "°" : "moored"}</span>
+          <span style={{ color: shipColor(chosen), lineHeight: 1.5 }}>
+            {chosen.name || chosen.id} · {chosen.sogKt != null ? chosen.sogKt.toFixed(1) + "kt" : "—"} · {chosen.cogDeg != null ? Math.round(chosen.cogDeg) + "°" : "moored"}
+            <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
+              MMSI {chosen.id} · {chosen.lat.toFixed(4)}, {chosen.lon.toFixed(4)} · {chosen.d.toFixed(1)}nm {bearingOf(chosen, center)}° from centre
+              {(() => { const raw = acRef.current[chosen.id]; const t = raw && raw.trail;
+                return t && t.length > 1 ? ` · path ${trackNm(t, center.lat).toFixed(1)}nm / ${Math.max(1, Math.round(t.length * 5 / 60))}min` : ""; })()}
+            </span>
+          </span>
         ) : status === "live" && plotted.length === 0 ? (
           <span style={{ color: C.faint }}>0 in range — no community AIS receivers near here yet · coverage varies by region</span>
         ) : (<span style={{ color: C.faint }}>Tap a vessel · {plotted.length} in range</span>)}

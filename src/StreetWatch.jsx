@@ -46,8 +46,12 @@ export default function StreetWatch() {
   const [geoErr, setGeoErr] = useState(null);
 
   const [viewRadius, setViewRadius] = useState(null);
+  const [viewSel, setViewSel] = useState(null);
   const urlRadius = React.useRef(
     typeof window !== "undefined" ? Number(new URLSearchParams(window.location.search).get("r")) || null : null
+  );
+  const urlSel = React.useRef(
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("ac") : null
   );
   const toggle = (k) => setActive((a) => a.includes(k) ? a.filter((x) => x !== k) : [...a, k]);
 
@@ -55,17 +59,21 @@ export default function StreetWatch() {
     if (typeof window === "undefined" || !CATALOG.length || !selectedId) return;
     if (selectedId === "ME-AV" || selectedId === "ME-MR") return; // location-specific: not shareable
     const url = new URL(window.location.href);
-    if (url.searchParams.get("feed") === selectedId && url.searchParams.get("r") === String(viewRadius || "")) return;
+    if (url.searchParams.get("feed") === selectedId
+      && url.searchParams.get("r") === String(viewRadius || "")
+      && (url.searchParams.get("ac") || "") === (viewSel || "")) return;
     url.searchParams.set("feed", selectedId);
     if (viewRadius) url.searchParams.set("r", String(viewRadius));
+    if (viewSel) url.searchParams.set("ac", viewSel); else url.searchParams.delete("ac");
     window.history.replaceState(null, "", url);
-  }, [selectedId, CATALOG, viewRadius]);
+  }, [selectedId, CATALOG, viewRadius, viewSel]);
 
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const shareFeed = () => {
     const url = `${window.location.origin}/?feed=${encodeURIComponent(selected.id)}`
-      + (viewRadius ? `&r=${viewRadius}` : "");
+      + (viewRadius ? `&r=${viewRadius}` : "")
+      + (viewSel ? `&ac=${encodeURIComponent(viewSel)}` : "");
     setShareUrl((u) => (u === url ? "" : url)); // toggle the visible link row
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url)
@@ -349,10 +357,12 @@ export default function StreetWatch() {
             <div className="flex-1 min-w-0">
               {selected.layer === "aviation"
                 ? <AviationRadar key={selected.id} center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
-                    initialRadius={urlRadius.current} onRadius={setViewRadius} />
+                    initialRadius={urlRadius.current} onRadius={setViewRadius}
+                    initialSel={urlSel.current} onSelect={setViewSel} />
                 : selected.layer === "marine"
                 ? <MarineRadar key={selected.id} center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
-                    initialRadius={urlRadius.current} onRadius={setViewRadius} />
+                    initialRadius={urlRadius.current} onRadius={setViewRadius}
+                    initialSel={urlSel.current} onSelect={setViewSel} />
                 : selected.layer === "weather"
                 ? <EarthView center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }} />
                 : selected.layer === "space"
