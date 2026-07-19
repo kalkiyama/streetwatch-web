@@ -134,6 +134,8 @@ export default function MarineRadar({ center }) {
         style={{ background: "linear-gradient(0deg, rgba(8,19,15,0.92), rgba(8,19,15,0))", fontSize: 11 }}>
         {chosen ? (
           <span style={{ color: shipColor(chosen) }}>{chosen.name || chosen.id} · {chosen.sogKt != null ? chosen.sogKt.toFixed(1) + "kt" : "—"} · {chosen.cogDeg != null ? Math.round(chosen.cogDeg) + "°" : "moored"}</span>
+        ) : status === "live" && plotted.length === 0 ? (
+          <span style={{ color: C.faint }}>0 in range — no community AIS receivers near here yet · coverage varies by region</span>
         ) : (<span style={{ color: C.faint }}>Tap a vessel · {plotted.length} in range</span>)}
         <span style={{ color: C.dim }}>{center.city}</span>
       </div>

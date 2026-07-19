@@ -170,6 +170,8 @@ export default function AviationRadar({ center }) {
         style={{ background: "linear-gradient(0deg, rgba(10,14,20,0.92), rgba(10,14,20,0))", fontSize: 11 }}>
         {chosen ? (
           <span style={{ color: chosen.isDrone ? "#C084FC" : altColor(chosen) }}>{chosen.isDrone ? "◇ UAV · " : ""}{chosen.callsign || chosen.id} · {chosen.typeCode || "—"} · {chosen.onGround ? "GND" : (chosen.altFt / 1000).toFixed(0) + "k ft"} · {chosen.groundSpeedKt}kt · {Math.round(chosen.headingDeg)}°</span>
+        ) : status === "live" && plotted.length === 0 ? (
+          <span style={{ color: C.faint }}>0 in range — thin ADS-B receiver coverage here · real data, sparse net</span>
         ) : (<span style={{ color: C.faint }}>Tap an aircraft · {plotted.length} in range{(() => { const d = plotted.filter((a) => a.isDrone).length; return d ? ` · ${d} UAV` : ""; })()}</span>)}
         <span style={{ color: C.dim }}>{center.name.split("·").pop().trim() || center.city}</span>
       </div>
