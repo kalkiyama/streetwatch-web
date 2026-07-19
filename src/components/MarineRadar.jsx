@@ -22,11 +22,12 @@ function seedSimShips(clat, clon, radiusNm, n = 16) {
 }
 
 // Embedded AIS radar centered on the selected port/harbour.
-export default function MarineRadar({ center }) {
+export default function MarineRadar({ center, initialRadius, onRadius }) {
   const [status, setStatus] = useState("sim");
   const [, setTick] = useState(0);
   const [sel, setSel] = useState(null);
-  const [radius, setRadius] = useState(40);
+  const [radius, setRadius] = useState([20, 50, 100].includes(initialRadius) ? initialRadius : 40);
+  useEffect(() => { if (onRadius) onRadius(radius); }, [radius, onRadius]);
   const acRef = useRef({}); const lastRef = useRef(Date.now()); const liveRef = useRef(false); const failRef = useRef(0);
 
   useEffect(() => {
