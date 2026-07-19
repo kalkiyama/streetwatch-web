@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { RefreshCw, Radio } from "lucide-react";
+import { RefreshCw, Radio, History, X } from "lucide-react";
 import { C } from "../theme.js";
 import { BACKEND_URL } from "../config.js";
 
@@ -10,6 +10,11 @@ export default function DroneSweep({ onOpen }) {
   const [state, setState] = useState("loading"); // loading | ok | error
   const [mins, setMins] = useState(60);
   const [kind, setKind] = useState("all");
+  const [mode, setMode] = useState("live");     // live | archive
+  const [days, setDays] = useState(7);
+  const [hist, setHist] = useState(null);       // archived contact list
+  const [histState, setHistState] = useState("idle");
+  const [track, setTrack] = useState(null);     // { contact, points }
 
   useEffect(() => {
     let alive = true;
@@ -28,6 +33,27 @@ export default function DroneSweep({ onOpen }) {
     return () => { alive = false; clearInterval(id); };
   }, [mins]);
 
+  useEffect(() => {
+    if (mode !== "archive") return;
+    let alive = true;
+    setHistState("loading");
+    fetch(`${BACKEND_URL}/api/drones/history?days=${days}&limit=200`)
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then((j) => { if (alive) { setHist(j); setHistState("ok"); } })
+      .catch((e) => { if (alive) setHistState(String(e.message) === "503" ? "off" : "error"); });
+    return () => { alive = false; };
+  }, [mode, days]);
+
+  const openTrack = async (c) => {
+    setTrack({ contact: c, points: null });
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/drones/track?id=${encodeURIComponent(c.icao)}`);
+      const j = await r.json();
+      const pts = j.points || (j.track || []).map((t) => ({ lat: t[0], lon: t[1], ts: t[2] }));
+      setTrack({ contact: c, points: pts });
+    } catch { setTrack({ contact: c, points: [] }); }
+  };
+
   const all = (data && data.drones) || [];
   const drones = kind === "all" ? all : all.filter((d) => d.kind === kind);
   const KIND = { uav: { c: "#C084FC", label: "UAV" }, military: { c: "#F87171", label: "MIL" } };
@@ -44,23 +70,36 @@ export default function DroneSweep({ onOpen }) {
       <div className="px-3 py-2 flex items-center justify-between font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
         <span className="flex items-center gap-1.5"><Radio size={11} /> MILITARY &amp; UAV SWEEP · {drones.length}</span>
         <span className="flex items-center gap-1">
-          {[60, 360, 1440].map((m) => (
+          <button onClick={() => setMode(mode === "live" ? "archive" : "live")}
+            title="Switch between the live sweep and the 90-day archive"
+            style={{ fontSize: 9, padding: "1px 6px", borderRadius: 3, border: "1px solid rgba(192,132,252,0.4)",
+              background: mode === "archive" ? "#C084FC" : "transparent", color: mode === "archive" ? "#0A0E14" : "#C084FC" }}>
+            {mode === "archive" ? "ARCHIVE" : "LIVE"}
+          </button>
+          {mode === "live" && [60, 360, 1440].map((m) => (
             <button key={m} onClick={() => setMins(m)}
               style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, border: "1px solid rgba(192,132,252,0.4)",
                 background: mins === m ? "#C084FC" : "transparent", color: mins === m ? "#0A0E14" : "#C084FC" }}>
               {m === 1440 ? "24h" : m === 360 ? "6h" : "1h"}
             </button>
           ))}
+          {mode === "archive" && [1, 7, 30, 90].map((d) => (
+            <button key={d} onClick={() => setDays(d)}
+              style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, border: "1px solid rgba(192,132,252,0.4)",
+                background: days === d ? "#C084FC" : "transparent", color: days === d ? "#0A0E14" : "#C084FC" }}>
+              {d}d
+            </button>
+          ))}
         </span>
       </div>
 
-      {state === "ok" && data.sweep && data.sweep.cycles === 0 && (
+      {mode === "live" && state === "ok" && data.sweep && data.sweep.cycles === 0 && (
         <div className="px-3 pb-1.5" style={{ fontSize: 10, color: C.dim }}>
           First sweep in progress — {data.sweep.visited}/{data.sweep.sites} airspaces checked.
           Counts keep rising until the full pass completes.
         </div>
       )}
-      {state === "ok" && (
+      {mode === "live" && state === "ok" && (
         <div className="px-3 pb-2 flex items-center gap-1 font-mono">
           {[["all", "ALL", "#C084FC"], ["uav", `UAV ${(data.counts && data.counts.uav) || 0}`, "#C084FC"], ["military", `MIL ${(data.counts && data.counts.military) || 0}`, "#F87171"]].map(([k, label, col]) => (
             <button key={k} onClick={() => setKind(k)}
@@ -71,23 +110,108 @@ export default function DroneSweep({ onOpen }) {
           ))}
         </div>
       )}
-      {state === "loading" && (
+      {mode === "archive" && (
+        <>
+          {histState === "loading" && <div className="px-3 pb-2 font-mono" style={{ fontSize: 11, color: C.dim }}>reading the archive…</div>}
+          {histState === "off" && <div className="px-3 pb-2" style={{ fontSize: 11, color: C.dim }}>No archive configured on this instance.</div>}
+          {histState === "error" && <div className="px-3 pb-2" style={{ fontSize: 11, color: C.dim }}>Archive unavailable right now.</div>}
+          {histState === "ok" && hist.count === 0 && (
+            <div className="px-3 pb-2.5" style={{ fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
+              Nothing recorded in the last {days} day{days > 1 ? "s" : ""} yet. The archive began collecting when it was switched on.
+            </div>
+          )}
+          {histState === "ok" && hist.contacts.map((c) => {
+            const dur = Math.max(1, Math.round((new Date(c.last_seen) - new Date(c.first_seen)) / 60000));
+            const st = c.confidence === "disputed" ? { c: "#F6A821", label: "UAV?" } : (KIND[c.kind] || KIND.uav);
+            return (
+              <button key={c.icao + c.kind} onClick={() => openTrack(c)} className="w-full text-left px-3 py-2 flex items-center gap-2"
+                style={{ borderTop: "1px solid rgba(192,132,252,0.18)" }}>
+                <span style={{ color: st.c, fontSize: 12, fontWeight: 700, minWidth: 74 }}>
+                  {c.callsign || c.icao.toUpperCase()}
+                  <span style={{ display: "block", fontSize: 8, opacity: 0.75 }}>{st.label}</span>
+                </span>
+                <span className="flex-1" style={{ fontSize: 11, color: C.text, minWidth: 0 }}>
+                  {c.last_site} <span style={{ color: C.faint }}>· {c.last_country}</span>
+                  <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
+                    {c.descr || c.type_code || "unknown type"} · {c.points} point{c.points > 1 ? "s" : ""} over {dur < 60 ? dur + "min" : Math.round(dur / 60) + "h"}
+                    {" · "}{new Date(c.last_seen).toLocaleDateString()}
+                  </span>
+                </span>
+                <History size={12} color={C.faint} />
+              </button>
+            );
+          })}
+          {histState === "ok" && (
+            <div className="px-3 py-1.5 font-mono" style={{ fontSize: 9, color: C.faint, borderTop: "1px solid rgba(192,132,252,0.18)" }}>
+              {hist.count} contacts in {days}d · archive keeps {hist.retainDays} days · public military &amp; UAV aircraft only
+            </div>
+          )}
+        </>
+      )}
+
+      {track && (
+        <div className="px-3 py-2.5" style={{ borderTop: "1px solid rgba(192,132,252,0.35)", background: "rgba(10,14,20,0.6)" }}>
+          <div className="flex items-center justify-between font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
+            <span>PATH · {track.contact.callsign || track.contact.icao.toUpperCase()}</span>
+            <button onClick={() => setTrack(null)} aria-label="close" style={{ color: "#C084FC" }}><X size={13} /></button>
+          </div>
+          {!track.points && <div className="mt-1.5" style={{ fontSize: 11, color: C.dim }}>loading path…</div>}
+          {track.points && track.points.length === 0 && (
+            <div className="mt-1.5" style={{ fontSize: 11, color: C.dim }}>No stored positions for this contact.</div>
+          )}
+          {track.points && track.points.length > 0 && (() => {
+            const pts = track.points.map((p) => ({ lat: p.lat, lon: p.lon, ts: +new Date(p.ts) }));
+            const lats = pts.map((p) => p.lat), lons = pts.map((p) => p.lon);
+            const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+            const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+            const spanLat = Math.max(maxLat - minLat, 0.02), spanLon = Math.max(maxLon - minLon, 0.02);
+            const W = 300, H = 120, pad = 8;
+            const xy = (p) => [
+              pad + ((p.lon - minLon) / spanLon) * (W - pad * 2),
+              H - pad - ((p.lat - minLat) / spanLat) * (H - pad * 2),
+            ];
+            const d = pts.map(xy).map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+            const [ex, ey] = xy(pts[pts.length - 1]);
+            const km = pts.slice(1).reduce((acc, p, i) => {
+              const q = pts[i]; const dy = (p.lat - q.lat) * 111;
+              const dx = (p.lon - q.lon) * 111 * Math.cos((p.lat * Math.PI) / 180);
+              return acc + Math.hypot(dx, dy);
+            }, 0);
+            return (
+              <>
+                <svg viewBox={`0 0 ${W} ${H}`} className="w-full mt-1.5" style={{ display: "block", background: "#0A0D12", borderRadius: 4 }}>
+                  <polyline points={d} fill="none" stroke="#C084FC" strokeWidth="1.6" strokeOpacity="0.85" strokeLinejoin="round" />
+                  <circle cx={ex} cy={ey} r="3" fill="#C084FC" />
+                </svg>
+                <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.6 }}>
+                  {pts.length} recorded positions · {km.toFixed(0)}km of track
+                  <span style={{ display: "block" }}>
+                    {new Date(pts[0].ts).toLocaleString()} → {new Date(pts[pts.length - 1].ts).toLocaleString()}
+                  </span>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {mode === "live" && state === "loading" && (
         <div className="px-3 pb-2 font-mono flex items-center gap-1.5" style={{ fontSize: 11, color: C.dim }}>
           <RefreshCw size={11} /> scanning 28 airspaces…
         </div>
       )}
-      {state === "error" && (
+      {mode === "live" && state === "error" && (
         <div className="px-3 pb-2" style={{ fontSize: 11, color: C.dim }}>
           Sweep unavailable right now — individual radars below still work.
         </div>
       )}
-      {state === "ok" && drones.length === 0 && (
+      {mode === "live" && state === "ok" && drones.length === 0 && (
         <div className="px-3 pb-2.5" style={{ fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
           No military or UAV contacts in the last {mins === 1440 ? "24 hours" : mins === 360 ? "6 hours" : "hour"}.
           That is a normal reading — try the 24h window, or open a watch site below.
         </div>
       )}
-      {state === "ok" && drones.map((d) => (
+      {mode === "live" && state === "ok" && drones.map((d) => (
         <button key={d.id} onClick={() => onOpen(d)}
           className="w-full text-left px-3 py-2 flex items-center gap-2"
           style={{ borderTop: "1px solid rgba(192,132,252,0.18)" }}>
@@ -106,7 +230,7 @@ export default function DroneSweep({ onOpen }) {
           </span>
         </button>
       ))}
-      {state === "ok" && data.sweep && (
+      {mode === "live" && state === "ok" && data.sweep && (
         <div className="px-3 py-1.5 font-mono" style={{ fontSize: 9, color: C.faint, borderTop: "1px solid rgba(192,132,252,0.18)" }}>
           {data.sweep.cycles} cycles · {data.sweep.tracked24h} tracked in 24h
           {data.counts && data.counts.disputed > 0 && ` · ${data.counts.disputed} disputed (broadcast says unmanned, registry says manned)`}
