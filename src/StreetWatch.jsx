@@ -70,7 +70,10 @@ export default function StreetWatch() {
     });
   }, [query, active, continent, country, favOnly, favorites, tab]);
 
-  const selected = CATALOG.find((c) => c.id === selectedId) || results[0] || CATALOG[0];
+  const selected =
+    (selectedId === "ME-AV" && userLoc && { id: "ME-AV", name: "Radar over my location", layer: "aviation", city: "Your location", region: "—", country: "", continent: "", src: "ADS-B live", url: "https://globe.adsbexchange.com/", lat: userLoc.lat, lng: userLoc.lng }) ||
+    (selectedId === "ME-MR" && userLoc && { id: "ME-MR", name: "Ships near my location", layer: "marine", city: "Your location", region: "—", country: "", continent: "", src: "AIS live", url: "https://www.marinetraffic.com/", lat: userLoc.lat, lng: userLoc.lng }) ||
+    CATALOG.find((c) => c.id === selectedId) || results[0] || CATALOG[0];
 
   const grouped = useMemo(() => {
     const g = {};
@@ -241,7 +244,21 @@ export default function StreetWatch() {
               </div>
             )}
             {nearList
-              ? nearList.map((c) => renderRow(c))
+              ? [
+                  <button key="ME-AV" onClick={() => setSelectedId("ME-AV")} className="w-full text-left px-4 py-2.5 flex items-center gap-3"
+                    style={{ background: selectedId === "ME-AV" ? C.panel2 : "rgba(34,211,238,0.06)", borderLeft: `2px solid ${C.cyan}`, borderBottom: `1px solid ${C.line}` }}>
+                    <Navigation size={15} color={C.cyan} style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>Radar over my location</span>
+                    <span className="font-mono ml-auto" style={{ fontSize: 10, color: C.cyan }}>LIVE HERE</span>
+                  </button>,
+                  <button key="ME-MR" onClick={() => setSelectedId("ME-MR")} className="w-full text-left px-4 py-2.5 flex items-center gap-3"
+                    style={{ background: selectedId === "ME-MR" ? C.panel2 : "rgba(34,211,238,0.06)", borderLeft: `2px solid ${C.cyan}`, borderBottom: `1px solid ${C.line}` }}>
+                    <Navigation size={15} color={C.cyan} style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>Ships near my location</span>
+                    <span className="font-mono ml-auto" style={{ fontSize: 10, color: C.cyan }}>LIVE HERE</span>
+                  </button>,
+                  ...nearList.map((c) => renderRow(c)),
+                ]
               : grouped.map(([cont, items]) => {
                 const open = !!query.trim() || favOnly || !!openGroups[cont];
                 return (
