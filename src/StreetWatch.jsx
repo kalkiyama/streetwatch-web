@@ -50,7 +50,7 @@ export default function StreetWatch() {
     if (typeof navigator === "undefined" || !navigator.geolocation) { setGeoErr("Location unavailable on this device"); return; }
     setGeoErr("locating");
     navigator.geolocation.getCurrentPosition(
-      (p) => { setUserLoc({ lat: p.coords.latitude, lng: p.coords.longitude }); setNearMe(true); setGeoErr(null); },
+      (p) => { setUserLoc({ lat: p.coords.latitude, lng: p.coords.longitude }); setNearMe(true); setGeoErr(null); setContinent("All"); setCountry("All"); },
       () => setGeoErr("Location permission denied"),
       { timeout: 8000, maximumAge: 60000 }
     );
@@ -220,6 +220,7 @@ export default function StreetWatch() {
                 <Navigation size={12} /> Near me
               </button>
             </div>
+            {nearMe && !geoErr && <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint }}>sorted by distance from you · layer chips still filter</div>}
             {geoErr === "locating" && <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint }}>locating…</div>}
             {geoErr && geoErr !== "locating" && <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: "#F0553B" }}>{geoErr}</div>}
           </div>
