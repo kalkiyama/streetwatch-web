@@ -129,7 +129,7 @@ export default function StreetWatch() {
     return { left: `${8 + nx * 84}%`, top: `${88 - ny * 76}%` };
   };
 
-  const Preview = LAYERS[selected.layer].camera ? LiveViewport : DataPreview;
+  const Preview = (selected && LAYERS[selected.layer].camera) ? LiveViewport : DataPreview;
 
   if (!CATALOG.length) {
     return (
