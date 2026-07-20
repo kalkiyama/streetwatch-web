@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Maximize2, X } from "lucide-react";
+import { Maximize2, X, Play, Pause, SkipBack } from "lucide-react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -15,6 +15,9 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = "m
   const layer = useRef(null);
   const fitted = useRef(null);
   const [full, setFull] = useState(false);
+  // timeline scrubber: how much of the track to reveal, and whether it's playing
+  const [upto, setUpto] = useState(null);        // null = show the whole track
+  const [playing, setPlaying] = useState(false);
 
   // create the map once
   useEffect(() => {
@@ -57,6 +60,9 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = "m
   // re-measure whenever the frame size changes (entering AND leaving fullscreen)
   useEffect(() => { const t = setTimeout(() => map.current && map.current.invalidateSize(), 90); return () => clearTimeout(t); }, [full]);
 
+  const shown = upto === null ? points : points.slice(0, Math.max(upto + 1, 2));
+  const head = shown && shown.length ? shown[shown.length - 1] : null;
+
   // draw / redraw the track
   useEffect(() => {
     if (!map.current || !points || points.length === 0) return;
@@ -64,7 +70,15 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = "m
     layer.current = Leaflet.layerGroup().addTo(map.current);
 
     const latlngs = points.map((p) => [p.lat, p.lon]);
-    Leaflet.polyline(latlngs, { color, weight: 2.5, opacity: 0.9 }).addTo(layer.current);
+    const shownLL = shown.map((p) => [p.lat, p.lon]);
+    // whole track stays faintly visible so the scrubbed portion has context
+    if (upto !== null) Leaflet.polyline(latlngs, { color, weight: 1.5, opacity: 0.22 }).addTo(layer.current);
+    Leaflet.polyline(shownLL, { color, weight: 2.5, opacity: 0.9 }).addTo(layer.current);
+    if (upto !== null && head) {
+      Leaflet.circleMarker([head.lat, head.lon], {
+        radius: 6, color: "#FFFFFF", weight: 2, fillColor: color, fillOpacity: 1,
+      }).bindTooltip(new Date(head.ts).toLocaleString(), { permanent: false }).addTo(layer.current);
+    }
 
     const first = points[0], last = points[points.length - 1];
     Leaflet.circleMarker([first.lat, first.lon], { radius: 4, color, weight: 2, fillOpacity: 0 })
@@ -74,12 +88,13 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = "m
 
     // fit only when the contact changes — never on a routine re-render
     if (fitted.current !== fitKey) {
+      setUpto(null); setPlaying(false);
       fitted.current = fitKey;
       if (latlngs.length === 1) map.current.setView(latlngs[0], 9);
       else map.current.fitBounds(Leaflet.latLngBounds(latlngs).pad(0.25), { maxZoom: 11 });
       setTimeout(() => map.current && map.current.invalidateSize(), 60);
     }
-  }, [points, color, fitKey]);
+  }, [points, shown, head, upto, color, fitKey]);
 
   useEffect(() => {
     if (map.current) setTimeout(() => map.current && map.current.invalidateSize(), 150);
@@ -89,6 +104,18 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = "m
     ? { position: "fixed", inset: 0, zIndex: 1000, background: "#0A0D12", padding: 10,
         display: "flex", flexDirection: "column", gap: 6 }
     : {};
+
+  useEffect(() => {
+    if (!playing || !points || points.length < 2) return;
+    const id = setInterval(() => {
+      setUpto((u) => {
+        const next = (u === null ? 0 : u) + 1;
+        if (next >= points.length - 1) { setPlaying(false); return null; }   // finished -> whole track
+        return next;
+      });
+    }, 220);
+    return () => clearInterval(id);
+  }, [playing, points]);
 
   return (
     <div style={shell}>
@@ -100,8 +127,34 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = "m
       </div>
       <div ref={box} style={{ height: full ? "auto" : height, flex: full ? 1 : undefined,
         borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />
+      {points && points.length > 2 && (
+        <div className="flex items-center gap-2 mt-2">
+          <button onClick={() => { setPlaying(!playing); if (upto === null) setUpto(0); }}
+            title={playing ? "Pause" : "Play the track through"}
+            className="flex items-center justify-center rounded"
+            style={{ width: 28, height: 28, flexShrink: 0, background: "rgba(192,132,252,0.12)",
+                     border: "1px solid rgba(192,132,252,0.4)", color: "#C084FC" }}>
+            {playing ? <Pause size={13} /> : <Play size={13} />}
+          </button>
+          <button onClick={() => { setPlaying(false); setUpto(null); }}
+            title="Show the whole track"
+            className="flex items-center justify-center rounded"
+            style={{ width: 28, height: 28, flexShrink: 0, background: "transparent",
+                     border: "1px solid rgba(255,255,255,0.15)", color: "#8A93A6" }}>
+            <SkipBack size={13} />
+          </button>
+          <input type="range" min={0} max={points.length - 1}
+            value={upto === null ? points.length - 1 : upto}
+            onChange={(e) => { setPlaying(false); const v = Number(e.target.value);
+              setUpto(v >= points.length - 1 ? null : v); }}
+            style={{ flex: 1, accentColor: "#C084FC", height: 20 }} />
+          <span className="font-mono" style={{ fontSize: 9, color: "#8A93A6", minWidth: 118, textAlign: "right" }}>
+            {head ? new Date(head.ts).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+          </span>
+        </div>
+      )}
       <div className="font-mono" style={{ fontSize: 9, color: "#5B6472", marginTop: 3 }}>
-        pinch or use +/− to zoom · place names appear as you zoom in
+        pinch or use +/− to zoom · drag the slider or press play to replay the track
       </div>
     </div>
   );
