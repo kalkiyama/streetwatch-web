@@ -156,7 +156,10 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
           ))}
         </div>
       </div>
-      <div className="flex items-center gap-1 px-2 pb-1" style={{ flexWrap: "wrap" }}>
+      {/* part of the absolute overlay stack — in normal flow the absolutely positioned
+          header sits on top of these and swallows every tap */}
+      <div className="absolute z-10 left-0 right-0 flex items-center gap-1 px-3"
+        style={{ top: 34, flexWrap: "wrap" }}>
         {[["all", "ALL"], ["mil", "MIL"], ["uav", "UAV"]].map(([k, label]) => {
           const n = k === "mil" ? plotted.filter((a) => a.military).length
                   : k === "uav" ? plotted.filter((a) => a.isDrone).length : plotted.length;
@@ -180,7 +183,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
         ))}
       </div>
       {uavInfo && (
-        <div className="absolute z-20 left-3 right-3 top-11 rounded-lg p-3"
+        <div className="absolute z-20 left-3 right-3 rounded-lg p-3" style={{ top: 66 }}
           style={{ background: "rgba(10,14,20,0.96)", border: "1px solid rgba(192,132,252,0.4)" }}>
           <div className="font-mono flex items-center justify-between" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
             <span>◇ UAV TRACKING — HOW IT WORKS</span>
@@ -202,7 +205,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
         </div>
       )}
       {view === "map" && (
-        <div className="px-2 pb-1">
+        <div className="px-2 pb-1" style={{ paddingTop: 66 }}>
           <RadarMap center={center} contacts={shown} radiusNm={radius} sel={sel} onSel={setSel}
             height="min(52vh, 420px)" />
         </div>
