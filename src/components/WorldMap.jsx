@@ -12,20 +12,72 @@ import { LAYERS } from "../theme.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect }) {
+export default function WorldMap({ feeds, selectedId, onSelect, liveContacts = null, heatSites = null }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
   const feedsRef = useRef(feeds);
   feedsRef.current = feeds;
+  const liveRef = useRef(liveContacts);
+  liveRef.current = liveContacts;
+  const heatRef = useRef(heatSites);
+  heatRef.current = heatSites;
   const selRef = useRef(selectedId);
   selRef.current = selectedId;
   const centred = useRef(null);     // which feed the map is already centred on
+
+
+  // --- activity heat: measured contact density per airspace, drawn beneath everything ---
+  const drawHeat = (lg) => {
+    const sites = heatRef.current;
+    if (!sites || !sites.length) return;
+    const RAMP = ["#3B82F6", "#8B5CF6", "#C084FC", "#F6A821", "#F87171"];
+    sites.forEach((s) => {
+      const col = RAMP[Math.min(RAMP.length - 1, Math.floor(s.intensity * RAMP.length))];
+      Leaflet.circleMarker([s.lat, s.lon], {
+        radius: 6 + s.intensity * 18, color: col, weight: 1.2,
+        fillColor: col, fillOpacity: 0.22, interactive: true,
+      })
+        .bindPopup(
+          `<b>${s.site}</b><br>${s.country || ""}<br>` +
+          `${s.contacts} contacts · ${s.uav} UAV · ${s.military} military<br>` +
+          `${s.points} observations over ${s.span_hours || 0}h`
+        )
+        .addTo(lg);
+    });
+  };
+
+  // --- live sweep contacts, drawn on top so they are never hidden ---
+  const drawLive = (lg, onSelectFeed) => {
+    const items = liveRef.current;
+    if (!items || !items.length) return;
+    items.forEach((d) => {
+      if (!Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
+      const col = d.kind === "uav" ? "#C084FC" : "#F6A821";
+      const disputed = d.confidence === "disputed";
+      Leaflet.circleMarker([d.lat, d.lon], {
+        radius: 5, color: col, weight: 2,
+        fillColor: col, fillOpacity: disputed ? 0.15 : 0.85,
+      })
+        .bindTooltip(
+          `${d.callsign || d.id} — ${disputed ? "UAV?" : d.kind === "uav" ? "UAV" : "military"}` +
+          `${d.site ? " · " + d.site : ""}`,
+          { direction: "top", opacity: 0.9 }
+        )
+        .on("click", () => {
+          // jump to the airspace radar this contact was seen in
+          const f = feedsRef.current.find((x) => x.tag === "uav" && x.name.endsWith(d.site));
+          if (f && onSelectFeed) onSelectFeed(f.id);
+        })
+        .addTo(lg);
+    });
+  };
 
   const draw = useCallback(() => {
     const map = mapRef.current, lg = layerRef.current;
     if (!map || !lg) return;
     lg.clearLayers();
+    drawHeat(lg);
 
     const zoom = map.getZoom();
     const bounds = map.getBounds().pad(0.2);
@@ -47,6 +99,7 @@ export default function WorldMap({ feeds, selectedId, onSelect }) {
           .bindTooltip(f.name, { direction: "top", opacity: 0.9 })
           .addTo(lg);
       });
+      drawLive(lg, onSelect);
       return;
     }
 
@@ -105,6 +158,7 @@ export default function WorldMap({ feeds, selectedId, onSelect }) {
         .bindTooltip(`${c.n} feeds — tap to zoom in`, { direction: "top", opacity: 0.9 })
         .addTo(lg);
     });
+    drawLive(lg, onSelect);
   }, [selectedId, onSelect]);
 
   useEffect(() => {
@@ -137,7 +191,7 @@ export default function WorldMap({ feeds, selectedId, onSelect }) {
     };
   }, [draw]);
 
-  useEffect(() => { draw(); }, [feeds, selectedId, draw]);
+  useEffect(() => { draw(); }, [feeds, selectedId, liveContacts, heatSites, draw]);
 
   useEffect(() => {
     const map = mapRef.current; if (!map || !selectedId) return;
