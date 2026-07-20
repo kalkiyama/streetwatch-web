@@ -12,7 +12,7 @@ import { LAYERS } from "../theme.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, liveContacts = null, heatSites = null, showFeeds = true }) {
+export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, liveContacts = null, heatSites = null, usvContacts = null, showFeeds = true }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -24,6 +24,8 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   heatRef.current = heatSites;
   const showFeedsRef = useRef(showFeeds);
   showFeedsRef.current = showFeeds;
+  const usvRef = useRef(usvContacts);
+  usvRef.current = usvContacts;
   const selRef = useRef(selectedId);
   selRef.current = selectedId;
   const centred = useRef(null);     // which feed the map is already centred on
@@ -83,11 +85,35 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     });
   };
 
+
+  // --- sea drones: hollow rings echo the marine layer's port styling ---
+  const drawUsv = (lg) => {
+    const items = usvRef.current;
+    if (!items || !items.length) return;
+    items.forEach((v) => {
+      if (!Number.isFinite(v.lat) || !Number.isFinite(v.lon)) return;
+      const confirmed = v.usvConfidence === "confirmed";
+      const col = confirmed ? "#2DD4BF" : "#7AA2C8";
+      Leaflet.circleMarker([v.lat, v.lon], {
+        radius: confirmed ? 6 : 5, color: col, weight: 2,
+        fillColor: col, fillOpacity: confirmed ? 0.25 : 0.08,
+      })
+        .bindTooltip(
+          `${v.name || v.id} — ${confirmed ? "sea drone" : "possible sea drone"}` +
+          `${Number.isFinite(v.sogKt) ? " · " + v.sogKt.toFixed(1) + "kt" : ""}` +
+          `${Number.isFinite(v.lengthM) ? " · " + Math.round(v.lengthM) + "m" : ""}`,
+          { direction: "top", opacity: 0.9 }
+        )
+        .addTo(lg);
+    });
+  };
+
   const draw = useCallback(() => {
     const map = mapRef.current, lg = layerRef.current;
     if (!map || !lg) return;
     lg.clearLayers();
     drawHeat(lg);
+    drawUsv(lg);
 
     const zoom = map.getZoom();
     const bounds = map.getBounds().pad(0.2);
