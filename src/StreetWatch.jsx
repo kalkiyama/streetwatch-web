@@ -6,6 +6,7 @@ import { C, LAYERS, layerKeys, resolveUrl, openLive } from "./theme.js";
 import { distKm } from "./geo.js";
 import WorldMap from "./components/WorldMap.jsx";
 import MapPanel from "./components/MapPanel.jsx";
+import NearbyCams from "./components/NearbyCams.jsx";
 import Frame, { useClock, LiveViewport, DataPreview } from "./components/FeedViewer.jsx";
 import AviationRadar from "./components/AviationRadar.jsx";
 import { norm, fuzzyHit, budgetFor, words } from "./search.js";
@@ -489,6 +490,7 @@ export default function StreetWatch() {
               </button>
               <div className="mt-2 font-mono break-all" style={{ fontSize: 10, color: C.faint }}>↗ {resolveUrl(selected)}</div>
             </div>
+            <NearbyCams lat={selected.lat} lon={selected.lng} name={selected.name} />
           </section>
 
           <section className="rounded-lg p-4" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
