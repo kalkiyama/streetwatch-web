@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { guardTouchScroll } from "./mapTouch.js";
 
 // The same contacts the radar is plotting, on real geography. The radar is better for
 // "what's around me and how far"; the map is better for "where is this actually".
@@ -24,6 +25,7 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
       subdomains: "abcd", maxZoom: 12, attribution: "&copy; OpenStreetMap &copy; CARTO",
     }).addTo(map.current);
     layer.current = Leaflet.layerGroup().addTo(map.current);
+      guardTouchScroll(map.current);
     setTimeout(() => map.current && map.current.invalidateSize(), 80);
     return () => { if (map.current) { map.current.remove(); map.current = null; } };
   }, [center.lat, center.lng]);

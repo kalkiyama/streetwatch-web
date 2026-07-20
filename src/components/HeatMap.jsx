@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { guardTouchScroll } from "./mapTouch.js";
 import { C } from "../theme.js";
 import { BACKEND_URL } from "../config.js";
 
@@ -80,6 +81,7 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
     if (!map.current || !data || !data.sites) return;
     if (layer.current) layer.current.remove();
     layer.current = Leaflet.layerGroup().addTo(map.current);
+    guardTouchScroll(map.current);
     data.sites.forEach((s) => {
       const col = colorFor(s.intensity);
       Leaflet.circleMarker([s.lat, s.lon], {
