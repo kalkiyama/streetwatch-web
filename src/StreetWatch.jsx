@@ -34,6 +34,10 @@ export default function StreetWatch() {
     }
   }, [CATALOG]);
   const [query, setQuery] = useState("");
+  const [browse, setBrowse] = useState(() => {
+    try { return localStorage.getItem("sw-browse") === "map" ? "map" : "list"; } catch { return "list"; }
+  });
+  const setBrowseMode = (m) => { setBrowse(m); try { localStorage.setItem("sw-browse", m); } catch { /* private mode */ } };
   const [active, setActive] = useState([...layerKeys]);
   const [continent, setContinent] = useState("All");
   const [country, setCountry] = useState("All");
@@ -337,11 +341,32 @@ export default function StreetWatch() {
                 few exact matches — showing {search.fuzzy} close spelling{search.fuzzy === 1 ? "" : "s"} too
               </div>
             )}
+            <div className="flex items-center gap-1 mt-2">
+              {[["list", "LIST"], ["map", "MAP"]].map(([m, label]) => (
+                <button key={m} onClick={() => setBrowseMode(m)}
+                  className="px-2.5 py-1 rounded font-mono"
+                  style={{ fontSize: 10, letterSpacing: 0.5,
+                    color: browse === m ? C.ink : C.dim,
+                    background: browse === m ? C.cyan : C.panel2,
+                    border: `1px solid ${browse === m ? C.cyan : C.line}` }}>
+                  {label}
+                </button>
+              ))}
+              <span style={{ fontSize: 10, color: C.faint, marginLeft: 4 }}>
+                {browse === "map" ? "tap a cluster to zoom in" : `${results.length.toLocaleString()} feeds`}
+              </span>
+            </div>
             {geoErr === "locating" && <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint }}>locating…</div>}
             {geoErr && geoErr !== "locating" && <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: "#F0553B" }}>{geoErr}</div>}
           </div>
 
-          <div style={{ maxHeight: "46vh", overflowY: "auto" }} className="lg:max-h-none">
+          {browse === "map" && (
+            <div style={{ height: "min(60vh, 560px)" }} className="mx-4 mb-3 rounded overflow-hidden" >
+              <WorldMap feeds={results} selectedId={selected ? selected.id : null} onSelect={setSelectedId} />
+            </div>
+          )}
+
+          <div style={{ maxHeight: "46vh", overflowY: "auto", display: browse === "map" ? "none" : undefined }} className="lg:max-h-none">
             {tab === "drones" && <DroneSweep onOpen={openSighting} />}
             {tab === "drones" && (
               <div className="mx-4 mt-2 mb-1 rounded px-3 py-2" style={{ background: "rgba(192,132,252,0.10)", border: "1px solid rgba(192,132,252,0.35)", fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
