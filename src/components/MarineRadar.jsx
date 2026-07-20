@@ -7,7 +7,13 @@ import { RAD, rnd } from "../geo.js";
 
 const SHIP_PFX = ["MSC","MAERSK","EVER","NORDIC","BALTIC","AURORA","FINNLINES","TALLINK","STENA","HAPAG","ONE","WALLENIUS"];
 const SHIP_NM = ["STAR","SPIRIT","VOYAGER","TRADER","EXPRESS","PIONEER","HORIZON","GALAXY","BOTNIA","EUROPA"];
-const shipColor = (v) => (v.sogKt == null || v.sogKt < 0.5) ? "#6B7280" : v.sogKt < 7 ? "#2DD4BF" : C.cyan;
+// Classified kinds override the speed palette — a sub-support tender must not look like
+// any other coaster, or the ALL/SEA DRONES/SUB SUPPORT filter reveals nothing you could
+// not already see.
+const shipColor = (v) =>
+  v.subSupport ? "#F0553B"                                    // red: submarine support (surface ship)
+  : v.usv ? "#C084FC"                                         // violet: sea drone / candidate
+  : (v.sogKt == null || v.sogKt < 0.5) ? "#6B7280" : v.sogKt < 7 ? "#2DD4BF" : C.cyan;
 function seedSimShips(clat, clon, radiusNm, n = 16) {
   const out = {};
   for (let i = 0; i < n; i++) {
@@ -70,6 +76,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
   const [radius, setRadius] = useState(
     initialSel ? 100 : [20, 50, 100].includes(initialRadius) ? initialRadius : 40);
   const [view, setView] = useState("radar");   // radar | map
+  const [only, setOnly] = useState("all");     // all | usv | sub
   useEffect(() => { if (onRadius) onRadius(radius); }, [radius, onRadius]);
   useEffect(() => { if (onSelect) onSelect(sel); }, [sel, onSelect]);
   const wantSel = useRef(initialSel || null);
@@ -148,6 +155,12 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
     ]);
     return { ...v, d, x, y, trail };
   }).filter((v) => v.d <= radius).sort((a, b) => a.d - b.d);
+  // ALL / SEA DRONES / SUB SUPPORT — same pattern as the aviation radar's ALL/MIL/UAV.
+  // The filter narrows what is DRAWN; `plotted` stays whole so counts and the chosen
+  // vessel's details never vanish underneath the user.
+  const shown = only === "usv" ? plotted.filter((v) => v.usv)
+              : only === "sub" ? plotted.filter((v) => v.subSupport)
+              : plotted;
   const chosen = plotted.find((v) => v.id === sel);
   const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -174,6 +187,23 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
           ))}
         </div>
       </div>
+      <div className="absolute left-0 right-0 flex items-center gap-1 px-3"
+        style={{ top: 34, flexWrap: "wrap", zIndex: 1200 }}>
+        {[["all", "ALL"], ["usv", "SEA DRONES"], ["sub", "SUB SUPPORT"]].map(([k, label]) => {
+          const n = k === "usv" ? plotted.filter((v) => v.usv).length
+                  : k === "sub" ? plotted.filter((v) => v.subSupport).length
+                  : plotted.length;
+          const col = k === "usv" ? "#2DD4BF" : k === "sub" ? "#F0553B" : "#2563EB";
+          return (
+            <button key={k} onClick={() => setOnly(k)} className="px-1.5 py-0.5 rounded font-mono"
+              style={{ fontSize: 10, color: only === k ? C.ink : C.dim,
+                background: only === k ? col : "rgba(28,32,41,0.8)",
+                border: `1px solid ${only === k ? col : "transparent"}` }}>
+              {label} {n}
+            </button>
+          );
+        })}
+      </div>
       {view === "map" && (
         <div className="px-2 pb-1" style={{ paddingTop: 44 }}>
           <RadarMap mode="sea"
@@ -182,7 +212,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
             sel={sel}
             onSel={setSel}
             height="min(52vh, 420px)"
-            contacts={plotted.map((v) => ({
+            contacts={shown.map((v) => ({
               id: v.id, callsign: v.name || v.id, lat: v.lat, lon: v.lon,
               headingDeg: Number.isFinite(v.headingDeg) ? v.headingDeg : v.cogDeg,
               sogKt: v.sogKt,
@@ -203,7 +233,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
         <line x1="200" y1="22" x2="200" y2="378" stroke={C.line} /><line x1="22" y1="200" x2="378" y2="200" stroke={C.line} />
         {[["N", 200, 32], ["E", 372, 204], ["S", 200, 376], ["W", 26, 204]].map(([d, x, y]) => <text key={d} x={x} y={y} fill={C.dim} fontSize="11" fontFamily="monospace" textAnchor="middle">{d}</text>)}
         {!reduce && status !== "error" && <g className="rsweep"><polygon points="200,200 200,24 258,42" fill="url(#swm)" /></g>}
-        {plotted.map((v, idx) => {
+        {shown.map((v, idx) => {
           const col = shipColor(v), isSel = v.id === sel, moving = v.sogKt != null && v.sogKt >= 0.5;
           // Ships are slow, so trails are always on — otherwise nobody would ever see them.
           // Unselected trails are decimated and capped to the nearest 80 contacts so a busy
@@ -232,6 +262,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
         style={{ zIndex: 1200, background: "linear-gradient(0deg, rgba(8,19,15,0.92), rgba(8,19,15,0))", fontSize: 11 }}>
         {chosen ? (
           <span style={{ color: shipColor(chosen), lineHeight: 1.5 }}>
+            {chosen.subSupport ? "[SUB SUPPORT · surface ship] " : chosen.usv ? (chosen.usvConfidence === "confirmed" ? "[SEA DRONE] " : "[SEA DRONE?] ") : ""}
             {chosen.name || chosen.id} · {chosen.sogKt != null ? chosen.sogKt.toFixed(1) + "kt" : "—"} · {chosen.cogDeg != null ? Math.round(chosen.cogDeg) + "°" : "moored"}
             {(shipTypeLabel(chosen.typeCode) || chosen.destination || chosen.lengthM) && (
               <span style={{ display: "block", color: C.dim, fontSize: 10 }}>
@@ -269,7 +300,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
               "0 in range — no community AIS receivers near here yet · coverage varies by region"
             )}
           </span>
-        ) : (<span style={{ color: C.faint }}>Tap a vessel · {plotted.length} in range</span>)}
+        ) : (<span style={{ color: C.faint }}>Tap a vessel · {shown.length}{only !== "all" ? ` of ${plotted.length}` : ""} in range</span>)}
         <span style={{ color: C.dim }}>{center.city}</span>
       </div>
       {/* Stated plainly rather than left to assumption: quiet water is not necessarily
