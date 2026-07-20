@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
-import { LAYERS } from "../theme.js";
+import { LAYERS, heatColor, heatIntensity } from "../theme.js";
 
 // Viewport clustering, no extra dependency.
 //
@@ -41,10 +41,12 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     const sites = heatRef.current;
     if (!sites || !sites.length) return;
     const RAMP = ["#3B82F6", "#8B5CF6", "#C084FC", "#F6A821", "#F87171"];
+    const heatMaxLocal = Math.max(2, ...(heatRef.current || []).map((x) => x.contacts || 0));
     sites.forEach((s) => {
-      const col = RAMP[Math.min(RAMP.length - 1, Math.floor(s.intensity * RAMP.length))];
+      const t = heatIntensity(s.contacts, heatMaxLocal);
+      const col = heatColor(t);
       Leaflet.circleMarker([s.lat, s.lon], {
-        radius: 6 + s.intensity * 18, color: col, weight: 1.2,
+        radius: 6 + t * 18, color: col, weight: 1.2,
         fillColor: col, fillOpacity: 0.22, interactive: true,
       })
         .bindPopup(

@@ -24,3 +24,30 @@ export const resolveUrl = (cam) =>
     ? `https://globe.adsbexchange.com/?SiteLat=${cam.lat.toFixed(3)}&SiteLon=${cam.lng.toFixed(3)}`
     : cam.url;
 export const openLive = (cam) => { if (typeof window !== "undefined") window.open(resolveUrl(cam), "_blank", "noopener,noreferrer"); };
+
+// Shared activity-heat colour scale.
+//
+// Two bugs this fixes. First, intensity was contacts/max — LINEAR — and this data is heavily
+// skewed: one region at 344 while most sit in single digits pushed almost every circle to the
+// bottom of the ramp, so everything looked equally quiet. A log scale spreads the busy middle
+// where the differences actually are. Second, WorldMap and HeatMap each had their own ramp
+// indexing, so the same site could be a different colour on the two surfaces. One function now.
+export const HEAT_RAMP = [
+  { at: 0.00, c: "#2DD4BF" },   // teal   — quietest observed
+  { at: 0.35, c: "#C084FC" },   // violet
+  { at: 0.65, c: "#F6A821" },   // amber
+  { at: 0.85, c: "#F87171" },   // red    — busiest observed
+];
+
+// contacts -> 0..1 on a log scale, relative to the busiest site in the same window
+export function heatIntensity(contacts, max) {
+  const c = Math.max(1, Number(contacts) || 0);
+  const m = Math.max(2, Number(max) || 2);
+  return Math.min(1, Math.log(c) / Math.log(m));
+}
+
+export function heatColor(t) {
+  let out = HEAT_RAMP[0].c;
+  for (const stop of HEAT_RAMP) if (t >= stop.at) out = stop.c;
+  return out;
+}

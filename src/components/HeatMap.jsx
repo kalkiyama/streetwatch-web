@@ -3,24 +3,12 @@ import { Maximize2, X } from "lucide-react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
-import { C } from "../theme.js";
+import { C, heatColor, heatIntensity, HEAT_RAMP } from "../theme.js";
 import { BACKEND_URL } from "../config.js";
 
 // Where military / UAV activity actually concentrates, measured from this sweep's own
 // archive. Colour and size come from observed contact counts — not from any outside
 // claim about where a conflict is.
-const RAMP = [
-  { at: 0.00, c: "#3B82F6" },   // blue    — occasional
-  { at: 0.25, c: "#8B5CF6" },   // violet
-  { at: 0.50, c: "#C084FC" },
-  { at: 0.75, c: "#F6A821" },   // amber
-  { at: 1.00, c: "#F87171" },   // red     — busiest observed
-];
-const colorFor = (t) => {
-  let out = RAMP[0].c;
-  for (const stop of RAMP) if (t >= stop.at) out = stop.c;
-  return out;
-};
 
 export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
   const box = useRef(null);
@@ -83,9 +71,10 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
     layer.current = Leaflet.layerGroup().addTo(map.current);
     guardTouchScroll(map.current);
     data.sites.forEach((s) => {
-      const col = colorFor(s.intensity);
+      const t = heatIntensity(s.contacts, data.maxContacts || 2);
+      const col = heatColor(t);
       Leaflet.circleMarker([s.lat, s.lon], {
-        radius: 5 + s.intensity * 16,
+        radius: 5 + t * 16,
         color: col, weight: 1.5, fillColor: col, fillOpacity: 0.35,
       })
         .bindPopup(
@@ -122,11 +111,14 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
         borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />
       <div className="flex items-center gap-1.5 font-mono" style={{ fontSize: 9, color: C.faint, marginTop: 4, flexWrap: "wrap" }}>
         <span>quiet</span>
-        {RAMP.map((r) => <span key={r.at} style={{ width: 14, height: 8, background: r.c, borderRadius: 2, display: "inline-block" }} />)}
+        {HEAT_RAMP.map((r) => <span key={r.at} style={{ width: 14, height: 8, background: r.c, borderRadius: 2, display: "inline-block" }} />)}
         <span>busiest</span>
         {data && <span style={{ marginLeft: 6 }}>· {data.count} airspaces with activity in {data.windowDays}d</span>}
       </div>
       <div style={{ fontSize: 9, color: C.faint, marginTop: 3, lineHeight: 1.5 }}>
+        Each circle counts distinct aircraft seen within {(data && data.sweepRadiusNm) || 250}nm of that site — a
+        region, not the airfield. Neighbouring circles overlap, and an aircraft crossing both is
+        counted at whichever site it came closest to. 
         Measured from aircraft that broadcast ADS-B. Aircraft flying with transponders off — which
         includes most combat activity — are not counted, so this shows the visible traffic around a
         region, not the fighting itself.
