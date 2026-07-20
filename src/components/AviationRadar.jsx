@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Wifi, WifiOff, X } from "lucide-react";
 import { C } from "../theme.js";
+import RadarMap from "./RadarMap.jsx";
 import { BACKEND_URL, AIS_BACKEND_URL } from "../config.js";
 import { RAD, rnd } from "../geo.js";
 
@@ -45,6 +46,8 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
   const [, setTick] = useState(0);
   const [sel, setSel] = useState(null);
   const [uavInfo, setUavInfo] = useState(false);
+  const [only, setOnly] = useState("all");      // all | mil | uav
+  const [view, setView] = useState("radar");    // radar | map
   // UAV Watch feeds open at 250nm because that is the radius the sweep itself polls —
   // otherwise a sighting listed in the Drones tab can be outside the radar you just opened.
   const [radius, setRadius] = useState([60, 120, 250].includes(initialRadius) ? initialRadius : defaultRadius);
@@ -125,6 +128,10 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
     ]);
     return { ...a, d, x, y, trail };
   }).filter((a) => a.d <= radius).sort((a, b) => a.d - b.d);
+  // MIL / UAV filtering, the thing tar1090 users reach for first
+  const shown = only === "mil" ? plotted.filter((a) => a.military)
+              : only === "uav" ? plotted.filter((a) => a.isDrone)
+              : plotted;
   const chosen = plotted.find((a) => a.id === sel);
   const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -149,6 +156,29 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
           ))}
         </div>
       </div>
+      <div className="flex items-center gap-1 px-2 pb-1" style={{ flexWrap: "wrap" }}>
+        {[["all", "ALL"], ["mil", "MIL"], ["uav", "UAV"]].map(([k, label]) => {
+          const n = k === "mil" ? plotted.filter((a) => a.military).length
+                  : k === "uav" ? plotted.filter((a) => a.isDrone).length : plotted.length;
+          const col = k === "mil" ? "#F87171" : k === "uav" ? "#C084FC" : C.cyan;
+          return (
+            <button key={k} onClick={() => setOnly(k)} className="px-1.5 py-0.5 rounded font-mono"
+              style={{ fontSize: 10, color: only === k ? C.ink : C.dim,
+                background: only === k ? col : "rgba(28,32,41,0.8)",
+                border: `1px solid ${only === k ? col : "transparent"}` }}>
+              {label} {n}
+            </button>
+          );
+        })}
+        <span style={{ flex: 1 }} />
+        {[["radar", "RADAR"], ["map", "MAP"]].map(([k, label]) => (
+          <button key={k} onClick={() => setView(k)} className="px-1.5 py-0.5 rounded font-mono"
+            style={{ fontSize: 10, color: view === k ? C.ink : C.dim,
+              background: view === k ? C.cyan : "rgba(28,32,41,0.8)" }}>
+            {label}
+          </button>
+        ))}
+      </div>
       {uavInfo && (
         <div className="absolute z-20 left-3 right-3 top-11 rounded-lg p-3"
           style={{ background: "rgba(10,14,20,0.96)", border: "1px solid rgba(192,132,252,0.4)" }}>
@@ -171,7 +201,14 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
           </div>
         </div>
       )}
-      <svg viewBox="0 0 400 400" className="w-full" style={{ display: "block", maxHeight: 420 }}>
+      {view === "map" && (
+        <div className="px-2 pb-1">
+          <RadarMap center={center} contacts={shown} radiusNm={radius} sel={sel} onSel={setSel}
+            height="min(52vh, 420px)" />
+        </div>
+      )}
+      <svg viewBox="0 0 400 400" className="w-full"
+        style={{ display: view === "map" ? "none" : "block", maxHeight: 420 }}>
         <defs>
           <radialGradient id="sc" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#0F1620" /><stop offset="100%" stopColor="#090D12" /></radialGradient>
           <linearGradient id="sw" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="rgba(90,200,250,0)" /><stop offset="100%" stopColor="rgba(90,200,250,0.28)" /></linearGradient>
@@ -182,7 +219,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
         <line x1="200" y1="22" x2="200" y2="378" stroke={C.line} /><line x1="22" y1="200" x2="378" y2="200" stroke={C.line} />
         {[["N",200,32],["E",372,204],["S",200,376],["W",26,204]].map(([d, x, y]) => <text key={d} x={x} y={y} fill={C.dim} fontSize="11" fontFamily="monospace" textAnchor="middle">{d}</text>)}
         {!reduce && status !== "error" && <g className="rsweep"><polygon points="200,200 200,24 258,42" fill="url(#sw)" /></g>}
-        {plotted.map((a) => {
+        {shown.map((a) => {
           const col = a.isDrone ? "#C084FC" : a.military ? "#F87171" : altColor(a), isSel = a.id === sel;
           return (
             <g key={a.id} transform={`translate(${a.x} ${a.y})`} onClick={() => setSel(a.id)} style={{ cursor: "pointer" }}>
@@ -231,7 +268,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
           </span>
         ) : status === "live" && plotted.length === 0 ? (
           <span style={{ color: C.faint }}>0 in range — thin ADS-B receiver coverage here · real data, sparse net</span>
-        ) : (<span style={{ color: C.faint }}>Tap an aircraft · {plotted.length} in range{(() => { const d = plotted.filter((a) => a.isDrone).length; return d ? ` · ${d} UAV` : ""; })()}</span>)}
+        ) : (<span style={{ color: C.faint }}>Tap an aircraft · {shown.length}{only !== "all" ? ` of ${plotted.length}` : ""} in range{(() => { const d = plotted.filter((a) => a.isDrone).length; return d ? ` · ${d} UAV` : ""; })()}</span>)}
         <span style={{ color: C.dim }}>{center.name.split("·").pop().trim() || center.city}</span>
       </div>
     </div>
