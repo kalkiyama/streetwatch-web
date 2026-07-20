@@ -28,7 +28,7 @@ function PathView({ track, onClose }) {
             }, 0);
             return (
               <>
-                <div className="mt-1.5"><PathMap points={pts} /></div>
+                <div className="mt-1.5"><PathMap points={pts} fitKey={track.contact.icao} /></div>
                 <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.6 }}>
                   {pts.length} recorded positions · {km.toFixed(0)}km of track
                   <span style={{ display: "block" }}>
@@ -54,6 +54,7 @@ export default function DroneSweep({ onOpen }) {
   const [track, setTrack] = useState(null);     // { contact, points }
 
   useEffect(() => {
+    if (mode !== "live") return;          // don't poll the live sweep while reading the archive
     let alive = true;
     async function load() {
       if (!BACKEND_URL) { setState("error"); return; }
@@ -68,7 +69,7 @@ export default function DroneSweep({ onOpen }) {
     load();
     const id = setInterval(load, 30000);
     return () => { alive = false; clearInterval(id); };
-  }, [mins]);
+  }, [mins, mode]);
 
   useEffect(() => {
     if (mode !== "archive") return;

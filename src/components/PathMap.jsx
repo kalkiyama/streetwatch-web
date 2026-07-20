@@ -2,43 +2,69 @@ import { useEffect, useRef } from "react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Draws one archived contact's recorded path on a real map, so a track reads as
+// One archived contact's recorded path on a real map, so a track reads as
 // "off the coast of Cyprus" rather than an abstract line on a blank panel.
-export default function PathMap({ points, color = "#C084FC", height = 220 }) {
+//
+// fitKey identifies the contact. The view is fitted ONCE per contact: the parent
+// re-renders every 30s (sweep poll), and refitting on every render would throw
+// away whatever the user had panned or zoomed to.
+export default function PathMap({ points, fitKey, color = "#C084FC", height = 240 }) {
   const box = useRef(null);
   const map = useRef(null);
+  const layer = useRef(null);
+  const fitted = useRef(null);
 
+  // create the map once
   useEffect(() => {
-    if (!box.current || !points || points.length === 0) return;
+    if (!box.current || map.current) return;
+    map.current = Leaflet.map(box.current, {
+      zoomControl: true,
+      attributionControl: true,
+      scrollWheelZoom: false,       // don't hijack page scrolling
+      doubleClickZoom: true,
+      minZoom: 2,
+      maxZoom: 18,
+    });
+    Leaflet.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      attribution: "&copy; OpenStreetMap &copy; CARTO",
+      maxZoom: 19,                  // let the user zoom to street level
+      maxNativeZoom: 19,
+    }).addTo(map.current);
+    Leaflet.control.scale({ imperial: false }).addTo(map.current);
+    setTimeout(() => map.current && map.current.invalidateSize(), 60);
+    return () => { if (map.current) { map.current.remove(); map.current = null; } };
+  }, []);
+
+  // draw / redraw the track
+  useEffect(() => {
+    if (!map.current || !points || points.length === 0) return;
+    if (layer.current) layer.current.remove();
+    layer.current = Leaflet.layerGroup().addTo(map.current);
+
     const latlngs = points.map((p) => [p.lat, p.lon]);
+    Leaflet.polyline(latlngs, { color, weight: 2.5, opacity: 0.9 }).addTo(layer.current);
 
-    if (!map.current) {
-      map.current = Leaflet.map(box.current, {
-        zoomControl: true, attributionControl: true, scrollWheelZoom: false,
-      });
-      Leaflet.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 12,
-      }).addTo(map.current);
-    }
-
-    const layer = Leaflet.layerGroup().addTo(map.current);
-    Leaflet.polyline(latlngs, { color, weight: 2.5, opacity: 0.9 }).addTo(layer);
-
-    // start = hollow, end = filled, so direction of travel is obvious
     const first = points[0], last = points[points.length - 1];
     Leaflet.circleMarker([first.lat, first.lon], { radius: 4, color, weight: 2, fillOpacity: 0 })
-      .bindTooltip(`first seen · ${new Date(first.ts).toLocaleString()}`).addTo(layer);
+      .bindTooltip(`first seen · ${new Date(first.ts).toLocaleString()}`).addTo(layer.current);
     Leaflet.circleMarker([last.lat, last.lon], { radius: 5, color, weight: 2, fillColor: color, fillOpacity: 1 })
-      .bindTooltip(`last seen · ${new Date(last.ts).toLocaleString()}`).addTo(layer);
+      .bindTooltip(`last seen · ${new Date(last.ts).toLocaleString()}`).addTo(layer.current);
 
-    if (latlngs.length === 1) map.current.setView(latlngs[0], 8);
-    else map.current.fitBounds(Leaflet.latLngBounds(latlngs).pad(0.25));
+    // fit only when the contact changes — never on a routine re-render
+    if (fitted.current !== fitKey) {
+      fitted.current = fitKey;
+      if (latlngs.length === 1) map.current.setView(latlngs[0], 9);
+      else map.current.fitBounds(Leaflet.latLngBounds(latlngs).pad(0.25), { maxZoom: 11 });
+      setTimeout(() => map.current && map.current.invalidateSize(), 60);
+    }
+  }, [points, color, fitKey]);
 
-    setTimeout(() => map.current && map.current.invalidateSize(), 60); // panel just opened
-    return () => { layer.remove(); };
-  }, [points, color]);
-
-  useEffect(() => () => { if (map.current) { map.current.remove(); map.current = null; } }, []);
-
-  return <div ref={box} style={{ height, borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />;
+  return (
+    <div>
+      <div ref={box} style={{ height, borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />
+      <div className="font-mono" style={{ fontSize: 9, color: "#5B6472", marginTop: 3 }}>
+        pinch or use +/− to zoom · place names appear as you zoom in
+      </div>
+    </div>
+  );
 }
