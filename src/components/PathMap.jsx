@@ -38,6 +38,25 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = "m
     return () => { if (map.current) { map.current.remove(); map.current = null; } };
   }, []);
 
+
+  // Esc exits fullscreen, and the page behind shouldn't scroll while it's open
+  useEffect(() => {
+    if (!full) return;
+    const esc = (e) => { if (e.key === "Escape") setFull(false); };
+    window.addEventListener("keydown", esc);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const t = setTimeout(() => map.current && map.current.invalidateSize(), 80);
+    return () => {
+      window.removeEventListener("keydown", esc);
+      document.body.style.overflow = prev;
+      clearTimeout(t);
+    };
+  }, [full]);
+
+  // re-measure whenever the frame size changes (entering AND leaving fullscreen)
+  useEffect(() => { const t = setTimeout(() => map.current && map.current.invalidateSize(), 90); return () => clearTimeout(t); }, [full]);
+
   // draw / redraw the track
   useEffect(() => {
     if (!map.current || !points || points.length === 0) return;
