@@ -37,9 +37,11 @@ export default function WorldMap({ feeds, selectedId, onSelect }) {
     if (zoom >= DETAIL_ZOOM || visible.length <= 120) {
       visible.forEach((f) => {
         const col = LAYERS[f.layer].color, sel = f.id === selectedId;
+        const hollow = f.layer === "marine";        // ports read as rings, airports as dots
         Leaflet.circleMarker([f.lat, f.lng], {
-          radius: sel ? 7 : 4, color: sel ? "#FFFFFF" : col,
-          weight: sel ? 2 : 1, fillColor: col, fillOpacity: 0.9,
+          radius: sel ? 7 : hollow ? 4.5 : 4, color: sel ? "#FFFFFF" : col,
+          weight: sel ? 2 : hollow ? 1.8 : 1,
+          fillColor: col, fillOpacity: hollow ? 0.12 : 0.9,
         })
           .on("click", () => onSelect(f.id))
           .bindTooltip(f.name, { direction: "top", opacity: 0.9 })
@@ -70,9 +72,11 @@ export default function WorldMap({ feeds, selectedId, onSelect }) {
       const lat = c.lat / c.n, lng = c.lng / c.n;
       if (c.n === 1) {
         const f = c.one, col = LAYERS[f.layer].color, sel = f.id === selectedId;
+        const hollow = f.layer === "marine";
         Leaflet.circleMarker([f.lat, f.lng], {
-          radius: sel ? 7 : 4, color: sel ? "#FFFFFF" : col,
-          weight: sel ? 2 : 1, fillColor: col, fillOpacity: 0.9,
+          radius: sel ? 7 : hollow ? 4.5 : 4, color: sel ? "#FFFFFF" : col,
+          weight: sel ? 2 : hollow ? 1.8 : 1,
+          fillColor: col, fillOpacity: hollow ? 0.12 : 0.9,
         })
           .on("click", () => onSelect(f.id))
           .bindTooltip(f.name, { direction: "top", opacity: 0.9 })

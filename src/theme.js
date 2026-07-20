@@ -10,7 +10,7 @@ export const C = {
 export const LAYERS = {
   traffic:  { label: "Traffic",  icon: Car,       color: "#F6A821", camera: true,  desc: "Public DOT / motorway road cameras." },
   aviation: { label: "Aviation", icon: Plane,     color: "#5AC8FA", camera: false, desc: "Open ADS-B live flight & airport activity." },
-  marine:   { label: "Marine",   icon: Ship,      color: "#2DD4BF", camera: false, desc: "Open AIS live ship positions & ports." },
+  marine:   { label: "Marine",   icon: Ship,      color: "#2563EB", camera: false, desc: "Open AIS live ship positions & ports." },
   weather:  { label: "Earth",    icon: CloudSun,  color: "#A78BFA", camera: false, desc: "Public satellite & weather imagery." },
   webcam:   { label: "Webcams",  icon: Camera,    color: "#37C46A", camera: true,  desc: "Published public webcams — squares, beaches, landmarks." },
   wildlife: { label: "Wildlife", icon: PawPrint,  color: "#A3E635", camera: true,  desc: "Public conservation & nature livestreams." },
