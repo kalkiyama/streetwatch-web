@@ -4,14 +4,77 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StreetWatch — Live Military & Drone Tracker, Flights, Ships & Webcams | streetwatch.earth</title>
     <meta name="description" content="StreetWatch — one live console for the public planet: flights, ships, weather satellites, webcams and the ISS, plus a 24/7 military & drone watch across 1,000+ airspaces with a 90-day public archive. Honest about what public data can and cannot see. Public feeds only." />
+    <link rel="canonical" href="https://streetwatch.earth/" />
     <meta name="theme-color" content="#0E1116" />
+
+    <!-- link previews: what a share on any platform shows -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="StreetWatch" />
+    <meta property="og:title" content="StreetWatch — Live Military & Drone Tracker, Flights, Ships & Webcams" />
+    <meta property="og:description" content="24/7 military & UAV watch across 1,000+ airspaces with a 90-day public archive, plus 7,000+ live public feeds: flights, ships, weather satellites and webcams. Honest about the limits of public data." />
+    <meta property="og:url" content="https://streetwatch.earth/" />
+    <meta property="og:image" content="https://streetwatch.earth/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="StreetWatch — Live Military & Drone Tracker" />
+    <meta name="twitter:description" content="24/7 military & UAV watch across 1,000+ airspaces · 90-day public archive · 7,000+ live public feeds. Public data, honestly presented." />
+    <meta name="twitter:image" content="https://streetwatch.earth/icon-512.png" />
+
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
-    <title>StreetWatch — Live Planet Console</title>
+
+    <!-- structured data: tells search engines what kind of thing this is -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "StreetWatch",
+      "url": "https://streetwatch.earth/",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Any",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "description": "A live console for the public planet: a 24/7 military and drone watch across 1,000+ airspaces with a 90-day public archive, plus 7,000+ public live feeds — flights, ships, weather satellites, webcams, wildlife and the ISS.",
+      "featureList": [
+        "24/7 military & UAV sweep across 1,039 airspaces in 169 countries",
+        "90-day public archive of military and drone tracks with map replay",
+        "Live flight radar with military/UAV filters",
+        "Live ship positions from open state-run AIS feeds",
+        "Sea drone and submarine-support vessel detection",
+        "7,000+ public webcams, weather satellites and wildlife cameras"
+      ]
+    }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Crawlable content: replaced the moment the app hydrates, but this is what
+           non-JS crawlers and slow connections see instead of an empty div. -->
+      <main style="font-family:system-ui,sans-serif;background:#0E1116;color:#E6EAF2;min-height:100vh;padding:40px 24px;max-width:720px;margin:0 auto">
+        <h1 style="font-size:24px">StreetWatch — a live console for the public planet</h1>
+        <p>Watch the world through <strong>7,000+ public live feeds</strong>: flight radar,
+        ship positions, weather satellites, public webcams, wildlife cameras and the ISS —
+        and a capability nobody else runs: a <strong>24/7 military &amp; drone watch</strong>
+        sweeping <strong>1,039 airspaces across 169 countries</strong>, with a
+        <strong>90-day public archive</strong> of every military and UAV contact, replayable
+        on a map.</p>
+        <h2 style="font-size:18px">What makes it different</h2>
+        <p>Honesty. Public data has hard edges — aircraft flying with transponders off are
+        invisible, submarines cannot be tracked by anyone because radio does not travel
+        through seawater, and marine AIS coverage varies by region. Where StreetWatch cannot
+        see, it says so, on every display and in every API response. Public feeds only;
+        never private cameras.</p>
+        <h2 style="font-size:18px">What you can do</h2>
+        <ul>
+          <li>Browse the whole catalog on a clustered world map with live drone, activity-heat, sea-drone and submarine-support layers</li>
+          <li>Open any airport's radar and filter to military or UAV traffic</li>
+          <li>Replay archived drone tracks over real geography with a timeline</li>
+          <li>See live ships in the Baltic and along the Norwegian coast from state-run open feeds</li>
+          <li>Find public webcams within 50&nbsp;km of anything</li>
+        </ul>
+        <p>Loading the live console… (StreetWatch needs JavaScript to display live data.)</p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
     <script src="/sw-register.js"></script>
   </body>
