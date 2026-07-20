@@ -252,7 +252,10 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
         })}
         <circle cx="200" cy="200" r="3" fill={C.cyan} />
       </svg>
-      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2 font-mono" style={{ zIndex: 1200, background: "linear-gradient(0deg, rgba(10,14,20,0.92), rgba(10,14,20,0))", fontSize: 11 }}>
+      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2 font-mono" style={{ zIndex: 1200, background: "linear-gradient(0deg, rgba(10,14,20,0.92), rgba(10,14,20,0))", fontSize: 11,
+          minHeight: 46, alignItems: "flex-end",
+          // proportional digits change width as values tick, which made the whole line shuffle
+          fontVariantNumeric: "tabular-nums" }}>
         {chosen ? (
           <span style={{ color: chosen.isDrone ? "#C084FC" : altColor(chosen), lineHeight: 1.5 }}>
             {chosen.isDrone ? "◇ UAV · " : ""}{chosen.callsign || chosen.id} · {chosen.typeCode || "—"} · {chosen.onGround ? "GND" : (chosen.altFt / 1000).toFixed(0) + "k ft"} · {chosen.groundSpeedKt}kt · {Math.round(chosen.headingDeg)}°
