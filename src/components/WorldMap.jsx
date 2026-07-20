@@ -51,8 +51,12 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       })
         .bindPopup(
           `<b>${s.site}</b><br>${s.country || ""}<br>` +
-          `${s.contacts} contacts · ${s.uav} UAV · ${s.military} military<br>` +
-          `${s.points} observations over ${s.span_hours || 0}h`
+          `<b>${s.contacts}</b> aircraft within 250nm · ${s.uav} UAV · ${s.military} military<br>` +
+          (s.near_contacts != null
+            ? `<b>${s.near_contacts}</b> of them within 25nm of the site itself<br>`
+            : "") +
+          `${s.points} observations over ${s.span_hours || 0}h<br>` +
+          `<span style="opacity:.7">Circles overlap; each aircraft is counted at the nearest site.</span>`
         )
         .addTo(lg);
     });

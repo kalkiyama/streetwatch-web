@@ -72,16 +72,25 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
     guardTouchScroll(map.current);
     data.sites.forEach((s) => {
       const t = heatIntensity(s.contacts, data.maxContacts || 2);
+      const radiusNm = data.sweepRadiusNm || 250;
+      const nearNm = data.nearRadiusNm || 25;
       const col = heatColor(t);
       Leaflet.circleMarker([s.lat, s.lon], {
         radius: 5 + t * 16,
         color: col, weight: 1.5, fillColor: col, fillOpacity: 0.35,
       })
         .bindPopup(
+          // The headline number counts a 250nm REGION. Saying "351 contacts" beside a base
+          // name reads as 351 aircraft at that base — which is how Findel, a civil airport
+          // ringed by military airspace, came to look like the sixth busiest site on earth.
           `<b>${s.site}</b><br>${s.country || ""}<br>` +
-          `${s.contacts} contact${s.contacts === 1 ? "" : "s"} · ${s.uav} UAV · ${s.military} military<br>` +
+          `<b>${s.contacts}</b> aircraft within ${radiusNm}nm · ${s.uav} UAV · ${s.military} military<br>` +
+          (s.near_contacts != null
+            ? `<b>${s.near_contacts}</b> of them within ${nearNm}nm of the site itself<br>`
+            : "") +
           `${s.points} observations over ${s.span_hours || 0}h<br>` +
-          `<span style="opacity:.7">last seen ${new Date(s.last_seen).toLocaleString()}</span>`
+          `<span style="opacity:.7">last seen ${new Date(s.last_seen).toLocaleString()}<br>` +
+          `A ${radiusNm}nm circle overlaps its neighbours; each aircraft is counted at the site it came closest to.</span>`
         )
         .addTo(layer.current);
     });
