@@ -5,6 +5,7 @@ import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, P
 import { C, LAYERS, layerKeys, resolveUrl, openLive } from "./theme.js";
 import { distKm } from "./geo.js";
 import WorldMap from "./components/WorldMap.jsx";
+import MapPanel from "./components/MapPanel.jsx";
 import Frame, { useClock, LiveViewport, DataPreview } from "./components/FeedViewer.jsx";
 import AviationRadar from "./components/AviationRadar.jsx";
 import { norm, fuzzyHit, budgetFor, words } from "./search.js";
@@ -361,8 +362,8 @@ export default function StreetWatch() {
           </div>
 
           {browse === "map" && (
-            <div style={{ height: "min(60vh, 560px)" }} className="mx-4 mb-3 rounded overflow-hidden" >
-              <WorldMap feeds={results} selectedId={selected ? selected.id : null} onSelect={setSelectedId} />
+            <div className="mx-4 mb-3">
+              <MapPanel feeds={results} selectedId={selected ? selected.id : null} onSelect={setSelectedId} />
             </div>
           )}
 
