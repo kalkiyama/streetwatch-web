@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 // The same contacts the radar is plotting, on real geography. The radar is better for
 // "what's around me and how far"; the map is better for "where is this actually".
 // Same selection state drives both, so tapping in one highlights in the other.
-export default function RadarMap({ center, contacts, radiusNm, sel, onSel, height = 300 }) {
+export default function RadarMap({ center, contacts, radiusNm, sel, onSel, height = 300, mode = "air" }) {
   const box = useRef(null);
   const map = useRef(null);
   const layer = useRef(null);
@@ -93,8 +93,11 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
         }
       }
       m.bindTooltip(
-        `${a.callsign || a.id}${a.military ? " · MIL" : ""}${a.isDrone ? " · UAV" : ""}` +
-        `${Number.isFinite(a.altFt) ? " · " + Math.round(a.altFt / 1000) + "k ft" : ""}`,
+        mode === "sea"
+          ? `${a.callsign || a.id}${a.military ? " · SUB SUPPORT (surface ship)" : ""}${a.isDrone ? " · SEA DRONE" : ""}` +
+            `${Number.isFinite(a.sogKt) ? " · " + a.sogKt.toFixed(1) + " kt" : ""}`
+          : `${a.callsign || a.id}${a.military ? " · MIL" : ""}${a.isDrone ? " · UAV" : ""}` +
+            `${Number.isFinite(a.altFt) ? " · " + Math.round(a.altFt / 1000) + "k ft" : ""}`,
         { direction: "top", opacity: 0.9 }
       );
     });
@@ -111,7 +114,7 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
       const col = chosen.isDrone ? "#C084FC" : chosen.military ? "#F87171" : "#5AC8FA";
       trailRef.current = Leaflet.polyline(chosen.trail, { color: col, weight: 1.5, opacity: 0.6 }).addTo(layer.current);
     }
-  }, [contacts, sel]);
+  }, [contacts, sel, mode]);
 
   return <div ref={box} style={{ height, borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />;
 }
