@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { RefreshCw, Radio, History, X } from "lucide-react";
 import { C } from "../theme.js";
 import PathMap from "./PathMap.jsx";
+import TrackNarrative from "./TrackNarrative.jsx";
+import AiBriefing from "./AiBriefing.jsx";
 import HeatMap from "./HeatMap.jsx";
 import { BACKEND_URL } from "../config.js";
 
@@ -30,6 +32,7 @@ function PathView({ track, onClose }) {
             return (
               <>
                 <div className="mt-1.5"><PathMap points={pts} fitKey={track.contact.icao} /></div>
+                <TrackNarrative icao={track.contact.icao} />
                 <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.6 }}>
                   {pts.length} recorded positions · {km.toFixed(0)}km of track
                   <span style={{ display: "block" }}>
@@ -147,6 +150,10 @@ export default function DroneSweep({ onOpen }) {
           );
         })}
       </div>
+
+      {mode === "archive" && (
+        <div className="px-3 pb-2"><AiBriefing /></div>
+      )}
 
       {mode === "live" && state === "ok" && data.sweep && data.sweep.cycles === 0 && (
         <div className="px-3 pb-1.5" style={{ fontSize: 10, color: C.dim }}>
