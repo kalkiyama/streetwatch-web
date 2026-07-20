@@ -225,9 +225,17 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
           </span>
         ) : status === "live" && plotted.length === 0 ? (
           <span style={{ color: upstream === "down" ? "#F6A821" : C.faint }}>
-            {upstream === "down"
-              ? "AIS provider is offline right now — this is upstream of StreetWatch, not your connection. Vessels will reappear when the feed returns."
-              : "0 in range — no community AIS receivers near here yet · coverage varies by region"}
+            {upstream === "down" ? (
+              <>
+                AIS provider is offline right now — this is upstream of StreetWatch, not your connection.
+                <span style={{ display: "block", color: C.dim, marginTop: 3 }}>
+                  Tap <b style={{ color: C.text }}>WATCH LIVE</b> above to open the source&rsquo;s own map — it runs a
+                  separate receiver network and is unaffected. Vessels reappear here when our feed returns.
+                </span>
+              </>
+            ) : (
+              "0 in range — no community AIS receivers near here yet · coverage varies by region"
+            )}
           </span>
         ) : (<span style={{ color: C.faint }}>Tap a vessel · {plotted.length} in range</span>)}
         <span style={{ color: C.dim }}>{center.city}</span>
