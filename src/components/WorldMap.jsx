@@ -12,7 +12,7 @@ import { LAYERS } from "../theme.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect, liveContacts = null, heatSites = null, showFeeds = true }) {
+export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, liveContacts = null, heatSites = null, showFeeds = true }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -50,7 +50,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, liveContacts = n
   };
 
   // --- live sweep contacts, drawn on top so they are never hidden ---
-  const drawLive = (lg, onSelectFeed) => {
+  const drawLive = (lg, onSelectFeed, onOpenSighting) => {
     const items = liveRef.current;
     if (!items || !items.length) return;
     items.forEach((d) => {
@@ -67,9 +67,9 @@ export default function WorldMap({ feeds, selectedId, onSelect, liveContacts = n
           { direction: "top", opacity: 0.9 }
         )
         .on("click", function () {
-          // Jump to the airspace radar this contact was seen in. The feeds list is always
-          // present for this lookup even when the FEEDS layer is switched off — hiding a
-          // layer should not disable navigation.
+          // Open the airspace radar AND pre-select this aircraft, so the user lands on the
+          // contact they tapped rather than hunting for it among a hundred other flights.
+          if (onOpenSighting) { onOpenSighting(d); return; }
           const f = feedsRef.current.find((x) => x.tag === "uav" && d.site && x.name.endsWith(d.site));
           if (f && onSelectFeed) { onSelectFeed(f.id); return; }
           // never leave a tap doing nothing: explain instead
@@ -91,7 +91,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, liveContacts = n
 
     const zoom = map.getZoom();
     const bounds = map.getBounds().pad(0.2);
-    if (!showFeedsRef.current) { drawLive(lg, onSelect); return; }   // heat already drawn
+    if (!showFeedsRef.current) { drawLive(lg, onSelect, onOpenSighting); return; }   // heat already drawn
     const visible = feedsRef.current.filter(
       (f) => Number.isFinite(f.lat) && Number.isFinite(f.lng) && bounds.contains([f.lat, f.lng])
     );
@@ -110,7 +110,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, liveContacts = n
           .bindTooltip(f.name, { direction: "top", opacity: 0.9 })
           .addTo(lg);
       });
-      drawLive(lg, onSelect);
+      drawLive(lg, onSelect, onOpenSighting);
       return;
     }
 
@@ -169,8 +169,8 @@ export default function WorldMap({ feeds, selectedId, onSelect, liveContacts = n
         .bindTooltip(`${c.n} feeds — tap to zoom in`, { direction: "top", opacity: 0.9 })
         .addTo(lg);
     });
-    drawLive(lg, onSelect);
-  }, [selectedId, onSelect]);
+    drawLive(lg, onSelect, onOpenSighting);
+  }, [selectedId, onSelect, onOpenSighting]);
 
   useEffect(() => {
     if (mapRef.current || !elRef.current) return;
