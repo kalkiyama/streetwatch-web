@@ -15,6 +15,9 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
   const map = useRef(null);
   const layer = useRef(null);
   const [data, setData] = useState(null);
+  // Which radius the circles represent. 25nm ≈ the airfield and its immediate approaches;
+  // 100nm ≈ its working airspace; 250nm ≈ the whole region the sweep polls.
+  const [radius, setRadius] = useState(250);
   const [state, setState] = useState("loading");
   const [full, setFull] = useState(false);
 
@@ -71,8 +74,13 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
     layer.current = Leaflet.layerGroup().addTo(map.current);
     guardTouchScroll(map.current);
     data.sites.forEach((s) => {
-      const t = heatIntensity(s.contacts, data.maxContacts || 2);
-      const radiusNm = data.sweepRadiusNm || 250;
+      const pick = radius === 25 ? { c: s.c25, u: s.uav25, m: s.mil25 }
+                 : radius === 100 ? { c: s.c100, u: s.uav100, m: s.mil100 }
+                 : { c: s.contacts, u: s.uav, m: s.military };
+      const shown = pick.c == null ? s.contacts : pick.c;
+      const maxAt = (data.maxByRadius && data.maxByRadius[radius]) || data.maxContacts || 2;
+      const t = heatIntensity(shown, maxAt);
+      const radiusNm = radius;
       const nearNm = data.nearRadiusNm || 25;
       const col = heatColor(t);
       Leaflet.circleMarker([s.lat, s.lon], {
@@ -84,10 +92,12 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
           // name reads as 351 aircraft at that base — which is how Findel, a civil airport
           // ringed by military airspace, came to look like the sixth busiest site on earth.
           `<b>${s.site}</b><br>${s.country || ""}<br>` +
-          `<b>${s.contacts}</b> aircraft within ${radiusNm}nm · ${s.uav} UAV · ${s.military} military<br>` +
-          (s.near_contacts != null
-            ? `<b>${s.near_contacts}</b> of them within ${nearNm}nm of the site itself<br>`
-            : "") +
+          `<b>${shown}</b> aircraft within ${radiusNm}nm · ${pick.u ?? s.uav} UAV · ${pick.m ?? s.military} military<br>` +
+          (radius !== 250 && s.contacts != null
+            ? `<span style="opacity:.75">${s.contacts} within the full 250nm sweep radius</span><br>`
+            : s.near_contacts != null
+              ? `<b>${s.near_contacts}</b> of them within ${nearNm}nm of the site itself<br>`
+              : "") +
           `${s.points} observations over ${s.span_hours || 0}h<br>` +
           `<span style="opacity:.7">last seen ${new Date(s.last_seen).toLocaleString()}<br>` +
           `A ${radiusNm}nm circle overlaps its neighbours; each aircraft is counted at the site it came closest to.</span>`
@@ -95,7 +105,7 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
         .addTo(layer.current);
     });
     setTimeout(() => map.current && map.current.invalidateSize(), 60);
-  }, [data]);
+  }, [data, radius]);
 
   const shell = full
     ? { position: "fixed", inset: 0, zIndex: 1000, background: "#0A0D12", padding: 10,
@@ -108,10 +118,23 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
         <span className="font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
           ACTIVITY MAP
         </span>
-        <button onClick={() => setFull(!full)} className="flex items-center gap-1 px-2 py-1 rounded font-mono"
-          style={{ fontSize: 9, color: "#C084FC", border: "1px solid rgba(192,132,252,0.4)", background: "transparent" }}>
-          {full ? <><X size={11} /> CLOSE</> : <><Maximize2 size={11} /> FULL SCREEN</>}
-        </button>
+        <div className="flex items-center gap-1">
+          {[25, 100, 250].map((r) => (
+            <button key={r} onClick={() => setRadius(r)} className="px-1.5 py-1 rounded font-mono"
+              title={r === 25 ? "The airfield and its immediate approaches"
+                : r === 100 ? "Its working airspace"
+                : "The full region the sweep polls"}
+              style={{ fontSize: 9, color: radius === r ? "#0A0D12" : "#C084FC",
+                background: radius === r ? "#C084FC" : "transparent",
+                border: "1px solid rgba(192,132,252,0.4)" }}>
+              {r}nm
+            </button>
+          ))}
+          <button onClick={() => setFull(!full)} className="flex items-center gap-1 px-2 py-1 rounded font-mono"
+            style={{ fontSize: 9, color: "#C084FC", border: "1px solid rgba(192,132,252,0.4)", background: "transparent" }}>
+            {full ? <><X size={11} /> CLOSE</> : <><Maximize2 size={11} /> FULL SCREEN</>}
+          </button>
+        </div>
       </div>
       {state === "loading" && <div style={{ fontSize: 11, color: C.dim, paddingBottom: 6 }}>measuring activity…</div>}
       {state === "off" && <div style={{ fontSize: 11, color: C.dim, paddingBottom: 6 }}>No archive configured on this instance.</div>}
@@ -125,9 +148,11 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
         {data && <span style={{ marginLeft: 6 }}>· {data.count} airspaces with activity in {data.windowDays}d</span>}
       </div>
       <div style={{ fontSize: 9, color: C.faint, marginTop: 3, lineHeight: 1.5 }}>
-        Each circle counts distinct aircraft seen within {(data && data.sweepRadiusNm) || 250}nm of that site — a
-        region, not the airfield. Neighbouring circles overlap, and an aircraft crossing both is
-        counted at whichever site it came closest to. 
+        {radius === 250
+          ? "Circles show aircraft within 250nm — the full region the sweep polls, not the airfield. Neighbouring circles overlap; each aircraft is counted at the site it came closest to."
+          : radius === 100
+            ? "Circles show aircraft within 100nm — roughly a site's working airspace."
+            : "Circles show aircraft within 25nm — the airfield and its immediate approaches. This is the closest thing to activity at the base itself."} 
         Measured from aircraft that broadcast ADS-B. Aircraft flying with transponders off — which
         includes most combat activity — are not counted, so this shows the visible traffic around a
         region, not the fighting itself.
