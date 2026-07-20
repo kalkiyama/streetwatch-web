@@ -17,6 +17,14 @@ import EarthView from "./components/EarthView.jsx";
 import SpaceView from "./components/SpaceView.jsx";
 import DroneSweep from "./components/DroneSweep.jsx";
 
+const timeAgo = (t) => {
+  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (s < 90) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 90) return `${m}min ago`;
+  return `${Math.round(m / 60)}h ago`;
+};
+
 export default function StreetWatch() {
   const now = useClock();
   const [tab, setTab] = useState("world");
@@ -58,6 +66,7 @@ export default function StreetWatch() {
   const [viewRadius, setViewRadius] = useState(null);
   const [viewSel, setViewSel] = useState(null);
   const [pendingSel, setPendingSel] = useState(null);
+  const [pendingSelInfo, setPendingSelInfo] = useState(null);
   // Natural-language search: Claude turns the sentence into a FILTER, which is shown back to
   // the user and executed by existing code. The model never sees or returns feed data.
   const [aiQuery, setAiQuery] = useState(null);
@@ -119,6 +128,11 @@ export default function StreetWatch() {
       || CATALOG.find((c) => c.tag === "uav" && Math.hypot(c.lat - (d.siteLat || 0), c.lng - (d.siteLon || 0)) < 0.5);
     if (!feed) return;
     setPendingSel(d.id);
+    // carry enough context for the radar to explain itself if the aircraft has since left
+    setPendingSelInfo({
+      label: d.callsign || d.id.toUpperCase(),
+      seen: d.lastSeen ? timeAgo(d.lastSeen) : null,
+    });
     setViewRadius(250);
     setSelectedId(feed.id);
   }, [CATALOG]);
@@ -502,11 +516,17 @@ export default function StreetWatch() {
                     center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
                     initialRadius={pendingSel ? 250 : urlRadius.current} onRadius={setViewRadius}
                     defaultRadius={selected.tag === "uav" ? 250 : 100}
-                    initialSel={pendingSel || urlSel.current} onSelect={setViewSel} />
+                    initialSel={pendingSel || urlSel.current}
+                    initialSelLabel={pendingSelInfo && pendingSelInfo.label}
+                    initialSelSeen={pendingSelInfo && pendingSelInfo.seen}
+                    onSelect={setViewSel} />
                 : selected.layer === "marine"
                 ? <MarineRadar key={`${selected.id}:${pendingSel || ""}`} center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
                     initialRadius={pendingSel ? 100 : urlRadius.current} onRadius={setViewRadius}
-                    initialSel={pendingSel || urlSel.current} onSelect={setViewSel} />
+                    initialSel={pendingSel || urlSel.current}
+                    initialSelLabel={pendingSelInfo && pendingSelInfo.label}
+                    initialSelSeen={pendingSelInfo && pendingSelInfo.seen}
+                    onSelect={setViewSel} />
                 : selected.layer === "weather"
                 ? <EarthView center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }} />
                 : selected.layer === "space"
