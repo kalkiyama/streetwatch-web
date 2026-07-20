@@ -40,12 +40,14 @@ function trackNm(trail, lat0) {
   }
   return d;
 }
-export default function AviationRadar({ center, initialRadius, onRadius, initialSel, onSelect }) {
+export default function AviationRadar({ center, initialRadius, onRadius, initialSel, onSelect, defaultRadius = 100 }) {
   const [status, setStatus] = useState("sim");
   const [, setTick] = useState(0);
   const [sel, setSel] = useState(null);
   const [uavInfo, setUavInfo] = useState(false);
-  const [radius, setRadius] = useState([60, 120, 250].includes(initialRadius) ? initialRadius : 100);
+  // UAV Watch feeds open at 250nm because that is the radius the sweep itself polls —
+  // otherwise a sighting listed in the Drones tab can be outside the radar you just opened.
+  const [radius, setRadius] = useState([60, 120, 250].includes(initialRadius) ? initialRadius : defaultRadius);
   useEffect(() => { if (onRadius) onRadius(radius); }, [radius, onRadius]);
   useEffect(() => { if (onSelect) onSelect(sel); }, [sel, onSelect]);
   const wantSel = useRef(initialSel || null);
