@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { RefreshCw, Radio, History, X } from "lucide-react";
 import { C } from "../theme.js";
 import PathMap from "./PathMap.jsx";
+import HeatMap from "./HeatMap.jsx";
 import { BACKEND_URL } from "../config.js";
 
 // Planet-wide view of ADS-B category B6 (unmanned) contacts, aggregated
@@ -109,9 +110,9 @@ export default function DroneSweep({ onOpen }) {
         <span className="flex items-center gap-1.5"><Radio size={11} /> GLOBAL SWEEP</span>
         <span className="flex items-center gap-1">
           <span className="flex rounded overflow-hidden" style={{ border: "1px solid rgba(192,132,252,0.45)" }}>
-            {[["live", "LIVE"], ["archive", "ARCHIVE"]].map(([m, label]) => (
+            {[["live", "LIVE"], ["archive", "ARCHIVE"], ["heat", "ACTIVITY"]].map(([m, label]) => (
               <button key={m} onClick={() => { setMode(m); setTrack(null); }}
-                title={m === "live" ? "Contacts detected right now" : "Everything recorded over the last 90 days"}
+                title={m === "live" ? "Contacts detected right now" : m === "archive" ? "Everything recorded over the last 90 days" : "Where activity concentrates, measured from the archive"}
                 style={{ fontSize: 9, padding: "2px 7px", border: "none",
                   background: mode === m ? "#C084FC" : "transparent", color: mode === m ? "#0A0E14" : "#C084FC" }}>
                 {label}
@@ -125,8 +126,10 @@ export default function DroneSweep({ onOpen }) {
         Military &amp; UAV aircraft worldwide
         <span style={{ display: "block", fontSize: 10, color: C.faint, fontWeight: 400, marginTop: 1 }}>
           {mode === "live"
-            ? `${drones.length} detected now · watching ${(data.sweep && data.sweep.sites) || 0} airspaces worldwide`
-            : `${(hist && hist.count) || 0} recorded · archive keeps 90 days`}
+            ? `${drones.length} detected now · watching ${(data && data.sweep && data.sweep.sites) || 0} airspaces worldwide`
+            : mode === "heat"
+              ? `Where activity concentrates over ${days} day${days > 1 ? "s" : ""} — tap a circle for detail`
+              : `${(hist && hist.count) || 0} recorded · archive keeps 90 days`}
         </span>
       </div>
 
@@ -162,6 +165,8 @@ export default function DroneSweep({ onOpen }) {
           ))}
         </div>
       )}
+      {mode === "heat" && <HeatMap days={days} />}
+
       {mode === "archive" && (
         <>
           <div className="px-3 pb-2" style={{ fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
