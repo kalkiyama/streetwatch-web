@@ -77,6 +77,13 @@ export default function StreetWatch() {
     window.history.replaceState(null, "", url);
   }, [selectedId, CATALOG, viewRadius, viewSel]);
 
+  // Marine analogue of openSighting: open a port's radar with a specific vessel
+  // pre-selected. Same pendingSel mechanism the aviation path uses.
+  const openVessel = useCallback(({ feedId, vesselId }) => {
+    setPendingSel(vesselId);
+    setSelectedId(feedId);
+  }, []);
+
   const openSighting = useCallback((d) => {
     const feed = CATALOG.find((c) => c.tag === "uav" && c.name.endsWith(d.site))
       || CATALOG.find((c) => c.tag === "uav" && Math.hypot(c.lat - (d.siteLat || 0), c.lng - (d.siteLon || 0)) < 0.5);
@@ -365,7 +372,7 @@ export default function StreetWatch() {
           {browse === "map" && (
             <div className="mx-4 mb-3">
               <MapPanel feeds={results} selectedId={selected ? selected.id : null}
-                onSelect={setSelectedId} onOpenSighting={openSighting} />
+                onSelect={setSelectedId} onOpenSighting={openSighting} onOpenVessel={openVessel} />
             </div>
           )}
 
@@ -437,9 +444,9 @@ export default function StreetWatch() {
                     defaultRadius={selected.tag === "uav" ? 250 : 100}
                     initialSel={pendingSel || urlSel.current} onSelect={setViewSel} />
                 : selected.layer === "marine"
-                ? <MarineRadar key={selected.id} center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
+                ? <MarineRadar key={`${selected.id}:${pendingSel || ""}`} center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
                     initialRadius={urlRadius.current} onRadius={setViewRadius}
-                    initialSel={urlSel.current} onSelect={setViewSel} />
+                    initialSel={pendingSel || urlSel.current} onSelect={setViewSel} />
                 : selected.layer === "weather"
                 ? <EarthView center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }} />
                 : selected.layer === "space"
