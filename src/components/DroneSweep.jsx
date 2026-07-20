@@ -254,7 +254,17 @@ export default function DroneSweep({ onOpen }) {
       {mode === "live" && state === "ok" && data.sweep && (
         <div className="px-3 py-1.5 font-mono" style={{ fontSize: 9, color: C.faint, borderTop: "1px solid rgba(192,132,252,0.18)" }}>
           {data.sweep.cycles} passes · {data.sweep.tracked24h} tracked in 24h
-          {data.sweep.hotSites ? ` · ${data.sweep.hotSites} active airspaces on fast rotation` : ""}
+          {data.sweep.hotSites ? (() => {
+                  // Say what the sweep is actually doing, including when demand exceeds
+                  // capacity. "84 active" alone would imply all 84 are polled every cycle.
+                  const s = data.sweep;
+                  const mins = s.passSize ? Math.round(s.passSize * 15 / 60) : null;
+                  const polled = s.hotPolled != null ? s.hotPolled : s.hotSites;
+                  const deferred = s.hotDeferred || 0;
+                  return ` · ${s.hotSites} active` +
+                    (deferred ? `, ${polled} polled per cycle (${deferred} wait their turn)` : " on fast rotation") +
+                    (mins ? ` · ~${mins} min cycle` : "");
+                })() : ""}
           {data.counts && data.counts.disputed > 0 && ` · ${data.counts.disputed} disputed (broadcast says unmanned, registry says manned)`}
           {" "}· ADS-B broadcasters only — aircraft with transponders off are invisible to every public feed
         </div>
