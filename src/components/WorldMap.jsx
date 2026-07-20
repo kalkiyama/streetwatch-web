@@ -128,7 +128,10 @@ export default function WorldMap({ feeds, selectedId, onSelect }) {
   useEffect(() => {
     const map = mapRef.current; if (!map || !selectedId) return;
     const f = feedsRef.current.find((x) => x.id === selectedId);
-    if (f) map.flyTo([f.lat, f.lng], Math.max(map.getZoom(), 5), { duration: 1.1 });
+    // same reason as the cluster handler: flyTo arcs outward first, which looks like the map
+    // is throwing you away before it brings you back. Also: never zoom OUT on selection —
+    // if the user has already zoomed in past 5, respect where they are.
+    if (f) map.setView([f.lat, f.lng], Math.max(map.getZoom(), 5), { animate: true, duration: 0.6 });
   }, [selectedId]);
 
   return <div ref={elRef} style={{ width: "100%", height: "100%", background: "#0B0E13" }} />;
