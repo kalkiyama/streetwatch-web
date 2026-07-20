@@ -1,10 +1,11 @@
 // StreetWatch — main shell. Views live in ./components, data in catalog.json.
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2, HelpCircle } from "lucide-react";
+import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2, HelpCircle, Sparkles } from "lucide-react";
 import Intro from "./components/Intro.jsx";
 // Catalog is fetched at runtime from /catalog.json (5,000+ feeds — too big to bundle).
 import { C, LAYERS, layerKeys, resolveUrl, openLive } from "./theme.js";
 import { distKm } from "./geo.js";
+import { AIS_BACKEND_URL } from "./config.js";
 import WorldMap from "./components/WorldMap.jsx";
 import MapPanel from "./components/MapPanel.jsx";
 import NearbyCams from "./components/NearbyCams.jsx";
@@ -57,6 +58,30 @@ export default function StreetWatch() {
   const [viewRadius, setViewRadius] = useState(null);
   const [viewSel, setViewSel] = useState(null);
   const [pendingSel, setPendingSel] = useState(null);
+  // Natural-language search: Claude turns the sentence into a FILTER, which is shown back to
+  // the user and executed by existing code. The model never sees or returns feed data.
+  const [aiQuery, setAiQuery] = useState(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const askAi = useCallback(async (text) => {
+    if (!text || !AIS_BACKEND_URL) return;
+    setAiBusy(true);
+    try {
+      const r = await fetch(`${AIS_BACKEND_URL}/api/ai/search?q=${encodeURIComponent(text)}`);
+      const j = await r.json();
+      if (j && j.filter) {
+        const f = j.filter;
+        if (f.layer && layerKeys.includes(f.layer)) setActive([f.layer]);
+        if (f.continent) setContinent(f.continent);
+        setQuery(f.text || "");
+        if (f.intent === "drones" || f.intent === "activity") setTab("drones");
+        setAiQuery({ filter: f });
+      } else {
+        setAiQuery({ error: (j && j.error) || "could not interpret that" });
+      }
+    } catch {
+      setAiQuery({ error: "analysis service unreachable" });
+    } finally { setAiBusy(false); }
+  }, []);
   const [introOpen, setIntroOpen] = useState(() => {
     try { return !localStorage.getItem("sw-intro-seen"); } catch { return false; }
   });
@@ -308,7 +333,30 @@ export default function StreetWatch() {
               <input value={query} onChange={(e) => setQuery(e.target.value)} className="sw-input bg-transparent w-full"
                 placeholder="Continent, country, city, layer…" style={{ color: C.text, fontSize: 14, border: "none" }} />
               {query && <button onClick={() => setQuery("")}><X size={15} color={C.faint} /></button>}
+              {query.trim().length > 8 && AIS_BACKEND_URL && (
+                <button onClick={() => askAi(query)} disabled={aiBusy} title="Interpret this as a question"
+                  className="flex-shrink-0 flex items-center justify-center rounded"
+                  style={{ width: 26, height: 26, color: aiBusy ? C.faint : "#C084FC",
+                    background: "rgba(192,132,252,0.12)", border: "1px solid rgba(192,132,252,0.35)" }}>
+                  <Sparkles size={13} />
+                </button>
+              )}
             </div>
+            {aiQuery && (
+              <div className="font-mono mt-1.5 rounded" style={{ fontSize: 9.5, lineHeight: 1.6,
+                color: C.dim, background: C.panel2, border: `1px solid ${C.line}`, padding: "6px 8px" }}>
+                {aiQuery.error ? (
+                  <span>Could not interpret that ({aiQuery.error}). Normal search still works.</span>
+                ) : (
+                  <>
+                    <span style={{ color: "#C084FC" }}>INTERPRETED AS</span>{" "}
+                    {Object.entries(aiQuery.filter).map(([k, v]) =>
+                      `${k}=${Array.isArray(v) ? v.join(",") : v}`).join(" · ")}
+                    <button onClick={() => setAiQuery(null)} style={{ marginLeft: 6, color: C.faint }}>clear</button>
+                  </>
+                )}
+              </div>
+            )}
             <div className="font-mono mt-3 mb-1.5" style={{ fontSize: 10, color: C.faint, letterSpacing: 1 }}>PUBLIC LAYERS</div>
             <div className="flex flex-wrap gap-1.5">
               {layerKeys.map((k) => {
