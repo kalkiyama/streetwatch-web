@@ -19,9 +19,14 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   const [showUsv, setShowUsv] = useState(false);
   const [showSub, setShowSub] = useState(false);
   const [mins, setMins] = useState(60);      // live window
-  const [days, setDays] = useState(7);       // activity window
+  const [days, setDays] = useState(7);
+  // Same radius control the standalone Activity map has. Without it the two surfaces showed
+  // the same dataset with different capabilities — and the map view silently stayed at 250nm,
+  // the one radius that makes a dormant base look busy.
+  const [heatRadius, setHeatRadius] = useState(250);       // activity window
   const [live, setLive] = useState(null);
   const [heat, setHeat] = useState(null);
+  const [heatMeta, setHeatMeta] = useState(null);   // maxByRadius, radii — needed to scale colour
   const [usv, setUsv] = useState(null);
   const [sub, setSub] = useState(null);
   const [note, setNote] = useState("");
@@ -39,11 +44,11 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   }, [showLive, mins]);
 
   useEffect(() => {
-    if (!showHeat) { setHeat(null); return; }
+    if (!showHeat) { setHeat(null); setHeatMeta(null); return; }
     let alive = true;
     fetch(`${BACKEND_URL}/api/drones/heat?days=${days}`)
       .then((r) => r.json())
-      .then((j) => { if (alive) setHeat(j.sites || []); })
+      .then((j) => { if (alive) { setHeat(j.sites || []); setHeatMeta(j); } })
       .catch(() => { if (alive) setNote("activity data unavailable"); });
     return () => { alive = false; };
   }, [showHeat, days]);
@@ -115,9 +120,11 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
             </div>
           )}
           {showHeat && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1" style={{ flexWrap: "wrap" }}>
               <span style={{ fontSize: 9, color: "#F6A821" }}>ACTIVITY OVER</span>
               {windowChips([[1, "1d"], [7, "7d"], [30, "30d"], [90, "90d"]], days, setDays)}
+              <span style={{ fontSize: 9, color: "#F6A821", marginLeft: 4 }}>WITHIN</span>
+              {windowChips([[25, "25nm"], [100, "100nm"], [250, "250nm"]], heatRadius, setHeatRadius)}
               <span style={{ fontSize: 9, color: C.faint }}>{heat ? `${heat.length} airspaces` : "…"}</span>
             </div>
           )}
@@ -136,6 +143,8 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           usvContacts={showUsv ? usv : null}
           subContacts={showSub ? sub : null}
           heatSites={showHeat ? heat : null}
+          heatRadius={heatRadius}
+          heatMeta={heatMeta}
         />
       </div>
 

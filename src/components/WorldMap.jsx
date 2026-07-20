@@ -13,7 +13,7 @@ import { LAYERS, heatColor, heatIntensity } from "../theme.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, usvContacts = null, subContacts = null, showFeeds = true }) {
+export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, usvContacts = null, subContacts = null, showFeeds = true }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -23,6 +23,13 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   liveRef.current = liveContacts;
   const heatRef = useRef(heatSites);
   heatRef.current = heatSites;
+  // Radius + per-radius maxima, so this layer answers the same question as the standalone
+  // Activity map. Previously it was locked at 250nm — the one radius that makes a dormant
+  // base look busy.
+  const heatRadiusRef = useRef(heatRadius);
+  heatRadiusRef.current = heatRadius;
+  const heatMetaRef = useRef(heatMeta);
+  heatMetaRef.current = heatMeta;
   const showFeedsRef = useRef(showFeeds);
   showFeedsRef.current = showFeeds;
   const usvRef = useRef(usvContacts);
@@ -41,9 +48,14 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     const sites = heatRef.current;
     if (!sites || !sites.length) return;
     const RAMP = ["#3B82F6", "#8B5CF6", "#C084FC", "#F6A821", "#F87171"];
-    const heatMaxLocal = Math.max(2, ...(heatRef.current || []).map((x) => x.contacts || 0));
+    const rNm = heatRadiusRef.current || 250;
+    const pickC = (x) => ((rNm === 25 ? x.c25 : rNm === 100 ? x.c100 : x.contacts) ?? x.contacts);
+    const meta = heatMetaRef.current;
+    const heatMaxLocal = (meta && meta.maxByRadius && meta.maxByRadius[rNm])
+      || Math.max(2, ...(heatRef.current || []).map((x) => pickC(x) || 0));
     sites.forEach((s) => {
-      const t = heatIntensity(s.contacts, heatMaxLocal);
+      const shown = pickC(s);
+      const t = heatIntensity(shown, heatMaxLocal);
       const col = heatColor(t);
       Leaflet.circleMarker([s.lat, s.lon], {
         radius: 6 + t * 18, color: col, weight: 1.2,
@@ -51,9 +63,11 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       })
         .bindPopup(
           `<b>${s.site}</b><br>${s.country || ""}<br>` +
-          `<b>${s.contacts}</b> aircraft within 250nm · ${s.uav} UAV · ${s.military} military<br>` +
-          (s.near_contacts != null
-            ? `<b>${s.near_contacts}</b> of them within 25nm of the site itself<br>`
+          `<b>${shown}</b> aircraft within ${rNm}nm · ` +
+          `${(rNm === 25 ? s.uav25 : rNm === 100 ? s.uav100 : s.uav) ?? s.uav} UAV · ` +
+          `${(rNm === 25 ? s.mil25 : rNm === 100 ? s.mil100 : s.military) ?? s.military} military<br>` +
+          (rNm !== 250 && s.contacts != null
+            ? `<span style="opacity:.75">${s.contacts} within the full 250nm sweep radius</span><br>`
             : "") +
           `${s.points} observations over ${s.span_hours || 0}h<br>` +
           `<span style="opacity:.7">Circles overlap; each aircraft is counted at the nearest site.</span>`
@@ -301,7 +315,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
 
   // redraw when the DATA changes — not when a parent re-render hands us new function
   // identities, which would clear and rebuild every marker for no reason
-  useEffect(() => { drawRef.current(); }, [feeds, selectedId, liveContacts, heatSites, showFeeds]);
+  useEffect(() => { drawRef.current(); }, [feeds, selectedId, liveContacts, heatSites, heatRadius, showFeeds]);
 
   useEffect(() => {
     const map = mapRef.current; if (!map || !selectedId) return;
