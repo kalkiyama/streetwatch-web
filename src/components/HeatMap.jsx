@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Maximize2, X } from "lucide-react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { C } from "../theme.js";
@@ -20,12 +21,13 @@ const colorFor = (t) => {
   return out;
 };
 
-export default function HeatMap({ days = 7 }) {
+export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
   const box = useRef(null);
   const map = useRef(null);
   const layer = useRef(null);
   const [data, setData] = useState(null);
   const [state, setState] = useState("loading");
+  const [full, setFull] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -40,15 +42,20 @@ export default function HeatMap({ days = 7 }) {
   useEffect(() => {
     if (!box.current || map.current) return;
     map.current = Leaflet.map(box.current, {
-      zoomControl: true, attributionControl: true, scrollWheelZoom: false,
+      zoomControl: false, attributionControl: true, scrollWheelZoom: false,
       minZoom: 1, maxZoom: 10, worldCopyJump: true,
     }).setView([25, 10], 2);
+    Leaflet.control.zoom({ position: "topright" }).addTo(map.current);
     Leaflet.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: "&copy; OpenStreetMap &copy; CARTO", maxZoom: 12,
     }).addTo(map.current);
     setTimeout(() => map.current && map.current.invalidateSize(), 60);
     return () => { if (map.current) { map.current.remove(); map.current = null; } };
   }, []);
+
+  useEffect(() => {
+    if (map.current) setTimeout(() => map.current && map.current.invalidateSize(), 150);
+  }, [full]);
 
   useEffect(() => {
     if (!map.current || !data || !data.sites) return;
@@ -71,12 +78,27 @@ export default function HeatMap({ days = 7 }) {
     setTimeout(() => map.current && map.current.invalidateSize(), 60);
   }, [data]);
 
+  const shell = full
+    ? { position: "fixed", inset: 0, zIndex: 1000, background: "#0A0D12", padding: 10,
+        display: "flex", flexDirection: "column", gap: 6 }
+    : {};
+
   return (
-    <div className="px-3 pb-2">
+    <div className="px-3 pb-2" style={shell}>
+      <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
+        <span className="font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
+          ACTIVITY MAP
+        </span>
+        <button onClick={() => setFull(!full)} className="flex items-center gap-1 px-2 py-1 rounded font-mono"
+          style={{ fontSize: 9, color: "#C084FC", border: "1px solid rgba(192,132,252,0.4)", background: "transparent" }}>
+          {full ? <><X size={11} /> CLOSE</> : <><Maximize2 size={11} /> FULL SCREEN</>}
+        </button>
+      </div>
       {state === "loading" && <div style={{ fontSize: 11, color: C.dim, paddingBottom: 6 }}>measuring activity…</div>}
       {state === "off" && <div style={{ fontSize: 11, color: C.dim, paddingBottom: 6 }}>No archive configured on this instance.</div>}
       {state === "error" && <div style={{ fontSize: 11, color: C.dim, paddingBottom: 6 }}>Activity map unavailable right now.</div>}
-      <div ref={box} style={{ height: 300, borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />
+      <div ref={box} style={{ height: full ? "auto" : 380, flex: full ? 1 : undefined,
+        borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />
       <div className="flex items-center gap-1.5 font-mono" style={{ fontSize: 9, color: C.faint, marginTop: 4, flexWrap: "wrap" }}>
         <span>quiet</span>
         {RAMP.map((r) => <span key={r.at} style={{ width: 14, height: 8, background: r.c, borderRadius: 2, display: "inline-block" }} />)}

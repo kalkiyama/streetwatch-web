@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Maximize2, X } from "lucide-react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -8,17 +9,18 @@ import "leaflet/dist/leaflet.css";
 // fitKey identifies the contact. The view is fitted ONCE per contact: the parent
 // re-renders every 30s (sweep poll), and refitting on every render would throw
 // away whatever the user had panned or zoomed to.
-export default function PathMap({ points, fitKey, color = "#C084FC", height = 240 }) {
+export default function PathMap({ points, fitKey, color = "#C084FC", height = "min(55vh, 460px)" }) {
   const box = useRef(null);
   const map = useRef(null);
   const layer = useRef(null);
   const fitted = useRef(null);
+  const [full, setFull] = useState(false);
 
   // create the map once
   useEffect(() => {
     if (!box.current || map.current) return;
     map.current = Leaflet.map(box.current, {
-      zoomControl: true,
+      zoomControl: false,
       attributionControl: true,
       scrollWheelZoom: false,       // don't hijack page scrolling
       doubleClickZoom: true,
@@ -30,7 +32,8 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = 24
       maxZoom: 19,                  // let the user zoom to street level
       maxNativeZoom: 19,
     }).addTo(map.current);
-    Leaflet.control.scale({ imperial: false }).addTo(map.current);
+    Leaflet.control.zoom({ position: "topright" }).addTo(map.current);
+    Leaflet.control.scale({ imperial: false, position: "bottomleft" }).addTo(map.current);
     setTimeout(() => map.current && map.current.invalidateSize(), 60);
     return () => { if (map.current) { map.current.remove(); map.current = null; } };
   }, []);
@@ -59,9 +62,25 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = 24
     }
   }, [points, color, fitKey]);
 
+  useEffect(() => {
+    if (map.current) setTimeout(() => map.current && map.current.invalidateSize(), 150);
+  }, [full]);
+
+  const shell = full
+    ? { position: "fixed", inset: 0, zIndex: 1000, background: "#0A0D12", padding: 10,
+        display: "flex", flexDirection: "column", gap: 6 }
+    : {};
+
   return (
-    <div>
-      <div ref={box} style={{ height, borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />
+    <div style={shell}>
+      <div className="flex items-center justify-end" style={{ marginBottom: 4 }}>
+        <button onClick={() => setFull(!full)} className="flex items-center gap-1 px-2 py-1 rounded font-mono"
+          style={{ fontSize: 9, color: "#C084FC", border: "1px solid rgba(192,132,252,0.4)", background: "transparent" }}>
+          {full ? <><X size={11} /> CLOSE</> : <><Maximize2 size={11} /> FULL SCREEN</>}
+        </button>
+      </div>
+      <div ref={box} style={{ height: full ? "auto" : height, flex: full ? 1 : undefined,
+        borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />
       <div className="font-mono" style={{ fontSize: 9, color: "#5B6472", marginTop: 3 }}>
         pinch or use +/− to zoom · place names appear as you zoom in
       </div>
