@@ -12,7 +12,7 @@ import { LAYERS } from "../theme.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, liveContacts = null, heatSites = null, usvContacts = null, subContacts = null, showFeeds = true }) {
+export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, usvContacts = null, subContacts = null, showFeeds = true }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -28,6 +28,8 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   usvRef.current = usvContacts;
   const subRef = useRef(subContacts);
   subRef.current = subContacts;
+  const onOpenVesselRef = useRef(onOpenVessel);
+  onOpenVesselRef.current = onOpenVessel;
   const selRef = useRef(selectedId);
   selRef.current = selectedId;
   const centred = useRef(null);     // which feed the map is already centred on
@@ -88,6 +90,32 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   };
 
 
+
+  // A tap must always do something. For a vessel, "something" is the same promise the
+  // live-drone layer makes: open the radar that can show it, with it selected. If no
+  // marine feed is close enough for its radar to plot the vessel, say so in a popup
+  // rather than silently ignoring the tap.
+  const openVessel = (marker, v, kindLabel) => {
+    const feeds = feedsRef.current;
+    let best = null, bestNm = Infinity;
+    feeds.forEach((f) => {
+      if (f.layer !== "marine") return;
+      const dNm = Math.hypot((f.lat - v.lat) * 60, (f.lng - v.lon) * 60 * Math.cos(v.lat * Math.PI / 180));
+      if (dNm < bestNm) { bestNm = dNm; best = f; }
+    });
+    if (best && bestNm <= 100 && onOpenVesselRef.current) {
+      onOpenVesselRef.current({ feedId: best.id, vesselId: v.id });
+      return;
+    }
+    marker.bindPopup(
+      `<b>${v.name || v.id}</b><br>${kindLabel}` +
+      `${Number.isFinite(v.sogKt) ? "<br>" + v.sogKt.toFixed(1) + " kt" : ""}` +
+      `${Number.isFinite(v.lengthM) ? " · " + Math.round(v.lengthM) + " m" : ""}` +
+      `${v.provider ? "<br>via " + v.provider : ""}` +
+      `<br><span style="opacity:.7">${best ? "nearest marine radar (" + best.name + ") is " + Math.round(bestNm) + "nm away — too far to plot this vessel" : "no marine radar feed in the current filter"}</span>`
+    ).openPopup();
+  };
+
   // --- sea drones: hollow rings echo the marine layer's port styling ---
   const drawUsv = (lg) => {
     const items = usvRef.current;
@@ -100,6 +128,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
         radius: confirmed ? 6 : 5, color: col, weight: 2,
         fillColor: col, fillOpacity: confirmed ? 0.25 : 0.08,
       })
+        .on("click", function () { openVessel(this, v, confirmed ? "sea drone (identified fleet)" : "possible sea drone — small unidentified hull"); })
         .bindTooltip(
           `${v.name || v.id} — ${confirmed ? "sea drone" : "possible sea drone"}` +
           `${Number.isFinite(v.sogKt) ? " · " + v.sogKt.toFixed(1) + "kt" : ""}` +
@@ -123,6 +152,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
         radius: named ? 6 : 5, color: col, weight: named ? 2 : 1.4,
         fillColor: col, fillOpacity: named ? 0.3 : 0.1, dashArray: named ? null : "3 3",
       })
+        .on("click", function () { openVessel(this, v, "submarine SUPPORT vessel — surface ship, not a submarine"); })
         .bindTooltip(
           `${v.name || v.id} — submarine SUPPORT vessel (${named ? "identified" : "possible"})` +
           `${Number.isFinite(v.lengthM) ? " · " + Math.round(v.lengthM) + "m" : ""}` +
