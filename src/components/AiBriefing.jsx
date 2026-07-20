@@ -82,13 +82,15 @@ export default function AiBriefing() {
             {data.top && data.top.length > 0 && (
               <div style={{ marginTop: 4 }}>
                 <div style={{ color: C.faint }}>
-                  aircraft within {data.sweepRadiusNm || 250}nm of each site
-                  {data.nearRadiusNm ? ` (→ within ${data.nearRadiusNm}nm)` : ""}
+                  busiest airfields — within {data.nearRadiusNm || 25}nm (→ within {data.sweepRadiusNm || 250}nm)
                 </div>
-                {data.top.slice(0, 5).map((s) => (
+                {((data.topNear && data.topNear.length ? data.topNear : data.top) || []).slice(0, 5).map((s) => (
                   <div key={s.site} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                     <span style={{ color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.site}</span>
-                    <span>{s.contacts}{s.nearContacts != null ? ` → ${s.nearContacts}` : ""}</span>
+                    <span>
+                      <b style={{ color: C.text }}>{s.nearContacts != null ? s.nearContacts : "—"}</b>
+                      <span style={{ color: C.faint }}> of {s.contacts}</span>
+                    </span>
                   </div>
                 ))}
               </div>
