@@ -7,6 +7,7 @@ import { distKm } from "./geo.js";
 import WorldMap from "./components/WorldMap.jsx";
 import Frame, { useClock, LiveViewport, DataPreview } from "./components/FeedViewer.jsx";
 import AviationRadar from "./components/AviationRadar.jsx";
+import { norm, fuzzyHit, budgetFor, words } from "./search.js";
 import MarineRadar from "./components/MarineRadar.jsx";
 import EarthView from "./components/EarthView.jsx";
 import SpaceView from "./components/SpaceView.jsx";
@@ -125,15 +126,44 @@ export default function StreetWatch() {
   const countries = useMemo(() => ["All", ...Array.from(new Set(
     CATALOG.filter((c) => continent === "All" || c.continent === continent).map((c) => c.country))).sort()], [continent, CATALOG]);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return CATALOG.filter((c) => {
-      const hitQ = !q || [c.name, c.city, c.region, c.country, c.continent, c.id, LAYERS[c.layer].label].join(" ").toLowerCase().includes(q);
+  // searchable text per feed, accent-stripped, computed once per catalogue
+  const searchText = useMemo(() => {
+    const m = new Map();
+    CATALOG.forEach((c) => {
+      const t = norm([c.name, c.city, c.region, c.country, c.continent, c.id, LAYERS[c.layer].label].join(" "));
+      m.set(c.id, { t, w: words(t) });      // split once here, not per keystroke
+    });
+    return m;
+  }, [CATALOG]);
+
+  const search = useMemo(() => {
+    const q = norm(query.trim());
+    const base = CATALOG.filter((c) => {
       const hitReg = (continent === "All" || c.continent === continent) && (country === "All" || c.country === country);
       const hitTab = tab === "drones" ? c.tag === "uav" : c.tag !== "uav"; // UAV feeds live only in the Drones tab
-      return hitQ && hitReg && hitTab && active.includes(c.layer) && (!favOnly || favorites.includes(c.id));
+      return hitReg && hitTab && active.includes(c.layer) && (!favOnly || favorites.includes(c.id));
     });
-  }, [query, active, continent, country, favOnly, favorites, tab, CATALOG]);
+    if (!q) return { list: base, fuzzy: 0 };
+
+    const exact = base.filter((c) => { const e = searchText.get(c.id); return e && e.t.includes(q); });
+    // only reach for fuzzy matching when the plain search came up short — it costs more,
+    // and when there are plenty of literal matches the user almost certainly wants those
+    if (exact.length >= 5 || q.length < 4) return { list: exact, fuzzy: 0 };
+
+    const budget = budgetFor(q);
+    // Cheap prefilter before the expensive edit-distance pass: real typos almost always
+    // preserve the first couple of letters ("heatrow", "amsterdm", "frankfrut"). This cuts
+    // ~7,300 candidates to a few hundred. Tradeoff: a typo IN the first two letters wont
+    // be caught — worth it to keep typing responsive on modest hardware.
+    const head = q.slice(0, 2);
+    const near = base.filter((c) => {
+      const e = searchText.get(c.id);
+      return e && !e.t.includes(q) && e.t.includes(head) && fuzzyHit(e.w, q, budget);
+    });
+    return { list: exact.concat(near), fuzzy: near.length };
+  }, [query, active, continent, country, favOnly, favorites, tab, CATALOG, searchText]);
+
+  const results = search.list;
 
   const selected =
     (selectedId === "ME-AV" && userLoc && { id: "ME-AV", name: "Radar over my location", layer: "aviation", city: "Your location", region: "—", country: "", continent: "", src: "ADS-B live", url: "https://globe.adsbexchange.com/", lat: userLoc.lat, lng: userLoc.lng }) ||
@@ -302,6 +332,11 @@ export default function StreetWatch() {
               </button>
             </div>
             {nearMe && !geoErr && <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint }}>sorted by distance from you · layer chips still filter</div>}
+            {search.fuzzy > 0 && (
+              <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint }}>
+                few exact matches — showing {search.fuzzy} close spelling{search.fuzzy === 1 ? "" : "s"} too
+              </div>
+            )}
             {geoErr === "locating" && <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint }}>locating…</div>}
             {geoErr && geoErr !== "locating" && <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: "#F0553B" }}>{geoErr}</div>}
           </div>
@@ -371,6 +406,7 @@ export default function StreetWatch() {
                 ? <AviationRadar key={`${selected.id}:${pendingSel || ""}`}
                     center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
                     initialRadius={pendingSel ? 250 : urlRadius.current} onRadius={setViewRadius}
+                    defaultRadius={selected.tag === "uav" ? 250 : 100}
                     initialSel={pendingSel || urlSel.current} onSelect={setViewSel} />
                 : selected.layer === "marine"
                 ? <MarineRadar key={selected.id} center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
