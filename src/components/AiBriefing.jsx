@@ -56,7 +56,7 @@ export default function AiBriefing() {
       {state === "idle" && (
         <div style={{ fontSize: 11.5, color: C.dim, lineHeight: 1.6 }}>
           {tab === "digest"
-            ? "A briefing on what changed across the watched airspaces — busiest sites, largest increases, and airspaces recording their first contacts. Counts are computed from the archive; the summary is written from those counts."
+            ? "A briefing on the watched airspaces. Each site is polled over a 250nm radius, so its figure counts aircraft across a region rather than at that base — a tighter 25nm count is shown alongside. Counts are computed from the archive; the summary is written from those counts."
             : "Where air activity and marine contacts of interest occurred near each other in time and space. Co-occurrence only — no causal link is implied or observable from public data."}
         </div>
       )}
@@ -78,15 +78,25 @@ export default function AiBriefing() {
         <>
           <div className="font-mono" style={{ fontSize: 10, color: C.dim, lineHeight: 1.8, marginBottom: 8 }}>
             <div style={{ color: C.amber, letterSpacing: 1 }}>COMPUTED · LAST {data.windowDays} DAYS</div>
-            {data.totals.contacts} contacts · {data.totals.uav} UAV · {data.totals.military} military · {data.totals.sites} airspaces
+            {data.totals.contacts} aircraft · {data.totals.uav} UAV · {data.totals.military} military · {data.totals.sites} airspaces
             {data.top && data.top.length > 0 && (
               <div style={{ marginTop: 4 }}>
+                <div style={{ color: C.faint }}>
+                  aircraft within {data.sweepRadiusNm || 250}nm of each site
+                  {data.nearRadiusNm ? ` (→ within ${data.nearRadiusNm}nm)` : ""}
+                </div>
                 {data.top.slice(0, 5).map((s) => (
                   <div key={s.site} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                     <span style={{ color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.site}</span>
-                    <span>{s.contacts}</span>
+                    <span>{s.contacts}{s.nearContacts != null ? ` → ${s.nearContacts}` : ""}</span>
                   </div>
                 ))}
+              </div>
+            )}
+            {data.coversPrevWindow === false && (
+              <div style={{ marginTop: 4, color: C.amber }}>
+                Archive is {data.archiveAgeHours}h old — shorter than the comparison window, so
+                no week-on-week change can be shown yet.
               </div>
             )}
             {data.risers && data.risers.length > 0 && (
