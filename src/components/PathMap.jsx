@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Maximize2, X, Play, Pause, SkipBack } from "lucide-react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { guardTouchScroll } from "./mapTouch.js";
 
 // One archived contact's recorded path on a real map, so a track reads as
 // "off the coast of Cyprus" rather than an abstract line on a blank panel.
@@ -30,6 +31,7 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = "m
       minZoom: 2,
       maxZoom: 18,
     });
+    guardTouchScroll(map.current);
     Leaflet.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: "&copy; OpenStreetMap &copy; CARTO",
       maxZoom: 19,                  // let the user zoom to street level

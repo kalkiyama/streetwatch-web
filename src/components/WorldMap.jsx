@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { guardTouchScroll } from "./mapTouch.js";
 import { LAYERS } from "../theme.js";
 
 // Viewport clustering, no extra dependency.
@@ -281,6 +282,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       }).addTo(map);
       layerRef.current = Leaflet.layerGroup().addTo(map);
       mapRef.current = map;
+      guardTouchScroll(map);
       map.on("moveend zoomend", () => drawRef.current());
       setTimeout(() => { try { map.invalidateSize(); draw(); } catch { /* not mounted */ } }, 200);
     } catch { /* leaflet unavailable */ }
