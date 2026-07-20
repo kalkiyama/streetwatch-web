@@ -59,6 +59,7 @@ function bearingOf(o, c) {
 }
 export default function MarineRadar({ center, initialRadius, onRadius, initialSel, onSelect }) {
   const [status, setStatus] = useState("sim");
+  const [upstream, setUpstream] = useState("live");   // "live" | "down" (provider outage)
   const [, setTick] = useState(0);
   const [sel, setSel] = useState(null);
   const [radius, setRadius] = useState([20, 50, 100].includes(initialRadius) ? initialRadius : 40);
@@ -85,6 +86,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
         const r = await fetch(`${AIS_BACKEND_URL}/api/vessels?lat=${center.lat}&lon=${center.lng}&radius=${radius}`, { signal: ctl });
         if (!r.ok) throw new Error();
         const j = await r.json(); if (!alive) return;
+        if (j.upstream) setUpstream(j.upstream);
         const inc = (j.vessels || []).filter((v) => typeof v.lat === "number");
         { const seen = Date.now(); const prev = acRef.current, merged = {};
           Object.values(prev).forEach((o) => { if (seen - (o.seenAt || 0) < 45000) merged[o.id] = o; }); // grace: AIS reports are sparse
@@ -222,7 +224,11 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
             </span>
           </span>
         ) : status === "live" && plotted.length === 0 ? (
-          <span style={{ color: C.faint }}>0 in range — no community AIS receivers near here yet · coverage varies by region</span>
+          <span style={{ color: upstream === "down" ? "#F6A821" : C.faint }}>
+            {upstream === "down"
+              ? "AIS provider is offline right now — this is upstream of StreetWatch, not your connection. Vessels will reappear when the feed returns."
+              : "0 in range — no community AIS receivers near here yet · coverage varies by region"}
+          </span>
         ) : (<span style={{ color: C.faint }}>Tap a vessel · {plotted.length} in range</span>)}
         <span style={{ color: C.dim }}>{center.city}</span>
       </div>
