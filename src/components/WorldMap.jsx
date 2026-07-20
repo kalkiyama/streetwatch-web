@@ -92,7 +92,9 @@ export default function WorldMap({ feeds, selectedId, onSelect }) {
             `font:600 ${c.n > 999 ? 11 : 12}px ui-monospace,monospace;">${label}</div>`,
         }),
       })
-        .on("click", () => map.flyTo([lat, lng], Math.min(zoom + 3, 12), { duration: 0.8 }))
+        // setView, not flyTo — flyTo traces a parabola that zooms OUT before zooming in,
+        // which reads as a glitch when you're just drilling into a cluster
+        .on("click", () => map.setView([lat, lng], Math.min(zoom + 3, 12), { animate: true, duration: 0.5 }))
         .bindTooltip(`${c.n} feeds — tap to zoom in`, { direction: "top", opacity: 0.9 })
         .addTo(lg);
     });
