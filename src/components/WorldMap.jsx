@@ -18,6 +18,9 @@ export default function WorldMap({ feeds, selectedId, onSelect }) {
   const layerRef = useRef(null);
   const feedsRef = useRef(feeds);
   feedsRef.current = feeds;
+  const selRef = useRef(selectedId);
+  selRef.current = selectedId;
+  const centred = useRef(null);     // which feed the map is already centred on
 
   const draw = useCallback(() => {
     const map = mapRef.current, lg = layerRef.current;
@@ -103,8 +106,15 @@ export default function WorldMap({ feeds, selectedId, onSelect }) {
   useEffect(() => {
     if (mapRef.current || !elRef.current) return;
     try {
+      // If a feed is already selected when this map mounts — which is exactly what happens
+      // when the feed viewer opens its own map instance — start ON that feed. Starting at
+      // world view and then jumping looks like the map is zooming out and back in.
+      const start = feedsRef.current.find((x) => x.id === selRef.current);
+      if (start) centred.current = start.id;
       const map = Leaflet.map(elRef.current, {
-        center: [20, 0], zoom: 2, worldCopyJump: true, preferCanvas: true,
+        center: start ? [start.lat, start.lng] : [20, 0],
+        zoom: start ? 7 : 2,
+        worldCopyJump: true, preferCanvas: true,
         zoomControl: false, minZoom: 1,
       });
       Leaflet.control.zoom({ position: "topright" }).addTo(map);
@@ -127,6 +137,8 @@ export default function WorldMap({ feeds, selectedId, onSelect }) {
 
   useEffect(() => {
     const map = mapRef.current; if (!map || !selectedId) return;
+    if (centred.current === selectedId) return;      // already looking at it
+    centred.current = selectedId;
     const f = feedsRef.current.find((x) => x.id === selectedId);
     // same reason as the cluster handler: flyTo arcs outward first, which looks like the map
     // is throwing you away before it brings you back. Also: never zoom OUT on selection —
