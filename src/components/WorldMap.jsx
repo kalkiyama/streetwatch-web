@@ -12,7 +12,7 @@ import { LAYERS } from "../theme.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, liveContacts = null, heatSites = null, usvContacts = null, showFeeds = true }) {
+export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, liveContacts = null, heatSites = null, usvContacts = null, subContacts = null, showFeeds = true }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -26,6 +26,8 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   showFeedsRef.current = showFeeds;
   const usvRef = useRef(usvContacts);
   usvRef.current = usvContacts;
+  const subRef = useRef(subContacts);
+  subRef.current = subContacts;
   const selRef = useRef(selectedId);
   selRef.current = selectedId;
   const centred = useRef(null);     // which feed the map is already centred on
@@ -108,12 +110,36 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     });
   };
 
+
+  // --- submarine SUPPORT vessels: surface ships, never submarines themselves ---
+  const drawSub = (lg) => {
+    const items = subRef.current;
+    if (!items || !items.length) return;
+    items.forEach((v) => {
+      if (!Number.isFinite(v.lat) || !Number.isFinite(v.lon)) return;
+      const named = v.subSupportConfidence === "named";
+      const col = "#F0553B";
+      Leaflet.circleMarker([v.lat, v.lon], {
+        radius: named ? 6 : 5, color: col, weight: named ? 2 : 1.4,
+        fillColor: col, fillOpacity: named ? 0.3 : 0.1, dashArray: named ? null : "3 3",
+      })
+        .bindTooltip(
+          `${v.name || v.id} — submarine SUPPORT vessel (${named ? "identified" : "possible"})` +
+          `${Number.isFinite(v.lengthM) ? " · " + Math.round(v.lengthM) + "m" : ""}` +
+          `<br><i>surface ship — not a submarine</i>`,
+          { direction: "top", opacity: 0.9 }
+        )
+        .addTo(lg);
+    });
+  };
+
   const draw = useCallback(() => {
     const map = mapRef.current, lg = layerRef.current;
     if (!map || !lg) return;
     lg.clearLayers();
     drawHeat(lg);
     drawUsv(lg);
+    drawSub(lg);
 
     const zoom = map.getZoom();
     const bounds = map.getBounds().pad(0.2);
