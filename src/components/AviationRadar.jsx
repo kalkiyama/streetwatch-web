@@ -50,7 +50,15 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
   const [view, setView] = useState("radar");    // radar | map
   // UAV Watch feeds open at 250nm because that is the radius the sweep itself polls —
   // otherwise a sighting listed in the Drones tab can be outside the radar you just opened.
-  const [radius, setRadius] = useState([60, 120, 250].includes(initialRadius) ? initialRadius : defaultRadius);
+  // A shared link may carry any ?r= value. Rather than silently ignoring an unsupported
+  // number (which makes a link look precise while doing nothing), snap to the nearest
+  // range the radar actually offers.
+  const RANGES = [60, 120, 250];
+  const [radius, setRadius] = useState(() => {
+    const r = Number(initialRadius);
+    if (!Number.isFinite(r) || r <= 0) return defaultRadius;
+    return RANGES.reduce((best, v) => (Math.abs(v - r) < Math.abs(best - r) ? v : best), RANGES[0]);
+  });
   useEffect(() => { if (onRadius) onRadius(radius); }, [radius, onRadius]);
   useEffect(() => { if (onSelect) onSelect(sel); }, [sel, onSelect]);
   const wantSel = useRef(initialSel || null);
