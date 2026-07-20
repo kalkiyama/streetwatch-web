@@ -12,11 +12,13 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   const [showLive, setShowLive] = useState(false);
   const [showHeat, setShowHeat] = useState(false);
   const [showUsv, setShowUsv] = useState(false);
+  const [showSub, setShowSub] = useState(false);
   const [mins, setMins] = useState(60);      // live window
   const [days, setDays] = useState(7);       // activity window
   const [live, setLive] = useState(null);
   const [heat, setHeat] = useState(null);
   const [usv, setUsv] = useState(null);
+  const [sub, setSub] = useState(null);
   const [note, setNote] = useState("");
 
   useEffect(() => {
@@ -53,6 +55,18 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
     return () => { alive = false; clearInterval(id); };
   }, [showUsv]);
 
+  useEffect(() => {
+    if (!showSub) { setSub(null); return; }
+    let alive = true;
+    const load = () => fetch(`${BACKEND_URL}/api/subsupport`)
+      .then((r) => r.json())
+      .then((j) => { if (alive) setSub(j.vessels || []); })
+      .catch(() => { if (alive) setNote("support vessel data unavailable"); });
+    load();
+    const id = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(id); };
+  }, [showSub]);
+
   const chip = (on, label, toggle, col) => (
     <button key={label} onClick={toggle} className="px-2 py-1 rounded font-mono flex-shrink-0"
       style={{ fontSize: 10, letterSpacing: 0.3, whiteSpace: "nowrap",
@@ -83,6 +97,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
         {chip(showLive, "LIVE DRONES", () => setShowLive(!showLive), "#C084FC")}
         {chip(showHeat, "ACTIVITY", () => setShowHeat(!showHeat), "#F6A821")}
         {chip(showUsv, "SEA DRONES", () => setShowUsv(!showUsv), "#2DD4BF")}
+        {chip(showSub, "SUB SUPPORT", () => setShowSub(!showSub), "#F0553B")}
       </div>
 
       {(showLive || showHeat) && (
@@ -113,6 +128,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           onOpenSighting={onOpenSighting}
           liveContacts={showLive ? live : null}
           usvContacts={showUsv ? usv : null}
+          subContacts={showSub ? sub : null}
           heatSites={showHeat ? heat : null}
         />
       </div>
@@ -120,6 +136,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
       <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginTop: 4, lineHeight: 1.5 }}>
         {showLive && "violet = UAV · amber = military · hollow = disputed · tap a contact to open its airspace. "}
         {showHeat && "Activity is measured from ADS-B broadcasters only; aircraft with transponders off are not counted. "}
+        {showSub && `${sub ? sub.length : 0} submarine SUPPORT vessels — surface tenders, rescue ships and submersible motherships. Submarines themselves cannot be tracked: AIS is VHF radio and does not travel through seawater. `}
         {showUsv && `${usv ? usv.length : 0} sea drones — filled = identified fleet (Saildrone, DriX and similar), hollow = small unidentified hull. Most military USVs broadcast no AIS at all. `}
         {!showLive && !showHeat && "Tap a cluster to zoom in · rings are ports, dots are airports."}
         {note && ` · ${note}`}
