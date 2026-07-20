@@ -125,9 +125,12 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = "m
           {full ? <><X size={11} /> CLOSE</> : <><Maximize2 size={11} /> FULL SCREEN</>}
         </button>
       </div>
-      <div ref={box} style={{ height: full ? "auto" : height, flex: full ? 1 : undefined,
-        borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />
-      {points && points.length > 2 && (
+      {points && points.length < 2 && (
+        <div className="font-mono" style={{ fontSize: 9, color: "#5B6472", marginTop: 4 }}>
+          only {points.length} observation recorded — not enough to replay
+        </div>
+      )}
+      {points && points.length >= 2 && (
         <div className="flex items-center gap-2 mt-2">
           <button onClick={() => { setPlaying(!playing); if (upto === null) setUpto(0); }}
             title={playing ? "Pause" : "Play the track through"}
@@ -153,6 +156,8 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = "m
           </span>
         </div>
       )}
+      <div ref={box} style={{ height: full ? "auto" : height, flex: full ? 1 : undefined,
+        borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />
       <div className="font-mono" style={{ fontSize: 9, color: "#5B6472", marginTop: 3 }}>
         pinch or use +/− to zoom · drag the slider or press play to replay the track
       </div>
