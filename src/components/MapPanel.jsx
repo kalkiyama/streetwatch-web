@@ -91,7 +91,8 @@ export default function MapPanel({ feeds, selectedId, onSelect, height = "min(60
 
       <div style={{ height }} className="rounded overflow-hidden">
         <WorldMap
-          feeds={showFeeds ? feeds : []}
+          feeds={feeds}
+          showFeeds={showFeeds}
           selectedId={selectedId}
           onSelect={onSelect}
           liveContacts={showLive ? live : null}

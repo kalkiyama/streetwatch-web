@@ -12,7 +12,7 @@ import { LAYERS } from "../theme.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect, liveContacts = null, heatSites = null }) {
+export default function WorldMap({ feeds, selectedId, onSelect, liveContacts = null, heatSites = null, showFeeds = true }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -22,6 +22,8 @@ export default function WorldMap({ feeds, selectedId, onSelect, liveContacts = n
   liveRef.current = liveContacts;
   const heatRef = useRef(heatSites);
   heatRef.current = heatSites;
+  const showFeedsRef = useRef(showFeeds);
+  showFeedsRef.current = showFeeds;
   const selRef = useRef(selectedId);
   selRef.current = selectedId;
   const centred = useRef(null);     // which feed the map is already centred on
@@ -64,10 +66,18 @@ export default function WorldMap({ feeds, selectedId, onSelect, liveContacts = n
           `${d.site ? " · " + d.site : ""}`,
           { direction: "top", opacity: 0.9 }
         )
-        .on("click", () => {
-          // jump to the airspace radar this contact was seen in
-          const f = feedsRef.current.find((x) => x.tag === "uav" && x.name.endsWith(d.site));
-          if (f && onSelectFeed) onSelectFeed(f.id);
+        .on("click", function () {
+          // Jump to the airspace radar this contact was seen in. The feeds list is always
+          // present for this lookup even when the FEEDS layer is switched off — hiding a
+          // layer should not disable navigation.
+          const f = feedsRef.current.find((x) => x.tag === "uav" && d.site && x.name.endsWith(d.site));
+          if (f && onSelectFeed) { onSelectFeed(f.id); return; }
+          // never leave a tap doing nothing: explain instead
+          this.bindPopup(
+            `<b>${d.callsign || d.id}</b><br>${disputed ? "disputed UAV" : d.kind}<br>` +
+            `${d.site ? d.site + "<br>" : ""}` +
+            `<span style="opacity:.7">no radar feed matched this airspace</span>`
+          ).openPopup();
         })
         .addTo(lg);
     });
@@ -81,6 +91,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, liveContacts = n
 
     const zoom = map.getZoom();
     const bounds = map.getBounds().pad(0.2);
+    if (!showFeedsRef.current) { drawLive(lg, onSelect); return; }   // heat already drawn
     const visible = feedsRef.current.filter(
       (f) => Number.isFinite(f.lat) && Number.isFinite(f.lng) && bounds.contains([f.lat, f.lng])
     );
