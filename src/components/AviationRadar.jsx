@@ -41,7 +41,7 @@ function trackNm(trail, lat0) {
   }
   return d;
 }
-export default function AviationRadar({ center, initialRadius, onRadius, initialSel, onSelect, defaultRadius = 100 }) {
+export default function AviationRadar({ center, initialRadius, onRadius, initialSel, initialSelLabel = null, initialSelSeen = null, onSelect, defaultRadius = 100 }) {
   const [status, setStatus] = useState("sim");
   const [, setTick] = useState(0);
   const [sel, setSel] = useState(null);
@@ -62,12 +62,22 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
   useEffect(() => { if (onRadius) onRadius(radius); }, [radius, onRadius]);
   useEffect(() => { if (onSelect) onSelect(sel); }, [sel, onSelect]);
   const wantSel = useRef(initialSel || null);
-  useEffect(() => {                              // deep-linked aircraft may take a poll to appear
+  // "Not found" is a real answer and must be said out loud. The drone list shows contacts from
+  // the last 24 hours, but this radar only knows what is airborne NOW — so tapping a flight
+  // recorded three hours ago can never highlight anything. Previously the poll just expired in
+  // silence and the user saw the map move for no visible reason.
+  const [selMissing, setSelMissing] = useState(null);
+  useEffect(() => {
     if (!wantSel.current) return;
     const id = setInterval(() => {
-      if (acRef.current[wantSel.current]) { setSel(wantSel.current); wantSel.current = null; clearInterval(id); }
+      if (acRef.current[wantSel.current]) {
+        setSel(wantSel.current); setSelMissing(null); wantSel.current = null; clearInterval(id);
+      }
     }, 1000);
-    const stop = setTimeout(() => clearInterval(id), 30000); // give up politely
+    const stop = setTimeout(() => {
+      clearInterval(id);
+      if (wantSel.current) { setSelMissing(wantSel.current); wantSel.current = null; }
+    }, 12000);                                   // 12s ≈ two polls; long enough to be fair
     return () => { clearInterval(id); clearTimeout(stop); };
   }, []);
   const acRef = useRef({}); const lastRef = useRef(Date.now()); const liveRef = useRef(false); const failRef = useRef(0);
@@ -141,6 +151,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
               : only === "uav" ? plotted.filter((a) => a.isDrone)
               : plotted;
   const chosen = plotted.find((a) => a.id === sel);
+  const waitingForSel = !!wantSel.current && !chosen && !selMissing;
   const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   return (
@@ -256,7 +267,15 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
           minHeight: 46, alignItems: "flex-end",
           // proportional digits change width as values tick, which made the whole line shuffle
           fontVariantNumeric: "tabular-nums" }}>
-        {chosen ? (
+        {selMissing && !chosen ? (
+          <span style={{ color: C.amber, lineHeight: 1.5 }}>
+            {initialSelLabel || selMissing} is not airborne in this area now
+            <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
+              {initialSelSeen ? `last recorded here ${initialSelSeen} — ` : ""}
+              this radar shows only current traffic. Its recorded track is in the archive.
+            </span>
+          </span>
+        ) : chosen ? (
           <span style={{ color: chosen.isDrone ? "#C084FC" : altColor(chosen), lineHeight: 1.5 }}>
             {chosen.isDrone ? "◇ UAV · " : ""}{chosen.callsign || chosen.id} · {chosen.typeCode || "—"} · {chosen.onGround ? "GND" : (chosen.altFt / 1000).toFixed(0) + "k ft"} · {chosen.groundSpeedKt}kt · {Math.round(chosen.headingDeg)}°
             {(chosen.desc || chosen.registration || chosen.operator || chosen.military) && (
