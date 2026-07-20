@@ -1,6 +1,7 @@
 // StreetWatch — main shell. Views live in ./components, data in catalog.json.
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2 } from "lucide-react";
+import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2, HelpCircle } from "lucide-react";
+import Intro from "./components/Intro.jsx";
 // Catalog is fetched at runtime from /catalog.json (5,000+ feeds — too big to bundle).
 import { C, LAYERS, layerKeys, resolveUrl, openLive } from "./theme.js";
 import { distKm } from "./geo.js";
@@ -56,6 +57,10 @@ export default function StreetWatch() {
   const [viewRadius, setViewRadius] = useState(null);
   const [viewSel, setViewSel] = useState(null);
   const [pendingSel, setPendingSel] = useState(null);
+  const [introOpen, setIntroOpen] = useState(() => {
+    try { return !localStorage.getItem("sw-intro-seen"); } catch { return false; }
+  });
+  const closeIntro = () => { setIntroOpen(false); try { localStorage.setItem("sw-intro-seen", "1"); } catch { /* private mode */ } };
   const urlRadius = React.useRef(
     typeof window !== "undefined" ? Number(new URLSearchParams(window.location.search).get("r")) || null : null
   );
@@ -263,6 +268,7 @@ export default function StreetWatch() {
         button:focus-visible,input:focus-visible{ outline:2px solid ${C.cyan}; outline-offset:2px; }
       `}</style>
 
+      <Intro open={introOpen} onClose={closeIntro} />
       <header className="flex items-center justify-between px-4 md:px-6 py-3" style={{ borderBottom: `1px solid ${C.line}` }}>
         <div className="flex items-center gap-2.5">
           <svg width="30" height="30" viewBox="0 0 64 64" aria-label="StreetWatch">
@@ -277,6 +283,12 @@ export default function StreetWatch() {
           </div>
         </div>
         <nav className="flex items-center gap-1">
+          <button onClick={() => setIntroOpen(true)} aria-label="What is StreetWatch? Open the guide"
+            title="What is this? How do I use it?"
+            className="flex items-center justify-center rounded"
+            style={{ width: 30, height: 30, color: C.dim, background: "transparent", border: `1px solid ${C.line}` }}>
+            <HelpCircle size={15} />
+          </button>
           {[{ k: "world", label: "World", icon: Globe, on: true }, { k: "drones", label: "Drones", icon: Plane, on: true }].map((t) => (
             <button key={t.k} onClick={() => t.on && setTab(t.k)} disabled={!t.on}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded font-mono"
