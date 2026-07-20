@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Wifi, WifiOff } from "lucide-react";
 import { C } from "../theme.js";
+import RadarMap from "./RadarMap.jsx";
 import { AIS_BACKEND_URL } from "../config.js";
 import { RAD, rnd } from "../geo.js";
 
@@ -62,7 +63,13 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
   const [upstream, setUpstream] = useState("live");   // "live" | "down" (provider outage)
   const [, setTick] = useState(0);
   const [sel, setSel] = useState(null);
-  const [radius, setRadius] = useState([20, 50, 100].includes(initialRadius) ? initialRadius : 40);
+  // A tap-to-open vessel must actually be inside the ring, or the preselect polls for a
+  // vessel the radar never loads. The map routes taps only within 100nm, so the widest
+  // ring guarantees visibility. (This was the bug: default 40nm, vessel at 60nm, nothing
+  // ever selected and no hint why.)
+  const [radius, setRadius] = useState(
+    initialSel ? 100 : [20, 50, 100].includes(initialRadius) ? initialRadius : 40);
+  const [view, setView] = useState("radar");   // radar | map
   useEffect(() => { if (onRadius) onRadius(radius); }, [radius, onRadius]);
   useEffect(() => { if (onSelect) onSelect(sel); }, [sel, onSelect]);
   const wantSel = useRef(initialSel || null);
@@ -146,21 +153,46 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
 
   return (
     <div className="relative w-full overflow-hidden rounded-lg" style={{ border: `1px solid ${C.line}`, background: "#08130F" }}>
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 py-2"
-        style={{ background: "linear-gradient(180deg, rgba(8,19,15,0.9), rgba(8,19,15,0))" }}>
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2"
+        style={{ zIndex: 1200, background: "linear-gradient(180deg, rgba(8,19,15,0.9), rgba(8,19,15,0))" }}>
         <span className="flex items-center gap-1.5 px-2 py-0.5 rounded font-mono"
           style={{ fontSize: 11, letterSpacing: 1, background: status === "live" ? "rgba(55,196,106,0.16)" : status === "error" ? "rgba(240,85,59,0.16)" : "rgba(246,168,33,0.16)",
             color: status === "live" ? "#37C46A" : status === "error" ? "#F0553B" : C.amber }}>
           {status === "live" ? <Wifi size={12} /> : <WifiOff size={12} />}{status === "live" ? "LIVE" : status === "error" ? "PROXY DOWN" : "SIM"}
         </span>
         <div className="flex items-center gap-1">
+          {[["radar", "RADAR"], ["map", "MAP"]].map(([k, label]) => (
+            <button key={k} onClick={() => setView(k)} className="px-1.5 py-0.5 rounded font-mono"
+              style={{ fontSize: 10, color: view === k ? C.ink : C.dim,
+                background: view === k ? "#2563EB" : "rgba(28,32,41,0.8)", marginRight: 4 }}>
+              {label}
+            </button>
+          ))}
           {[20, 50, 100].map((r) => (
             <button key={r} onClick={() => setRadius(r)} className="px-1.5 py-0.5 rounded font-mono"
               style={{ fontSize: 10, color: radius === r ? C.ink : C.dim, background: radius === r ? teal : "rgba(20,28,25,0.8)" }}>{r}nm</button>
           ))}
         </div>
       </div>
-      <svg viewBox="0 0 400 400" className="w-full" style={{ display: "block", maxHeight: 420 }}>
+      {view === "map" && (
+        <div className="px-2 pb-1" style={{ paddingTop: 44 }}>
+          <RadarMap mode="sea"
+            center={center}
+            radiusNm={radius}
+            sel={sel}
+            onSel={setSel}
+            height="min(52vh, 420px)"
+            contacts={plotted.map((v) => ({
+              id: v.id, callsign: v.name || v.id, lat: v.lat, lon: v.lon,
+              headingDeg: Number.isFinite(v.headingDeg) ? v.headingDeg : v.cogDeg,
+              sogKt: v.sogKt,
+              isDrone: !!v.usv,            // violet chevrons = sea drones
+              military: !!v.subSupport,    // red chevrons = submarine support (surface ships)
+              trail: v.trail,
+            }))} />
+        </div>
+      )}
+      <svg viewBox="0 0 400 400" className="w-full" style={{ display: view === "map" ? "none" : undefined,  display: "block", maxHeight: 420 }}>
         <defs>
           <radialGradient id="scm" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#0C1A16" /><stop offset="100%" stopColor="#07110D" /></radialGradient>
           <linearGradient id="swm" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="rgba(45,212,191,0)" /><stop offset="100%" stopColor="rgba(45,212,191,0.26)" /></linearGradient>
@@ -197,7 +229,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
         <circle cx="200" cy="200" r="3" fill={teal} />
       </svg>
       <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2 font-mono"
-        style={{ background: "linear-gradient(0deg, rgba(8,19,15,0.92), rgba(8,19,15,0))", fontSize: 11 }}>
+        style={{ zIndex: 1200, background: "linear-gradient(0deg, rgba(8,19,15,0.92), rgba(8,19,15,0))", fontSize: 11 }}>
         {chosen ? (
           <span style={{ color: shipColor(chosen), lineHeight: 1.5 }}>
             {chosen.name || chosen.id} · {chosen.sogKt != null ? chosen.sogKt.toFixed(1) + "kt" : "—"} · {chosen.cogDeg != null ? Math.round(chosen.cogDeg) + "°" : "moored"}
@@ -243,7 +275,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
       {/* Stated plainly rather than left to assumption: quiet water is not necessarily
           empty water, and no public system can show what is underneath it. */}
       <div className="absolute left-0 right-0 px-3 font-mono"
-        style={{ bottom: 34, fontSize: 9, color: C.faint, lineHeight: 1.45, zIndex: 5 }}>
+        style={{ bottom: 34, zIndex: 1200, fontSize: 9, color: C.faint, lineHeight: 1.45, zIndex: 5 }}>
         Surface vessels only — submarines and submersibles cannot be tracked by AIS anywhere
         in the world: VHF radio does not travel through seawater.
       </div>

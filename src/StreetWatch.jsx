@@ -445,7 +445,7 @@ export default function StreetWatch() {
                     initialSel={pendingSel || urlSel.current} onSelect={setViewSel} />
                 : selected.layer === "marine"
                 ? <MarineRadar key={`${selected.id}:${pendingSel || ""}`} center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }}
-                    initialRadius={urlRadius.current} onRadius={setViewRadius}
+                    initialRadius={pendingSel ? 100 : urlRadius.current} onRadius={setViewRadius}
                     initialSel={pendingSel || urlSel.current} onSelect={setViewSel} />
                 : selected.layer === "weather"
                 ? <EarthView center={{ lat: selected.lat, lng: selected.lng, name: selected.name, city: selected.city }} />
