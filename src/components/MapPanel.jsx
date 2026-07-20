@@ -7,7 +7,7 @@ import { BACKEND_URL } from "../config.js";
 // One map, three switchable layers. Previously these lived on separate maps with separate
 // controls — feeds here, live sweep contacts there, activity heat somewhere else — which
 // made them feel like unrelated features rather than views of the same planet.
-export default function MapPanel({ feeds, selectedId, onSelect, height = "min(60vh, 560px)" }) {
+export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, height = "min(60vh, 560px)" }) {
   const [showFeeds, setShowFeeds] = useState(true);
   const [showLive, setShowLive] = useState(false);
   const [showHeat, setShowHeat] = useState(false);
@@ -95,6 +95,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, height = "min(60
           showFeeds={showFeeds}
           selectedId={selectedId}
           onSelect={onSelect}
+          onOpenSighting={onOpenSighting}
           liveContacts={showLive ? live : null}
           heatSites={showHeat ? heat : null}
         />
