@@ -172,6 +172,13 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     drawLive(lg, onSelect, onOpenSighting);
   }, [selectedId, onSelect, onOpenSighting]);
 
+  // The map must be created ONCE. Depending on `draw` here re-created it on every parent
+  // render (draw's identity changes because onSelect/onOpenSighting are new functions each
+  // time), which destroyed and rebuilt the map — the "flicker" and the snap back to the
+  // default centre [20,0] off West Africa, with panning and zooming impossible.
+  const drawRef = useRef(draw);
+  drawRef.current = draw;
+
   useEffect(() => {
     if (mapRef.current || !elRef.current) return;
     try {
@@ -192,17 +199,19 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       }).addTo(map);
       layerRef.current = Leaflet.layerGroup().addTo(map);
       mapRef.current = map;
-      map.on("moveend zoomend", draw);
+      map.on("moveend zoomend", () => drawRef.current());
       setTimeout(() => { try { map.invalidateSize(); draw(); } catch { /* not mounted */ } }, 200);
     } catch { /* leaflet unavailable */ }
     return () => {
       try {
-        if (mapRef.current) { mapRef.current.off("moveend zoomend", draw); mapRef.current.remove(); mapRef.current = null; }
+        if (mapRef.current) { mapRef.current.off("moveend zoomend"); mapRef.current.remove(); mapRef.current = null; }
       } catch { /* already gone */ }
     };
-  }, [draw]);
+  }, []);
 
-  useEffect(() => { draw(); }, [feeds, selectedId, liveContacts, heatSites, draw]);
+  // redraw when the DATA changes — not when a parent re-render hands us new function
+  // identities, which would clear and rebuild every marker for no reason
+  useEffect(() => { drawRef.current(); }, [feeds, selectedId, liveContacts, heatSites, showFeeds]);
 
   useEffect(() => {
     const map = mapRef.current; if (!map || !selectedId) return;

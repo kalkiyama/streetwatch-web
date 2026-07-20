@@ -1,5 +1,5 @@
 // StreetWatch — main shell. Views live in ./components, data in catalog.json.
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2 } from "lucide-react";
 // Catalog is fetched at runtime from /catalog.json (5,000+ feeds — too big to bundle).
 import { C, LAYERS, layerKeys, resolveUrl, openLive } from "./theme.js";
@@ -76,14 +76,14 @@ export default function StreetWatch() {
     window.history.replaceState(null, "", url);
   }, [selectedId, CATALOG, viewRadius, viewSel]);
 
-  const openSighting = (d) => {
+  const openSighting = useCallback((d) => {
     const feed = CATALOG.find((c) => c.tag === "uav" && c.name.endsWith(d.site))
       || CATALOG.find((c) => c.tag === "uav" && Math.hypot(c.lat - (d.siteLat || 0), c.lng - (d.siteLon || 0)) < 0.5);
     if (!feed) return;
     setPendingSel(d.id);
     setViewRadius(250);
     setSelectedId(feed.id);
-  };
+  }, [CATALOG]);
 
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
