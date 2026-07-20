@@ -57,6 +57,25 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
     if (map.current) setTimeout(() => map.current && map.current.invalidateSize(), 150);
   }, [full]);
 
+  // re-measure whenever the frame size changes (entering AND leaving fullscreen)
+  useEffect(() => { const t = setTimeout(() => map.current && map.current.invalidateSize(), 90); return () => clearTimeout(t); }, [full]);
+
+
+  // Esc exits fullscreen, and the page behind shouldn't scroll while it's open
+  useEffect(() => {
+    if (!full) return;
+    const esc = (e) => { if (e.key === "Escape") setFull(false); };
+    window.addEventListener("keydown", esc);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const t = setTimeout(() => map.current && map.current.invalidateSize(), 80);
+    return () => {
+      window.removeEventListener("keydown", esc);
+      document.body.style.overflow = prev;
+      clearTimeout(t);
+    };
+  }, [full]);
+
   useEffect(() => {
     if (!map.current || !data || !data.sites) return;
     if (layer.current) layer.current.remove();
