@@ -145,8 +145,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
 
   return (
     <div className="relative w-full overflow-hidden rounded-lg" style={{ border: `1px solid ${C.line}`, background: "#0A0E14" }}>
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 py-2"
-        style={{ background: "linear-gradient(180deg, rgba(10,14,20,0.9), rgba(10,14,20,0))" }}>
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2" style={{ zIndex: 1200, background: "linear-gradient(180deg, rgba(10,14,20,0.9), rgba(10,14,20,0))" }}>
         <span className="flex items-center gap-1.5 px-2 py-0.5 rounded font-mono"
           style={{ fontSize: 11, letterSpacing: 1, background: status === "live" ? "rgba(55,196,106,0.16)" : status === "error" ? "rgba(240,85,59,0.16)" : "rgba(246,168,33,0.16)",
             color: status === "live" ? "#37C46A" : status === "error" ? "#F0553B" : C.amber }}>
@@ -166,8 +165,8 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
       </div>
       {/* part of the absolute overlay stack — in normal flow the absolutely positioned
           header sits on top of these and swallows every tap */}
-      <div className="absolute z-10 left-0 right-0 flex items-center gap-1 px-3"
-        style={{ top: 34, flexWrap: "wrap" }}>
+      <div className="absolute left-0 right-0 flex items-center gap-1 px-3"
+        style={{ top: 34, flexWrap: "wrap", zIndex: 1200 }}>
         {[["all", "ALL"], ["mil", "MIL"], ["uav", "UAV"]].map(([k, label]) => {
           const n = k === "mil" ? plotted.filter((a) => a.military).length
                   : k === "uav" ? plotted.filter((a) => a.isDrone).length : plotted.length;
@@ -191,8 +190,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
         ))}
       </div>
       {uavInfo && (
-        <div className="absolute z-20 left-3 right-3 rounded-lg p-3" style={{ top: 66 }}
-          style={{ background: "rgba(10,14,20,0.96)", border: "1px solid rgba(192,132,252,0.4)" }}>
+        <div className="absolute left-3 right-3 rounded-lg p-3" style={{ top: 66, zIndex: 1300, background: "rgba(10,14,20,0.96)", border: "1px solid rgba(192,132,252,0.4)" }}>
           <div className="font-mono flex items-center justify-between" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
             <span>◇ UAV TRACKING — HOW IT WORKS</span>
             <button onClick={() => setUavInfo(false)} aria-label="close" style={{ color: "#C084FC" }}><X size={13} /></button>
@@ -254,8 +252,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
         })}
         <circle cx="200" cy="200" r="3" fill={C.cyan} />
       </svg>
-      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2 font-mono"
-        style={{ background: "linear-gradient(0deg, rgba(10,14,20,0.92), rgba(10,14,20,0))", fontSize: 11 }}>
+      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2 font-mono" style={{ zIndex: 1200, background: "linear-gradient(0deg, rgba(10,14,20,0.92), rgba(10,14,20,0))", fontSize: 11 }}>
         {chosen ? (
           <span style={{ color: chosen.isDrone ? "#C084FC" : altColor(chosen), lineHeight: 1.5 }}>
             {chosen.isDrone ? "◇ UAV · " : ""}{chosen.callsign || chosen.id} · {chosen.typeCode || "—"} · {chosen.onGround ? "GND" : (chosen.altFt / 1000).toFixed(0) + "k ft"} · {chosen.groundSpeedKt}kt · {Math.round(chosen.headingDeg)}°
