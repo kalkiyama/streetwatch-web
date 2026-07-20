@@ -125,7 +125,7 @@ export default function DroneSweep({ onOpen }) {
         Military &amp; UAV aircraft worldwide
         <span style={{ display: "block", fontSize: 10, color: C.faint, fontWeight: 400, marginTop: 1 }}>
           {mode === "live"
-            ? `${drones.length} detected now · scanning 28 watch airspaces`
+            ? `${drones.length} detected now · watching ${(data.sweep && data.sweep.sites) || 0} airspaces worldwide`
             : `${(hist && hist.count) || 0} recorded · archive keeps 90 days`}
         </span>
       </div>
@@ -147,7 +147,7 @@ export default function DroneSweep({ onOpen }) {
 
       {mode === "live" && state === "ok" && data.sweep && data.sweep.cycles === 0 && (
         <div className="px-3 pb-1.5" style={{ fontSize: 10, color: C.dim }}>
-          First sweep in progress — {data.sweep.visited}/{data.sweep.sites} airspaces checked.
+          First sweep in progress — {data.sweep.visited}/{data.sweep.passSize || data.sweep.sites} airspaces checked this pass.
           Counts keep rising until the full pass completes.
         </div>
       )}
@@ -213,7 +213,7 @@ export default function DroneSweep({ onOpen }) {
 
       {mode === "live" && state === "loading" && (
         <div className="px-3 pb-2 font-mono flex items-center gap-1.5" style={{ fontSize: 11, color: C.dim }}>
-          <RefreshCw size={11} /> scanning 28 airspaces…
+          <RefreshCw size={11} /> scanning airspaces worldwide…
         </div>
       )}
       {mode === "live" && state === "error" && (
@@ -248,7 +248,8 @@ export default function DroneSweep({ onOpen }) {
       ))}
       {mode === "live" && state === "ok" && data.sweep && (
         <div className="px-3 py-1.5 font-mono" style={{ fontSize: 9, color: C.faint, borderTop: "1px solid rgba(192,132,252,0.18)" }}>
-          {data.sweep.cycles} cycles · {data.sweep.tracked24h} tracked in 24h
+          {data.sweep.cycles} passes · {data.sweep.tracked24h} tracked in 24h
+          {data.sweep.hotSites ? ` · ${data.sweep.hotSites} active airspaces on fast rotation` : ""}
           {data.counts && data.counts.disputed > 0 && ` · ${data.counts.disputed} disputed (broadcast says unmanned, registry says manned)`}
           {" "}· ADS-B broadcasters only — aircraft with transponders off are invisible to every public feed
         </div>
