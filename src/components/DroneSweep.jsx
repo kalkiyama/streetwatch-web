@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { RefreshCw, Radio, History, X } from "lucide-react";
 import { C } from "../theme.js";
+import PathMap from "./PathMap.jsx";
 import { BACKEND_URL } from "../config.js";
 
 // Planet-wide view of ADS-B category B6 (unmanned) contacts, aggregated
@@ -20,17 +21,6 @@ function PathView({ track, onClose }) {
           )}
           {track.points && track.points.length > 0 && (() => {
             const pts = track.points.map((p) => ({ lat: p.lat, lon: p.lon, ts: +new Date(p.ts) }));
-            const lats = pts.map((p) => p.lat), lons = pts.map((p) => p.lon);
-            const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-            const minLon = Math.min(...lons), maxLon = Math.max(...lons);
-            const spanLat = Math.max(maxLat - minLat, 0.02), spanLon = Math.max(maxLon - minLon, 0.02);
-            const W = 300, H = 120, pad = 8;
-            const xy = (p) => [
-              pad + ((p.lon - minLon) / spanLon) * (W - pad * 2),
-              H - pad - ((p.lat - minLat) / spanLat) * (H - pad * 2),
-            ];
-            const d = pts.map(xy).map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-            const [ex, ey] = xy(pts[pts.length - 1]);
             const km = pts.slice(1).reduce((acc, p, i) => {
               const q = pts[i]; const dy = (p.lat - q.lat) * 111;
               const dx = (p.lon - q.lon) * 111 * Math.cos((p.lat * Math.PI) / 180);
@@ -38,10 +28,7 @@ function PathView({ track, onClose }) {
             }, 0);
             return (
               <>
-                <svg viewBox={`0 0 ${W} ${H}`} className="w-full mt-1.5" style={{ display: "block", background: "#0A0D12", borderRadius: 4 }}>
-                  <polyline points={d} fill="none" stroke="#C084FC" strokeWidth="1.6" strokeOpacity="0.85" strokeLinejoin="round" />
-                  <circle cx={ex} cy={ey} r="3" fill="#C084FC" />
-                </svg>
+                <div className="mt-1.5"><PathMap points={pts} /></div>
                 <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.6 }}>
                   {pts.length} recorded positions · {km.toFixed(0)}km of track
                   <span style={{ display: "block" }}>
