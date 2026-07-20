@@ -77,7 +77,11 @@ export default function AiBriefing() {
       {data && !data.error && tab === "digest" && data.totals && (
         <>
           <div className="font-mono" style={{ fontSize: 10, color: C.dim, lineHeight: 1.8, marginBottom: 8 }}>
-            <div style={{ color: C.amber, letterSpacing: 1 }}>COMPUTED · LAST {data.windowDays} DAYS</div>
+            <div style={{ color: C.amber, letterSpacing: 1 }}>
+              COMPUTED · LAST {data.windowDays} DAYS
+              {data.archiveAgeHours != null && data.archiveAgeHours < data.windowDays * 24
+                ? ` (archive spans ${data.archiveAgeHours}h)` : ""}
+            </div>
             {data.totals.contacts} aircraft · {data.totals.uav} UAV · {data.totals.military} military · {data.totals.sites} airspaces
             {data.top && data.top.length > 0 && (
               <div style={{ marginTop: 4 }}>

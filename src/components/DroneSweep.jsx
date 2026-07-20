@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { RefreshCw, Radio, History, X } from "lucide-react";
 import { C } from "../theme.js";
+import { lookupCallsign } from "../callsigns.js";
 import PathMap from "./PathMap.jsx";
 import TrackNarrative from "./TrackNarrative.jsx";
 import AiBriefing from "./AiBriefing.jsx";
@@ -252,6 +253,12 @@ export default function DroneSweep({ onOpen }) {
             <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
               {d.desc || d.typeCode || "unknown type"}
               {d.why ? ` · ${d.why}` : ""}
+              {(() => {
+                // Callsign conventions are a published naming scheme, not an identification.
+                // Shown with "callsign" so nobody reads it as a confirmed operator.
+                const cs = lookupCallsign(d.callsign);
+                return cs ? <span style={{ color: "#C084FC" }}> · {cs.operator} callsign</span> : null;
+              })()}
               {d.altFt ? ` · ${(d.altFt / 1000).toFixed(0)}k ft` : ""}
               {d.groundSpeedKt ? ` · ${d.groundSpeedKt}kt` : ""} · {ago(d.lastSeen)}
             </span>
