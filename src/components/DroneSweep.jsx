@@ -52,6 +52,7 @@ export default function DroneSweep({ onOpen }) {
   const [state, setState] = useState("loading"); // loading | ok | error
   const [mins, setMins] = useState(60);
   const [kind, setKind] = useState("all");
+  const [marine, setMarine] = useState(null);   // { usv, sub } — sea drones and sub support
   const [mode, setMode] = useState("live");     // live | archive
   const [days, setDays] = useState(7);
   const [hist, setHist] = useState(null);       // archived contact list
@@ -69,6 +70,14 @@ export default function DroneSweep({ onOpen }) {
         const j = await r.json();
         if (!alive) return;
         setData(j); setState("ok");
+        // The map has offered SEA DRONES and SUB SUPPORT layers for a while; the list only
+        // ever fetched aircraft, so the same contacts were reachable on one surface and
+        // invisible on the other. Fetched separately so a marine outage cannot blank the
+        // aircraft list.
+        Promise.all([
+          fetch(`${BACKEND_URL}/api/usv`).then((x) => x.json()).catch(() => null),
+          fetch(`${BACKEND_URL}/api/subsupport`).then((x) => x.json()).catch(() => null),
+        ]).then(([u, sb]) => { if (alive) setMarine({ usv: u, sub: sb }); });
       } catch { if (alive) setState((s) => (s === "ok" ? "ok" : "error")); }
     }
     load();
@@ -98,7 +107,10 @@ export default function DroneSweep({ onOpen }) {
   };
 
   const all = (data && data.drones) || [];
-  const drones = kind === "all" ? all : all.filter((d) => d.kind === kind);
+  const drones = kind === "all" ? all : (kind === "usv" || kind === "sub") ? [] : all.filter((d) => d.kind === kind);
+  const vessels = kind === "usv" ? ((marine && marine.usv && marine.usv.vessels) || [])
+                : kind === "sub" ? ((marine && marine.sub && marine.sub.vessels) || [])
+                : [];
   const KIND = { uav: { c: "#C084FC", label: "UAV" }, military: { c: "#F87171", label: "MIL" } };
   const styleOf = (d) => (d.confidence === "disputed"
     ? { c: "#F6A821", label: "UAV?" }
@@ -164,7 +176,9 @@ export default function DroneSweep({ onOpen }) {
       )}
       {mode === "live" && state === "ok" && (
         <div className="px-3 pb-2 flex items-center gap-1 font-mono">
-          {[["all", "ALL", "#C084FC"], ["uav", `UAV ${(data.counts && data.counts.uav) || 0}`, "#C084FC"], ["military", `MIL ${(data.counts && data.counts.military) || 0}`, "#F87171"]].map(([k, label, col]) => (
+          {[["all", "ALL", "#C084FC"], ["uav", `UAV ${(data.counts && data.counts.uav) || 0}`, "#C084FC"], ["military", `MIL ${(data.counts && data.counts.military) || 0}`, "#F87171"],
+            ["usv", `SEA ${(marine && marine.usv && marine.usv.count) || 0}`, "#2DD4BF"],
+            ["sub", `SUB ${(marine && marine.sub && marine.sub.count) || 0}`, "#F0553B"]].map(([k, label, col]) => (
             <button key={k} onClick={() => setKind(k)}
               style={{ fontSize: 9, padding: "2px 7px", borderRadius: 3, border: `1px solid ${col}66`,
                 background: kind === k ? col : "transparent", color: kind === k ? "#0A0E14" : col }}>
@@ -240,6 +254,35 @@ export default function DroneSweep({ onOpen }) {
           That is a normal reading — try the 24h window, or open a watch site below.
         </div>
       )}
+      {mode === "live" && state === "ok" && (kind === "usv" || kind === "sub") && vessels.length === 0 && (
+        <div className="px-3 pb-2.5" style={{ fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
+          No {kind === "usv" ? "sea drone" : "submarine support"} candidates in AIS coverage right now.
+          That is a normal reading — coverage is regional (Baltic, Norwegian coast and Svalbard),
+          and these vessels are uncommon.
+        </div>
+      )}
+      {mode === "live" && state === "ok" && vessels.map((v) => (
+        <div key={v.id} className="w-full text-left px-3 py-2 flex items-center gap-2"
+          style={{ borderTop: "1px solid rgba(192,132,252,0.18)" }}>
+          <span style={{ color: kind === "usv" ? "#2DD4BF" : "#F0553B", fontSize: 12, fontWeight: 700, minWidth: 74 }}>
+            {v.name || v.id}
+            <span style={{ display: "block", fontSize: 8, opacity: 0.75 }}>
+              {kind === "usv"
+                ? (v.usvConfidence === "confirmed" ? "SEA DRONE" : "POSSIBLE")
+                : (v.subSupportConfidence === "named" ? "SUB SUPPORT" : "POSSIBLE")}
+            </span>
+          </span>
+          <span className="flex-1" style={{ fontSize: 11, color: C.text, minWidth: 0 }}>
+            {v.callSign ? `${v.callSign} · ` : ""}MMSI {v.id}
+            <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
+              {v.why || (kind === "sub" ? "surface ship supporting underwater operations — not a submarine" : "small unidentified hull")}
+              {Number.isFinite(v.lengthM) ? ` · ${Math.round(v.lengthM)}m` : ""}
+              {Number.isFinite(v.sogKt) ? ` · ${v.sogKt.toFixed(1)}kt` : ""}
+              {v.provider ? ` · via ${v.provider}` : ""}
+            </span>
+          </span>
+        </div>
+      ))}
       {mode === "live" && state === "ok" && drones.map((d) => (
         <button key={d.id} onClick={() => onOpen(d)}
           className="w-full text-left px-3 py-2 flex items-center gap-2"
