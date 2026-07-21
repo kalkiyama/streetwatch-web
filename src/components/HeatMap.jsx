@@ -3,7 +3,7 @@ import { Maximize2, X } from "lucide-react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
-import { C, heatColor, heatIntensity, HEAT_RAMP } from "../theme.js";
+import { C, heatColor, heatIntensity, HEAT_RAMP, addBaseTiles } from "../theme.js";
 import { BACKEND_URL } from "../config.js";
 
 // Where military / UAV activity actually concentrates, measured from this sweep's own
@@ -42,9 +42,7 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
       minZoom: 1, maxZoom: 10, worldCopyJump: true,
     }).setView([25, 10], 2);
     Leaflet.control.zoom({ position: "topright" }).addTo(map.current);
-    Leaflet.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: "&copy; OpenStreetMap &copy; CARTO", maxZoom: 12,
-    }).addTo(map.current);
+    addBaseTiles(Leaflet, map.current);
     setTimeout(() => map.current && map.current.invalidateSize(), 60);
     return () => { if (map.current) { map.current.remove(); map.current = null; } };
   }, []);
@@ -108,8 +106,7 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
           (pick.p != null
             ? `${pick.p} position reports within ${radiusNm}nm, spanning ${s.span_hours || 0}h of recorded data<br>`
             : `${s.points} position reports across the 250nm region, spanning ${s.span_hours || 0}h of recorded data<br>`) +
-          `<span style="opacity:.7">last seen ${new Date(s.last_seen).toLocaleString()}<br>` +
-          `A ${radiusNm}nm circle overlaps its neighbours; each aircraft is counted at the site it came closest to.</span>`
+          `<span style="opacity:.7">last seen ${new Date(s.last_seen).toLocaleString()}</span>`
         )
         .addTo(layer.current);
     });
@@ -132,29 +129,31 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
           ACTIVITY MAP
         </span>
         <div className="flex items-center gap-1" style={{ flexWrap: "wrap" }}>
-          {[1, 7, 30, 90].map((d) => (
-            <button key={d} onClick={() => setDays(d)} className="px-1.5 py-1 rounded font-mono"
-              style={{ fontSize: 9, color: days === d ? "#0A0D12" : C.amber,
+          {/* In normal view the archive tab's own selector drives `days` (shown twice was
+              noise); in fullscreen that selector is buried, so the chips appear here instead. */}
+          {full && [1, 7, 30, 90].map((d) => (
+            <button key={d} onClick={() => setDays(d)} className="rounded font-mono"
+              style={{ fontSize: 8.5, padding: "3px 5px", color: days === d ? "#0A0D12" : C.amber,
                 background: days === d ? C.amber : "transparent",
                 border: `1px solid ${C.amber}66` }}>
               {d}d
             </button>
           ))}
-          <span style={{ width: 4 }} />
+          {full && <span style={{ width: 4 }} />}
           {[25, 100, 250].map((r) => (
-            <button key={r} onClick={() => setRadius(r)} className="px-1.5 py-1 rounded font-mono"
+            <button key={r} onClick={() => setRadius(r)} className="rounded font-mono"
               title={r === 25 ? "The airfield and its immediate approaches"
                 : r === 100 ? "Its working airspace"
                 : "The full region the sweep polls"}
-              style={{ fontSize: 9, color: radius === r ? "#0A0D12" : "#C084FC",
+              style={{ fontSize: 8.5, padding: "3px 5px", color: radius === r ? "#0A0D12" : "#C084FC",
                 background: radius === r ? "#C084FC" : "transparent",
                 border: "1px solid rgba(192,132,252,0.4)" }}>
               {r}nm
             </button>
           ))}
-          <button onClick={() => setFull(!full)} className="flex items-center gap-1 px-2 py-1 rounded font-mono"
-            style={{ fontSize: 9, color: "#C084FC", border: "1px solid rgba(192,132,252,0.4)", background: "transparent" }}>
-            {full ? <><X size={11} /> CLOSE</> : <><Maximize2 size={11} /> FULL SCREEN</>}
+          <button onClick={() => setFull(!full)} className="flex items-center gap-1 rounded font-mono"
+            style={{ fontSize: 8.5, padding: "3px 6px", color: "#C084FC", border: "1px solid rgba(192,132,252,0.4)", background: "transparent" }}>
+            {full ? <><X size={10} /> CLOSE</> : <><Maximize2 size={10} /> FULL</>}
           </button>
         </div>
       </div>

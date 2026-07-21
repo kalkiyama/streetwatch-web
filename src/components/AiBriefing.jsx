@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sparkles, FileText, GitCompare, AlertTriangle } from "lucide-react";
 import { C } from "../theme.js";
 import { AIS_BACKEND_URL } from "../config.js";
@@ -8,9 +8,11 @@ import { AIS_BACKEND_URL } from "../config.js";
 // Same discipline as TrackNarrative: computed figures are shown as a table the reader can
 // audit, the AI prose sits below it clearly labelled, and the disclosure is permanent rather
 // than a tooltip. Both views are on-demand — nothing here runs on a schedule or per contact.
-export default function AiBriefing() {
+export default function AiBriefing({ days = 7 }) {
+  // `days` comes from the archive view's own 1/7/30/90 selector — previously this component
+  // kept a private 7/30 pair, so the user's selection above it was silently ignored and the
+  // analysis always covered 7 days regardless.
   const [tab, setTab] = useState("digest");
-  const [days, setDays] = useState(7);
   const [state, setState] = useState("idle");
   const [data, setData] = useState(null);
 
@@ -28,33 +30,35 @@ export default function AiBriefing() {
     }
   };
 
-  const pick = (which, d) => { setTab(which); setDays(d); run(which, d); };
+  const pick = (which) => { setTab(which); setState("idle"); setData(null); };
+
+  // If the user changes the look-back after generating, regenerate for the new window —
+  // otherwise the panel would silently show analysis for a window they no longer have selected.
+  useEffect(() => { if (state === "done") run(tab, days); /* eslint-disable-next-line */ }, [days]);
 
   return (
     <div className="rounded" style={{ background: C.panel, border: `1px solid ${C.line}`, padding: "12px 14px" }}>
       <div className="flex items-center gap-1.5 flex-wrap" style={{ marginBottom: 10 }}>
-        <button onClick={() => pick("digest", days)} className="flex items-center gap-1 px-2 py-1 rounded font-mono"
+        <button onClick={() => pick("digest")} className="flex items-center gap-1 px-2 py-1 rounded font-mono"
           style={{ fontSize: 10, color: tab === "digest" ? C.ink : C.dim,
             background: tab === "digest" ? C.amber : C.panel2, border: `1px solid ${C.line}` }}>
           <FileText size={10} /> DIGEST
         </button>
-        <button onClick={() => pick("corr", days)} className="flex items-center gap-1 px-2 py-1 rounded font-mono"
+        <button onClick={() => pick("corr")} className="flex items-center gap-1 px-2 py-1 rounded font-mono"
           style={{ fontSize: 10, color: tab === "corr" ? C.ink : C.dim,
             background: tab === "corr" ? "#C084FC" : C.panel2, border: `1px solid ${C.line}` }}>
           <GitCompare size={10} /> AIR ↔ SEA
         </button>
         <span style={{ flex: 1 }} />
-        {[7, 30].map((d) => (
-          <button key={d} onClick={() => pick(tab, d)} className="px-1.5 py-1 rounded font-mono"
-            style={{ fontSize: 10, color: days === d ? C.ink : C.faint,
-              background: days === d ? C.line : "transparent", border: `1px solid ${C.line}` }}>
-            {d}d
-          </button>
-        ))}
+        <span className="font-mono" style={{ fontSize: 9, color: C.faint }}>window: {days}d (set above)</span>
       </div>
 
       {state === "idle" && (
         <div style={{ fontSize: 11.5, color: C.dim, lineHeight: 1.6 }}>
+          <button onClick={() => run(tab, days)} className="flex items-center gap-1.5 px-3 py-1.5 rounded font-mono mb-2"
+            style={{ fontSize: 11, color: "#0A0D12", background: "#C084FC", border: "none", fontWeight: 700 }}>
+            <Sparkles size={12} /> GENERATE {tab === "digest" ? "DIGEST" : "AIR ↔ SEA ANALYSIS"} · LAST {days} DAYS
+          </button>
           {tab === "digest"
             ? "A briefing on the watched airspaces. Each site is polled over a 250nm radius, so its figure counts aircraft across a region rather than at that base — a tighter 25nm count is shown alongside. Counts are computed from the archive; the summary is written from those counts."
             : "Where air activity and marine contacts of interest occurred near each other in time and space. Co-occurrence only — no causal link is implied or observable from public data."}

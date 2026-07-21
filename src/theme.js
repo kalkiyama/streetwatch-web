@@ -51,3 +51,19 @@ export function heatColor(t) {
   for (const stop of HEAT_RAMP) if (t >= stop.at) out = stop.c;
   return out;
 }
+
+// Shared basemap for every Leaflet view.
+//
+// The previous CARTO dark tiles label places in each place's LOCAL language — Chinese script
+// over China, "Afrika", "Moskva" — which reads as broken at continent zoom. Esri's dark canvas
+// splits base and labels into two layers and labels in English. One definition here so all
+// four maps stay identical; changing basemap ever again is a one-file edit.
+export const BASE_TILE_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}";
+export const LABEL_TILE_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}";
+export const TILE_ATTR = "Esri, HERE, Garmin, © OpenStreetMap contributors";
+export const TILE_MAX_ZOOM = 16;
+
+export function addBaseTiles(Leaflet, map) {
+  Leaflet.tileLayer(BASE_TILE_URL, { attribution: TILE_ATTR, maxZoom: TILE_MAX_ZOOM }).addTo(map);
+  Leaflet.tileLayer(LABEL_TILE_URL, { maxZoom: TILE_MAX_ZOOM, pane: "shadowPane" }).addTo(map);
+}

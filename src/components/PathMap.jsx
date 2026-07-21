@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Maximize2, X, Play, Pause, SkipBack } from "lucide-react";
 import Leaflet from "leaflet";
+import { addBaseTiles } from "../theme.js";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
 
@@ -32,11 +33,7 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = "m
       maxZoom: 18,
     });
     guardTouchScroll(map.current);
-    Leaflet.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: "&copy; OpenStreetMap &copy; CARTO",
-      maxZoom: 19,                  // let the user zoom to street level
-      maxNativeZoom: 19,
-    }).addTo(map.current);
+    addBaseTiles(Leaflet, map.current);
     Leaflet.control.zoom({ position: "topright" }).addTo(map.current);
     Leaflet.control.scale({ imperial: false, position: "bottomleft" }).addTo(map.current);
     setTimeout(() => map.current && map.current.invalidateSize(), 60);
