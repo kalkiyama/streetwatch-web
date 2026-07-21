@@ -263,9 +263,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
         })}
         <circle cx="200" cy="200" r="3" fill={C.cyan} />
       </svg>
-      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between py-2 font-mono" style={{ pointerEvents: "none", zIndex: 1200, paddingRight: 12,
-          // clear Leaflet's zoom control (bottom-left) so the readout never sits on top of it
-          paddingLeft: view === "map" ? 52 : 12, background: "linear-gradient(0deg, rgba(10,14,20,0.92), rgba(10,14,20,0))", fontSize: 11,
+      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between py-2 font-mono" style={{ pointerEvents: "none", zIndex: 1200, paddingRight: 12, paddingLeft: 12, background: "linear-gradient(0deg, rgba(10,14,20,0.92), rgba(10,14,20,0))", fontSize: 11,
           minHeight: 46, alignItems: "flex-end",
           // proportional digits change width as values tick, which made the whole line shuffle
           fontVariantNumeric: "tabular-nums" }}>

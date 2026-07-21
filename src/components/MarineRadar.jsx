@@ -268,9 +268,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
         <circle cx="200" cy="200" r="3" fill={teal} />
       </svg>
       <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between py-2 font-mono"
-        style={{ pointerEvents: "none", zIndex: 1200, paddingRight: 12,
-          // clear Leaflet's zoom control (bottom-left) so the readout never sits on top of it
-          paddingLeft: view === "map" ? 52 : 12, background: "linear-gradient(0deg, rgba(8,19,15,0.92), rgba(8,19,15,0))", fontSize: 11 }}>
+        style={{ pointerEvents: "none", zIndex: 1200, paddingRight: 12, paddingLeft: 12, background: "linear-gradient(0deg, rgba(8,19,15,0.92), rgba(8,19,15,0))", fontSize: 11 }}>
         {chosen ? (
           <span style={{ color: shipColor(chosen), lineHeight: 1.5 }}>
             {chosen.subSupport ? "[SUB SUPPORT · surface ship] " : chosen.usv ? (chosen.usvConfidence === "confirmed" ? "[SEA DRONE] " : "[SEA DRONE?] ") : ""}
@@ -325,8 +323,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
       {/* Stated plainly rather than left to assumption: quiet water is not necessarily
           empty water, and no public system can show what is underneath it. */}
       <div className="absolute left-0 right-0 px-3 font-mono"
-        style={{ bottom: 34, zIndex: 5, pointerEvents: "none", paddingLeft: view === "map" ? 40 : 0,
-          fontSize: 9, color: C.faint, lineHeight: 1.45 }}>
+        style={{ bottom: 34, zIndex: 5, pointerEvents: "none", fontSize: 9, color: C.faint, lineHeight: 1.45 }}>
         Surface vessels only — submarines and submersibles cannot be tracked by AIS anywhere
         in the world: VHF radio does not travel through seawater.
       </div>
