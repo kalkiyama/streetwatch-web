@@ -3,6 +3,7 @@ import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
 import { LAYERS, heatColor, heatIntensity, addBaseTiles } from "../theme.js";
+import { RADAR_SITES } from "../radarSites.js";
 
 // Viewport clustering, no extra dependency.
 //
@@ -13,7 +14,7 @@ import { LAYERS, heatColor, heatIntensity, addBaseTiles } from "../theme.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true }) {
+export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, coverage = null, showRadarSites = false, usvContacts = null, subContacts = null, showFeeds = true }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -49,6 +50,11 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     }
   }, [userLoc]);
 
+  const coverageRef = useRef(coverage);
+  coverageRef.current = coverage;
+  const radarSitesRef = useRef(showRadarSites);
+  radarSitesRef.current = showRadarSites;
+
   const heatRadiusRef = useRef(heatRadius);
   heatRadiusRef.current = heatRadius;
   const heatMetaRef = useRef(heatMeta);
@@ -65,6 +71,45 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   selRef.current = selectedId;
   const centred = useRef(null);     // which feed the map is already centred on
 
+
+  // --- observed coverage: where we HAVE recorded contacts, and by omission where we have not ---
+  const drawCoverage = (lg) => {
+    const cells = coverageRef.current;
+    if (!cells || !cells.length) return;
+    const max = Math.max(2, ...cells.map((c) => c.points || 0));
+    cells.forEach((c) => {
+      const t = Math.min(1, Math.log(Math.max(1, c.points)) / Math.log(max));
+      const d = c.cellDeg || 2;
+      Leaflet.rectangle([[c.lat, c.lon], [c.lat + d, c.lon + d]], {
+        stroke: false, fillColor: heatColor(t), fillOpacity: 0.10 + t * 0.30, interactive: true,
+      })
+        .bindPopup(
+          `<b>Observed coverage</b><br>` +
+          `${c.aircraft} aircraft · ${c.points} position reports<br>` +
+          `<span style="opacity:.75">${d}° cell · last recorded ${new Date(c.lastSeen).toLocaleString()}<br>` +
+          `Empty areas mean no reception, no monitored airspace nearby, or no traffic — this data cannot tell them apart.</span>`
+        )
+        .addTo(lg);
+    });
+  };
+
+  // --- announced defence radar installations: locations only, each citing its announcement ---
+  const drawRadarSites = (lg) => {
+    if (!radarSitesRef.current) return;
+    RADAR_SITES.forEach((r) => {
+      Leaflet.circleMarker([r.lat, r.lon], {
+        radius: 5, color: "#F6A821", weight: 2, fillColor: "#0A0D12", fillOpacity: 0.9,
+      })
+        .bindPopup(
+          `<b>${r.name}</b><br>${r.country}<br>` +
+          `${r.role}<br><span style="opacity:.75">${r.operator}</span><br>` +
+          `<span style="opacity:.75">${r.announced}</span><br>` +
+          `<a href="${r.source}" target="_blank" rel="noopener noreferrer" style="color:#37C46A">official source ↗</a><br>` +
+          `<span style="opacity:.6">Location as publicly announced. No coverage, range or capability is shown or implied.</span>`
+        )
+        .addTo(lg);
+    });
+  };
 
   // --- activity heat: measured contact density per airspace, drawn beneath everything ---
   const drawHeat = (lg) => {
@@ -166,7 +211,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     if (!items || !items.length) return;
     items.forEach((v) => {
       if (!Number.isFinite(v.lat) || !Number.isFinite(v.lon)) return;
-      const confirmed = v.usvConfidence === "confirmed";
+      const confirmed = v.usvConfidence === "name_match";
       const col = confirmed ? "#2DD4BF" : "#7AA2C8";
       Leaflet.circleMarker([v.lat, v.lon], {
         radius: confirmed ? 6 : 5, color: col, weight: 2,

@@ -271,7 +271,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
         style={{ pointerEvents: "none", zIndex: 1200, paddingRight: 12, paddingLeft: 12, background: "linear-gradient(0deg, rgba(8,19,15,0.92), rgba(8,19,15,0))", fontSize: 11 }}>
         {chosen ? (
           <span style={{ color: shipColor(chosen), lineHeight: 1.5 }}>
-            {chosen.subSupport ? "[SUB SUPPORT · surface ship] " : chosen.usv ? (chosen.usvConfidence === "confirmed" ? "[SEA DRONE] " : "[SEA DRONE?] ") : ""}
+            {chosen.subSupport ? "[SUB SUPPORT · surface ship] " : chosen.usv ? (chosen.usvConfidence === "name_match" ? "[SEA DRONE] " : "[SEA DRONE?] ") : ""}
             {chosen.name || chosen.id} · {chosen.sogKt != null ? chosen.sogKt.toFixed(1) + "kt" : "—"} · {chosen.cogDeg != null ? Math.round(chosen.cogDeg) + "°" : "moored"}
             {(shipTypeLabel(chosen.typeCode) || chosen.destination || chosen.lengthM) && (
               <span style={{ display: "block", color: C.dim, fontSize: 10 }}>

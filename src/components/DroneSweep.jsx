@@ -174,6 +174,13 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
           America, Europe and Japan, sparse over Russia, China, Central Asia, Africa and most
           oceans — and many air forces do not broadcast at all. An airspace showing nothing
           means nothing was <i>visible</i> there, not that nothing happened.
+          <span style={{ display: "block", marginTop: 3 }}>
+            Nothing here is verified by StreetWatch. An aircraft is listed as military because a
+            public aircraft database flags its transponder code, and as a UAV because a registry
+            names the type or the aircraft broadcasts the unmanned category itself. ADS-B is
+            unauthenticated — it carries no signature, so a misconfigured or deliberately false
+            broadcast looks identical to a true one. Each contact shows the basis for its label.
+          </span>
         </div>
       )}
       {mode === "live" && state === "ok" && data.sweep && data.sweep.cycles === 0 && (
@@ -277,7 +284,7 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
             {v.name || v.id}
             <span style={{ display: "block", fontSize: 8, opacity: 0.75 }}>
               {kind === "usv"
-                ? (v.usvConfidence === "confirmed" ? "SEA DRONE" : "POSSIBLE")
+                ? (v.usvConfidence === "name_match" ? "SEA DRONE" : "POSSIBLE")
                 : (v.subSupportConfidence === "named" ? "SUB SUPPORT" : "POSSIBLE")}
             </span>
           </span>
