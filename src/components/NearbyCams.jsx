@@ -5,12 +5,15 @@ import { BACKEND_URL } from "../config.js";
 
 // Public webcams near the feed you're looking at, via Windy. Deliberately collapsed by
 // default: it's a supporting detail, not the main event, and it costs an upstream request.
+const INITIAL = 6;   // fits without scrolling at two columns on a phone
+
 export default function NearbyCams({ lat, lon, name }) {
   const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { setData(null); setOpen(false); }, [lat, lon]);
+  useEffect(() => { setData(null); setOpen(false); setShowAll(false); }, [lat, lon]);
 
   useEffect(() => {
     if (!open || data || !Number.isFinite(lat) || !Number.isFinite(lon)) return;
@@ -60,17 +63,22 @@ export default function NearbyCams({ lat, lon, name }) {
 
           {cams.length > 0 && (
             <>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {cams.map((w) => (
+              {/* A single horizontal row ran the cameras off the edge of the screen — the ones
+                  that mattered were the ones you could not see. A grid wraps to whatever width
+                  the device gives it: two columns on a narrow phone, four or five on a desktop,
+                  and it reflows on rotation without any breakpoint guessing. */}
+              <div style={{ display: "grid", gap: 8,
+                gridTemplateColumns: "repeat(auto-fill, minmax(132px, 1fr))" }}>
+                {(showAll ? cams : cams.slice(0, INITIAL)).map((w) => (
                   <a key={w.id} href={w.live || w.day || "#"} target="_blank" rel="noopener noreferrer"
-                    className="flex-shrink-0 rounded overflow-hidden"
-                    style={{ width: 132, border: `1px solid ${C.line}`, background: C.panel2 }}>
+                    className="rounded overflow-hidden"
+                    style={{ border: `1px solid ${C.line}`, background: C.panel2 }}>
                     {w.thumb ? (
                       <img src={w.thumb} alt={w.title || "webcam"} loading="lazy"
-                        style={{ width: "100%", height: 74, objectFit: "cover", display: "block",
+                        style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", display: "block",
                           opacity: w.status === "inactive" ? 0.45 : 1 }} />
                     ) : (
-                      <div style={{ width: "100%", height: 74, background: C.ink }} />
+                      <div style={{ width: "100%", aspectRatio: "16 / 9", background: C.ink }} />
                     )}
                     <div className="px-1.5 py-1 font-mono" style={{ fontSize: 9, color: C.dim, lineHeight: 1.3 }}>
                       <div style={{ color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -84,6 +92,13 @@ export default function NearbyCams({ lat, lon, name }) {
                   </a>
                 ))}
               </div>
+              {cams.length > INITIAL && (
+                <button onClick={() => setShowAll(!showAll)} className="mt-1.5 px-2 py-1 rounded font-mono"
+                  style={{ fontSize: 10, color: "#37C46A", background: "rgba(55,196,106,0.10)",
+                    border: "1px solid rgba(55,196,106,0.35)" }}>
+                  {showAll ? "SHOW FEWER" : `SHOW ALL ${cams.length} CAMERAS`}
+                </button>
+              )}
               <div className="font-mono mt-1" style={{ fontSize: 9, color: C.faint, lineHeight: 1.5 }}>
                 Public webcams via Windy · opens on windy.com · free tier serves low-resolution
                 images and links expire after ~10 minutes
