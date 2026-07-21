@@ -33,6 +33,18 @@ function ensureZoomStyle() {
       border-color: rgba(255,255,255,0.14);
     }
     .sw-radar-map .leaflet-control-zoom a:hover { background: rgba(30,40,52,0.96); }
+    /* Touch devices: Leaflet's default 30px control is below the ~44px minimum touch target
+       both Apple and Google recommend, so on a phone it is easy to miss. Enlarged for coarse
+       pointers only — mouse users keep the compact control. */
+    @media (pointer: coarse) {
+      .sw-radar-map .leaflet-control-zoom a {
+        width: 42px;
+        height: 42px;
+        line-height: 42px;
+        font-size: 22px;
+      }
+      .sw-radar-map .leaflet-top.leaflet-right .leaflet-control-zoom { margin-right: 8px; }
+    }
   `;
   document.head.appendChild(el);
 }
