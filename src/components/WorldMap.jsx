@@ -93,7 +93,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
           (rNm !== 250 && s.contacts != null
             ? `<span style="opacity:.75">${s.contacts} within the full 250nm sweep radius</span><br>`
             : "") +
-          `${pickP(s)} position reports within ${rNm}nm over ${s.span_hours || 0}h<br>` +
+          `${pickP(s)} position reports within ${rNm}nm, spanning ${s.span_hours || 0}h of recorded data<br>` +
           `<span style="opacity:.7">Circles overlap; each aircraft is counted at the nearest site.</span>`
         )
         .addTo(lg);
