@@ -10,7 +10,11 @@ import { BACKEND_URL } from "../config.js";
 // archive. Colour and size come from observed contact counts — not from any outside
 // claim about where a conflict is.
 
-export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
+export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620px)" }) {
+  // The look-back selector must live INSIDE this component: in fullscreen the HeatMap div is
+  // the only thing above the overlay, so any controls rendered by the parent are buried.
+  const [days, setDays] = useState(initialDays);
+  useEffect(() => { setDays(initialDays); }, [initialDays]);   // external selector (when visible) still wins
   const box = useRef(null);
   const map = useRef(null);
   const layer = useRef(null);
@@ -98,7 +102,12 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
             : s.near_contacts != null
               ? `<b>${s.near_contacts}</b> of them within ${nearNm}nm of the site itself<br>`
               : "") +
-          `${pick.p ?? s.points} position reports within ${radiusNm}nm over ${s.span_hours || 0}h<br>` +
+          // If the per-radius count isn't in the payload yet (older backend), fall back to the
+          // region-wide figure — but LABEL IT AS REGION-WIDE. A wrong label is worse than a
+          // missing feature; that exact mistake is how 344 became "at Eglin".
+          (pick.p != null
+            ? `${pick.p} position reports within ${radiusNm}nm over ${s.span_hours || 0}h<br>`
+            : `${s.points} position reports across the 250nm region over ${s.span_hours || 0}h<br>`) +
           `<span style="opacity:.7">last seen ${new Date(s.last_seen).toLocaleString()}<br>` +
           `A ${radiusNm}nm circle overlaps its neighbours; each aircraft is counted at the site it came closest to.</span>`
         )
@@ -122,7 +131,16 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
         <span className="font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
           ACTIVITY MAP
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" style={{ flexWrap: "wrap" }}>
+          {[1, 7, 30, 90].map((d) => (
+            <button key={d} onClick={() => setDays(d)} className="px-1.5 py-1 rounded font-mono"
+              style={{ fontSize: 9, color: days === d ? "#0A0D12" : C.amber,
+                background: days === d ? C.amber : "transparent",
+                border: `1px solid ${C.amber}66` }}>
+              {d}d
+            </button>
+          ))}
+          <span style={{ width: 4 }} />
           {[25, 100, 250].map((r) => (
             <button key={r} onClick={() => setRadius(r)} className="px-1.5 py-1 rounded font-mono"
               title={r === 25 ? "The airfield and its immediate approaches"
