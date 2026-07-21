@@ -106,8 +106,8 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
           // region-wide figure — but LABEL IT AS REGION-WIDE. A wrong label is worse than a
           // missing feature; that exact mistake is how 344 became "at Eglin".
           (pick.p != null
-            ? `${pick.p} position reports within ${radiusNm}nm over ${s.span_hours || 0}h<br>`
-            : `${s.points} position reports across the 250nm region over ${s.span_hours || 0}h<br>`) +
+            ? `${pick.p} position reports within ${radiusNm}nm, spanning ${s.span_hours || 0}h of recorded data<br>`
+            : `${s.points} position reports across the 250nm region, spanning ${s.span_hours || 0}h of recorded data<br>`) +
           `<span style="opacity:.7">last seen ${new Date(s.last_seen).toLocaleString()}<br>` +
           `A ${radiusNm}nm circle overlaps its neighbours; each aircraft is counted at the site it came closest to.</span>`
         )
