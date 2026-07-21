@@ -47,7 +47,7 @@ function PathView({ track, onClose }) {
   );
 }
 
-export default function DroneSweep({ onOpen }) {
+export default function DroneSweep({ onOpen, onOpenVessel }) {
   const [data, setData] = useState(null);
   const [state, setState] = useState("loading"); // loading | ok | error
   const [mins, setMins] = useState(60);
@@ -262,8 +262,9 @@ export default function DroneSweep({ onOpen }) {
         </div>
       )}
       {mode === "live" && state === "ok" && vessels.map((v) => (
-        <div key={v.id} className="w-full text-left px-3 py-2 flex items-center gap-2"
-          style={{ borderTop: "1px solid rgba(192,132,252,0.18)" }}>
+        <button key={v.id} onClick={() => onOpenVessel && onOpenVessel(v)}
+          className="w-full text-left px-3 py-2 flex items-center gap-2"
+          style={{ borderTop: "1px solid rgba(192,132,252,0.18)", background: "transparent", border: "none", borderTop: "1px solid rgba(192,132,252,0.18)", cursor: "pointer" }}>
           <span style={{ color: kind === "usv" ? "#2DD4BF" : "#F0553B", fontSize: 12, fontWeight: 700, minWidth: 74 }}>
             {v.name || v.id}
             <span style={{ display: "block", fontSize: 8, opacity: 0.75 }}>
@@ -281,7 +282,7 @@ export default function DroneSweep({ onOpen }) {
               {v.provider ? ` · via ${v.provider}` : ""}
             </span>
           </span>
-        </div>
+        </button>
       ))}
       {mode === "live" && state === "ok" && drones.map((d) => (
         <button key={d.id} onClick={() => onOpen(d)}

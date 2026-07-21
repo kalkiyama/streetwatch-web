@@ -64,7 +64,7 @@ function bearingOf(o, c) {
   const dy = o.lat - c.lat, dx = (o.lon - c.lng) * Math.cos(c.lat * Math.PI / 180);
   return String(Math.round((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360).padStart(3, "0");
 }
-export default function MarineRadar({ center, initialRadius, onRadius, initialSel, onSelect }) {
+export default function MarineRadar({ center, initialRadius, onRadius, initialSel, initialSelLabel = null, initialSelSeen = null, onSelect }) {
   const [status, setStatus] = useState("sim");
   const [upstream, setUpstream] = useState("live");   // "live" | "down" (provider outage)
   const [, setTick] = useState(0);
@@ -80,12 +80,21 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
   useEffect(() => { if (onRadius) onRadius(radius); }, [radius, onRadius]);
   useEffect(() => { if (onSelect) onSelect(sel); }, [sel, onSelect]);
   const wantSel = useRef(initialSel || null);
-  useEffect(() => {                              // deep-linked vessel may take a poll to appear
+  // A miss must be said out loud (same fix as the aviation radar): a vessel from the list may
+  // have sailed out of AIS coverage or beyond this ring — polling silently for 45s and giving
+  // up left the user watching a radar that never explained why nothing highlighted.
+  const [selMissing, setSelMissing] = useState(null);
+  useEffect(() => {
     if (!wantSel.current) return;
     const id = setInterval(() => {
-      if (acRef.current[wantSel.current]) { setSel(wantSel.current); wantSel.current = null; clearInterval(id); }
+      if (acRef.current[wantSel.current]) {
+        setSel(wantSel.current); setSelMissing(null); wantSel.current = null; clearInterval(id);
+      }
     }, 1000);
-    const stop = setTimeout(() => clearInterval(id), 45000);
+    const stop = setTimeout(() => {
+      clearInterval(id);
+      if (wantSel.current) { setSelMissing(wantSel.current); wantSel.current = null; }
+    }, 15000);                                   // vessels refresh slower than aircraft
     return () => { clearInterval(id); clearTimeout(stop); };
   }, []);
   const acRef = useRef({}); const lastRef = useRef(Date.now()); const liveRef = useRef(false); const failRef = useRef(0);
@@ -299,6 +308,14 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
             ) : (
               "0 in range — no community AIS receivers near here yet · coverage varies by region"
             )}
+          </span>
+        ) : selMissing ? (
+          <span style={{ color: C.amber, lineHeight: 1.5 }}>
+            {initialSelLabel || selMissing} is not reporting in this area now
+            <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
+              {initialSelSeen ? `last seen ${initialSelSeen} — ` : ""}
+              AIS coverage is regional and vessels move; it may reappear on a later refresh.
+            </span>
           </span>
         ) : (<span style={{ color: C.faint }}>Tap a vessel · {shown.length}{only !== "all" ? ` of ${plotted.length}` : ""} in range</span>)}
         <span style={{ color: C.dim }}>{center.city}</span>

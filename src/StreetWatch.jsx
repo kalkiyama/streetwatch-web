@@ -123,6 +123,22 @@ export default function StreetWatch() {
     setSelectedId(feedId);
   }, []);
 
+  // Vessel taps from the LIST reuse the exact routing the map's vessel taps use:
+  // nearest marine feed, vessel preselected. One rule, every surface.
+  const openVesselFromList = useCallback((v) => {
+    if (!Number.isFinite(v.lat) || !Number.isFinite(v.lon)) return;
+    let best = null, bestNm = Infinity;
+    CATALOG.forEach((f) => {
+      if (f.layer !== "marine") return;
+      const dNm = Math.hypot((f.lat - v.lat) * 60, (f.lng - v.lon) * 60 * Math.cos(v.lat * Math.PI / 180));
+      if (dNm < bestNm) { bestNm = dNm; best = f; }
+    });
+    if (!best) return;
+    setPendingSel(v.id);
+    setPendingSelInfo({ label: v.name || v.id, seen: v.lastSeen ? timeAgo(v.lastSeen) : null });
+    setSelectedId(best.id);
+  }, [CATALOG]);
+
   const openSighting = useCallback((d) => {
     const feed = CATALOG.find((c) => c.tag === "uav" && c.name.endsWith(d.site))
       || CATALOG.find((c) => c.tag === "uav" && Math.hypot(c.lat - (d.siteLat || 0), c.lng - (d.siteLon || 0)) < 0.5);
@@ -451,7 +467,7 @@ export default function StreetWatch() {
           )}
 
           <div style={{ maxHeight: "46vh", overflowY: "auto", display: browse === "map" ? "none" : undefined }} className="lg:max-h-none">
-            {tab === "drones" && <DroneSweep onOpen={openSighting} />}
+            {tab === "drones" && <DroneSweep onOpen={openSighting} onOpenVessel={openVesselFromList} />}
             {tab === "drones" && (
               <div className="mx-4 mt-2 mb-1 rounded px-3 py-2" style={{ background: "rgba(192,132,252,0.10)", border: "1px solid rgba(192,132,252,0.35)", fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
                 <b style={{ color: "#C084FC" }}>◇ UAV WATCH</b> — radars over airspaces where category-B6 drones actually fly.
