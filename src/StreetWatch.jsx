@@ -195,7 +195,19 @@ export default function StreetWatch() {
     if (typeof navigator === "undefined" || !navigator.geolocation) { setGeoErr("Location unavailable on this device"); return; }
     setGeoErr("locating");
     navigator.geolocation.getCurrentPosition(
-      (p) => { setUserLoc({ lat: p.coords.latitude, lng: p.coords.longitude }); setNearMe(true); setGeoErr(null); setContinent("All"); setCountry("All"); },
+      (p) => {
+        const loc = { lat: p.coords.latitude, lng: p.coords.longitude };
+        setUserLoc(loc); setNearMe(true); setGeoErr(null); setContinent("All"); setCountry("All");
+        // Previously this only re-sorted the LIST, so the map stayed wherever it was and the
+        // radar and nearby-cams kept showing the previously selected feed — London, for a first
+        // visit. "Near me" has to move everything that has a location, or it half-lies.
+        let best = null, bestKm = Infinity;
+        CATALOG.forEach((c) => {
+          const d = distKm(loc.lat, loc.lng, c.lat, c.lng);
+          if (d < bestKm) { bestKm = d; best = c; }
+        });
+        if (best) { setPendingSel(null); setPendingSelInfo(null); setSelectedId(best.id); }
+      },
       () => setGeoErr("Location permission denied"),
       { timeout: 8000, maximumAge: 60000 }
     );
@@ -461,7 +473,13 @@ export default function StreetWatch() {
                 <Navigation size={12} /> Near me
               </button>
             </div>
-            {nearMe && !geoErr && <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint }}>sorted by distance from you · layer chips still filter</div>}
+            {nearMe && !geoErr && (
+              <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.5 }}>
+                sorted by distance from you · map centred on you · nearest feed opened
+                {selected ? ` (${selected.name}${userLoc ? `, ${Math.round(distKm(userLoc.lat, userLoc.lng, selected.lat, selected.lng))}km` : ""})` : ""}
+                 · layer chips still filter
+              </div>
+            )}
             {search.fuzzy > 0 && (
               <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint }}>
                 few exact matches — showing {search.fuzzy} close spelling{search.fuzzy === 1 ? "" : "s"} too
@@ -489,6 +507,7 @@ export default function StreetWatch() {
           {browse === "map" && (
             <div className="mx-4 mb-3">
               <MapPanel feeds={results} selectedId={selected ? selected.id : null}
+                userLoc={nearMe ? userLoc : null}
                 onSelect={setSelectedId} onOpenSighting={openSighting} onOpenVessel={openVessel} />
             </div>
           )}
