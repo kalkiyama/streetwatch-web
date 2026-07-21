@@ -231,7 +231,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
             }))} />
         </div>
       )}
-      <svg viewBox="0 0 400 400" className="w-full" style={{ display: view === "map" ? "none" : undefined,  display: "block", maxHeight: 420 }}>
+      <svg viewBox="0 0 400 400" className="w-full" style={{ display: view === "map" ? "none" : "block", maxHeight: 420 }}>
         <defs>
           <radialGradient id="scm" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#0C1A16" /><stop offset="100%" stopColor="#07110D" /></radialGradient>
           <linearGradient id="swm" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="rgba(45,212,191,0)" /><stop offset="100%" stopColor="rgba(45,212,191,0.26)" /></linearGradient>
@@ -268,7 +268,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
         <circle cx="200" cy="200" r="3" fill={teal} />
       </svg>
       <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2 font-mono"
-        style={{ zIndex: 1200, background: "linear-gradient(0deg, rgba(8,19,15,0.92), rgba(8,19,15,0))", fontSize: 11 }}>
+        style={{ pointerEvents: "none", zIndex: 1200, background: "linear-gradient(0deg, rgba(8,19,15,0.92), rgba(8,19,15,0))", fontSize: 11 }}>
         {chosen ? (
           <span style={{ color: shipColor(chosen), lineHeight: 1.5 }}>
             {chosen.subSupport ? "[SUB SUPPORT · surface ship] " : chosen.usv ? (chosen.usvConfidence === "confirmed" ? "[SEA DRONE] " : "[SEA DRONE?] ") : ""}

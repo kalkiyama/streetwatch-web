@@ -95,6 +95,12 @@ export default function StreetWatch() {
     try { return !localStorage.getItem("sw-intro-seen"); } catch { return false; }
   });
   const closeIntro = () => { setIntroOpen(false); try { localStorage.setItem("sw-intro-seen", "1"); } catch { /* private mode */ } };
+  // First-run coach mark pointing at the World/Drones switch. Shows once, after the welcome
+  // guide is closed, and disappears the moment the user switches mode or dismisses it.
+  const [coachSeen, setCoachSeen] = useState(() => {
+    try { return !!localStorage.getItem("sw-coach-seen"); } catch { return true; }
+  });
+  const dismissCoach = () => { setCoachSeen(true); try { localStorage.setItem("sw-coach-seen", "1"); } catch { /* */ } };
   const urlRadius = React.useRef(
     typeof window !== "undefined" ? Number(new URLSearchParams(window.location.search).get("r")) || null : null
   );
@@ -344,16 +350,37 @@ export default function StreetWatch() {
             style={{ width: 30, height: 30, color: C.dim, background: "transparent", border: `1px solid ${C.line}` }}>
             <HelpCircle size={15} />
           </button>
-          {[{ k: "world", label: "World", icon: Globe, on: true }, { k: "drones", label: "Drones", icon: Plane, on: true }].map((t) => (
-            <button key={t.k} onClick={() => t.on && setTab(t.k)} disabled={!t.on}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded font-mono"
-              style={{ fontSize: 12, letterSpacing: 0.5, color: tab === t.k ? C.ink : t.on ? C.dim : C.faint,
-                background: tab === t.k ? C.amber : "transparent", cursor: t.on ? "pointer" : "not-allowed" }}>
-              <t.icon size={13} />{t.label}{!t.on && <span style={{ fontSize: 9 }}>· soon</span>}
-            </button>
-          ))}
+          {/* Primary mode switch. Grouped in one pill with a shared border so it reads as a
+              two-way toggle — the single most important control for a first-time visitor, who
+              otherwise cannot tell the world browser from the drone watch. */}
+          <div className="flex items-center rounded-lg" style={{ border: `1px solid ${C.line}`, padding: 2, background: C.panel2 }}>
+            {[{ k: "world", label: "World", icon: Globe, hint: "all feeds" },
+              { k: "drones", label: "Drones", icon: Plane, hint: "military watch" }].map((t) => (
+              <button key={t.k} onClick={() => { setTab(t.k); dismissCoach(); }}
+                aria-pressed={tab === t.k}
+                className="flex items-center gap-1.5 rounded"
+                style={{ padding: "6px 12px", fontSize: 13, fontWeight: tab === t.k ? 700 : 500,
+                  color: tab === t.k ? C.ink : C.dim,
+                  background: tab === t.k ? C.amber : "transparent", transition: "background .15s" }}>
+                <t.icon size={14} />
+                <span>{t.label}</span>
+                <span className="hidden sm:inline" style={{ fontSize: 9, opacity: 0.7, fontWeight: 400 }}>· {t.hint}</span>
+              </button>
+            ))}
+          </div>
         </nav>
       </header>
+      {!introOpen && !coachSeen && (
+        <div className="flex justify-end px-4 md:px-6" style={{ marginTop: -4 }}>
+          <div className="flex items-start gap-2 rounded-lg" onClick={dismissCoach}
+            style={{ maxWidth: 300, marginRight: 40, padding: "8px 12px", cursor: "pointer",
+              background: C.amber, color: C.ink, fontSize: 12, lineHeight: 1.4,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
+            <span style={{ fontSize: 14 }}>↑</span>
+            <span><b>World</b> browses every feed · <b>Drones</b> is the military &amp; UAV watch. Switch here anytime. <span style={{ opacity: 0.7 }}>(tap to dismiss)</span></span>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row" style={{ minHeight: "calc(100vh - 58px)" }}>
         <aside className="w-full lg:w-80 flex-shrink-0" style={{ borderRight: `1px solid ${C.line}`, background: C.panel }}>
