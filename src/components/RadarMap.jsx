@@ -20,7 +20,7 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
     map.current = Leaflet.map(box.current, {
       zoomControl: false, scrollWheelZoom: false, attributionControl: true, minZoom: 2, maxZoom: 12,
     }).setView([center.lat, center.lng], 7);
-    Leaflet.control.zoom({ position: "bottomright" }).addTo(map.current);   // top-right is occupied by the radar header
+    Leaflet.control.zoom({ position: "bottomleft" }).addTo(map.current);   // bottom-right is under the radar footer bar; bottom-left is clear
     Leaflet.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       subdomains: "abcd", maxZoom: 12, attribution: "&copy; OpenStreetMap &copy; CARTO",
     }).addTo(map.current);
