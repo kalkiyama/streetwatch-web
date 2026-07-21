@@ -103,7 +103,9 @@ export default function PathMap({ points, fitKey, color = "#C084FC", height = "m
   }, [full]);
 
   const shell = full
-    ? { position: "fixed", inset: 0, zIndex: 1000, background: "#0A0D12", padding: 10,
+    // same fix as HeatMap: fullscreen must clear every app layer (radar bars at 1200,
+    // touch hints at 1400, intro at 2000) or the page behind punches through
+    ? { position: "fixed", inset: 0, zIndex: 5000, background: "#0A0D12", padding: 10,
         display: "flex", flexDirection: "column", gap: 6 }
     : {};
 

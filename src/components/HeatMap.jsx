@@ -107,8 +107,12 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
     setTimeout(() => map.current && map.current.invalidateSize(), 60);
   }, [data, radius]);
 
+  // Fullscreen must sit ABOVE everything else the app renders. The page behind contains other
+  // Leaflet maps whose panes and controls run z 400-1000, and our own radar overlay bars sit at
+  // 1200 — so a fullscreen shell at 1000 let the radar map beneath punch through as a floating
+  // rectangle in the middle of the activity view. 5000 clears every layer the app uses.
   const shell = full
-    ? { position: "fixed", inset: 0, zIndex: 1000, background: "#0A0D12", padding: 10,
+    ? { position: "fixed", inset: 0, zIndex: 5000, background: "#0A0D12", padding: 10,
         display: "flex", flexDirection: "column", gap: 6 }
     : {};
 
