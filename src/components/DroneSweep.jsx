@@ -168,6 +168,14 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
         <div className="px-3 pb-2"><AiBriefing days={days} /></div>
       )}
 
+      {mode === "live" && state === "ok" && (
+        <div className="px-3 pb-1.5" style={{ fontSize: 9.5, color: C.faint, lineHeight: 1.5 }}>
+          Coverage is uneven: the ADS-B receiver network is volunteer-fed and dense over North
+          America, Europe and Japan, sparse over Russia, China, Central Asia, Africa and most
+          oceans — and many air forces do not broadcast at all. An airspace showing nothing
+          means nothing was <i>visible</i> there, not that nothing happened.
+        </div>
+      )}
       {mode === "live" && state === "ok" && data.sweep && data.sweep.cycles === 0 && (
         <div className="px-3 pb-1.5" style={{ fontSize: 10, color: C.dim }}>
           First sweep in progress — {data.sweep.visited}/{data.sweep.passSize || data.sweep.sites} airspaces checked this pass.
