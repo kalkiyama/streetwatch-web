@@ -91,6 +91,13 @@ export default function AiBriefing({ days = 7 }) {
         </div>
       )}
 
+      {data && !data.error && data.note && !data.briefing && !data.summary && (
+        <div className="flex items-start gap-1.5 mb-2" style={{ fontSize: 11, color: C.amber }}>
+          <AlertTriangle size={12} style={{ marginTop: 2, flexShrink: 0 }} />
+          <span>{data.note}</span>
+        </div>
+      )}
+
       {data && !data.error && tab === "digest" && data.totals && (
         <>
           <div className="font-mono" style={{ fontSize: 10, color: C.dim, lineHeight: 1.8, marginBottom: 8 }}>
