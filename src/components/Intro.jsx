@@ -1,4 +1,4 @@
-import { X, Globe, Plane, Ship, Layers, Camera, Share2, Hand } from "lucide-react";
+import { X, Globe, Plane, Ship, Layers, Camera, Share2, Hand, Sparkles } from "lucide-react";
 import { C } from "../theme.js";
 
 // First-visit welcome + permanent guide (the "?" in the header).
@@ -79,6 +79,14 @@ export default function Intro({ open, onClose }) {
           wildlife cams, city views and the ISS live in their own layers.
         </S>
 
+        <S icon={Sparkles} color="#C084FC" title="AI-assisted analysis">
+          Ask in plain English (&ldquo;drone activity near the Black Sea last week&rdquo;), get any
+          archived track explained (&ldquo;a 3.8-lap racetrack at 22,000ft, consistent with
+          surveillance&rdquo;), and read a briefing on what changed across the watched airspaces.
+          Everything is <b>computed first</b> — the AI only writes the English, the measured
+          numbers are always shown beside it, and every AI output is labelled.
+        </S>
+
         <S icon={Share2} color={C.dim} title="Share exactly what you see">
           Every radar view has a share link that reopens at the same feed, range and selected
           aircraft — evidence you can hand to someone.
@@ -96,7 +104,9 @@ export default function Intro({ open, onClose }) {
           <div style={{ fontSize: 11.5, color: C.dim, lineHeight: 1.6 }}>
             Everything here is <b>public data</b>, and public data has edges: aircraft flying with
             transponders off are invisible, submarines cannot be tracked by anyone (radio does not
-            travel through seawater), and AIS coverage varies by region. Where StreetWatch cannot
+            travel through seawater), and AIS coverage varies by region. AI never invents a data
+            point — analysis is computed from the archive first, and the AI&rsquo;s words are
+            labelled and shown next to the numbers they describe. Where StreetWatch cannot
             see, it says so — on the display, in the data, every time. Public feeds only. No
             private cameras, ever.
           </div>
