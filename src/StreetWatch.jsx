@@ -51,7 +51,9 @@ export default function StreetWatch() {
     };
   }, []);
   const now = useClock();
-  const [tab, setTab] = useState("world");
+  // Default landing is the DRONE WATCH — the differentiator — rather than the generic world
+  // browser. Deep links (?feed=...) below still route to whichever tab their feed lives in.
+  const [tab, setTab] = useState("drones");
   const [CATALOG, setCatalog] = useState([]);
   const [catalogErr, setCatalogErr] = useState(false);
   useEffect(() => {
@@ -66,7 +68,9 @@ export default function StreetWatch() {
     if (want && CATALOG.some((c) => c.id === want)) {
       setSelectedId(want);
       const f = CATALOG.find((c) => c.id === want);
-      if (f && f.tag === "uav") setTab("drones");
+      // route to the tab this feed belongs to — a shared webcam link must not strand the
+      // recipient on the drone view, and a shared UAV link must not strand them on world
+      setTab(f && f.tag === "uav" ? "drones" : "world");
     }
   }, [CATALOG]);
   const [query, setQuery] = useState("");
@@ -414,7 +418,7 @@ export default function StreetWatch() {
               background: C.amber, color: C.ink, fontSize: 12, lineHeight: 1.4,
               boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
             <span style={{ fontSize: 14 }}>↑</span>
-            <span><b>World</b> browses every feed · <b>Drones</b> is the military &amp; UAV watch. Switch here anytime. <span style={{ opacity: 0.7 }}>(tap to dismiss)</span></span>
+            <span>You are on <b>Drones</b> — the military &amp; UAV watch. <b>World</b> browses all 7,000+ public feeds. Switch here anytime. <span style={{ opacity: 0.7 }}>(tap to dismiss)</span></span>
           </div>
         </div>
       )}
