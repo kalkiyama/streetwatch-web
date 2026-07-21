@@ -5,21 +5,24 @@ import { BACKEND_URL } from "../config.js";
 
 // Public webcams near the feed you're looking at, via Windy. Deliberately collapsed by
 // default: it's a supporting detail, not the main event, and it costs an upstream request.
-const INITIAL = 6;   // fits without scrolling at two columns on a phone
+const INITIAL = 6;    // fits without scrolling at two columns on a phone
+const PAGE = 24;      // fetched per request; Windy's own per-request ceiling is 50
 
 export default function NearbyCams({ lat, lon, name }) {
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [more, setMore] = useState([]);      // additional pages appended by "LOAD MORE"
+  const [loadingMore, setLoadingMore] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { setData(null); setOpen(false); setShowAll(false); }, [lat, lon]);
+  useEffect(() => { setData(null); setOpen(false); setShowAll(false); setMore([]); }, [lat, lon]);
 
   useEffect(() => {
     if (!open || data || !Number.isFinite(lat) || !Number.isFinite(lon)) return;
     let alive = true;
     setLoading(true);
-    fetch(`${BACKEND_URL}/api/webcams?lat=${lat}&lon=${lon}&radius=50&limit=12`)
+    fetch(`${BACKEND_URL}/api/webcams?lat=${lat}&lon=${lon}&radius=50&limit=${PAGE}`)
       .then((r) => r.json())
       .then((j) => { if (alive) setData(j); })
       .catch(() => { if (alive) setData({ error: "Could not reach StreetWatch backend" }); })
@@ -28,7 +31,24 @@ export default function NearbyCams({ lat, lon, name }) {
   }, [open, data, lat, lon]);
 
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  const cams = (data && data.webcams) || [];
+  const cams = [...((data && data.webcams) || []), ...more];
+  const total = (data && data.total) || cams.length;
+
+  // Page through the rest rather than capping at whatever the first request returned.
+  const loadMore = async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/webcams?lat=${lat}&lon=${lon}&radius=50&limit=${PAGE}&offset=${cams.length}`);
+      const j = await r.json();
+      const next = (j && j.webcams) || [];
+      // guard against a duplicate page if the upstream ignores offset
+      const seen = new Set(cams.map((c) => c.id));
+      setMore((m) => [...m, ...next.filter((c) => !seen.has(c.id))]);
+      setShowAll(true);
+    } catch { /* leave what we have; the button stays available */ }
+    finally { setLoadingMore(false); }
+  };
 
   return (
     <div className="px-4 pb-3">
@@ -96,11 +116,19 @@ export default function NearbyCams({ lat, lon, name }) {
                 <button onClick={() => setShowAll(!showAll)} className="mt-1.5 px-2 py-1 rounded font-mono"
                   style={{ fontSize: 10, color: "#37C46A", background: "rgba(55,196,106,0.10)",
                     border: "1px solid rgba(55,196,106,0.35)" }}>
-                  {showAll ? "SHOW FEWER" : `SHOW ALL ${cams.length} CAMERAS`}
+                  {showAll ? "SHOW FEWER" : `SHOW ALL ${cams.length} LOADED`}
+                </button>
+              )}
+              {showAll && cams.length < total && (
+                <button onClick={loadMore} disabled={loadingMore} className="mt-1.5 ml-1.5 px-2 py-1 rounded font-mono"
+                  style={{ fontSize: 10, color: loadingMore ? C.faint : "#37C46A",
+                    background: "rgba(55,196,106,0.10)", border: "1px solid rgba(55,196,106,0.35)" }}>
+                  {loadingMore ? "LOADING…" : `LOAD ${Math.min(PAGE, total - cams.length)} MORE`}
                 </button>
               )}
               <div className="font-mono mt-1" style={{ fontSize: 9, color: C.faint, lineHeight: 1.5 }}>
-                Public webcams via Windy · opens on windy.com · free tier serves low-resolution
+                Showing {showAll ? cams.length : Math.min(INITIAL, cams.length)} of {total} public
+                webcams within 50km · opens on windy.com · free tier serves low-resolution
                 images and links expire after ~10 minutes
               </div>
             </>
