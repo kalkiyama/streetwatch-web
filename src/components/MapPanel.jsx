@@ -7,7 +7,7 @@ import { BACKEND_URL } from "../config.js";
 // One map, three switchable layers. Previously these lived on separate maps with separate
 // controls — feeds here, live sweep contacts there, activity heat somewhere else — which
 // made them feel like unrelated features rather than views of the same planet.
-export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel,
+export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, userLoc = null,
   // Phones get a shorter map: at 60vh a map plus its chips filled the viewport edge to edge,
   // leaving nowhere obvious to scroll from. 44vh keeps surrounding context visible so the
   // page still reads as a page.
@@ -142,6 +142,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           liveContacts={showLive ? live : null}
           usvContacts={showUsv ? usv : null}
           subContacts={showSub ? sub : null}
+          userLoc={userLoc}
           heatSites={showHeat ? heat : null}
           heatRadius={heatRadius}
           heatMeta={heatMeta}

@@ -13,7 +13,7 @@ import { LAYERS, heatColor, heatIntensity } from "../theme.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, usvContacts = null, subContacts = null, showFeeds = true }) {
+export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -26,6 +26,29 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   // Radius + per-radius maxima, so this layer answers the same question as the standalone
   // Activity map. Previously it was locked at 250nm — the one radius that makes a dormant
   // base look busy.
+  // Recentre on the user when "near me" turns on, and drop a marker so it is obvious where
+  // "near" is measured from. Runs on change of location only — never fights manual panning.
+  const lastUserLoc = useRef(null);
+  const userMarker = useRef(null);
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !userLoc) {
+      if (!userLoc && userMarker.current) { userMarker.current.remove(); userMarker.current = null; }
+      return;
+    }
+    const key = `${userLoc.lat.toFixed(4)},${userLoc.lng.toFixed(4)}`;
+    if (lastUserLoc.current !== key) {
+      lastUserLoc.current = key;
+      m.setView([userLoc.lat, userLoc.lng], Math.max(m.getZoom(), 7), { animate: true });
+    }
+    if (userMarker.current) userMarker.current.setLatLng([userLoc.lat, userLoc.lng]);
+    else {
+      userMarker.current = Leaflet.circleMarker([userLoc.lat, userLoc.lng], {
+        radius: 7, color: "#37C46A", weight: 2, fillColor: "#37C46A", fillOpacity: 0.35,
+      }).bindTooltip("You are here", { direction: "top" }).addTo(m);
+    }
+  }, [userLoc]);
+
   const heatRadiusRef = useRef(heatRadius);
   heatRadiusRef.current = heatRadius;
   const heatMetaRef = useRef(heatMeta);
