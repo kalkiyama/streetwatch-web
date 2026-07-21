@@ -26,6 +26,30 @@ const timeAgo = (t) => {
 };
 
 export default function StreetWatch() {
+  // User-adjustable list width (desktop). A visible drag divider replaces the earlier native
+  // CSS resize handle, which was a near-invisible corner nub nobody could find.
+  const [listW, setListW] = useState(320);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const draggingRef = React.useRef(false);
+  useEffect(() => {
+    const mq = window.matchMedia ? window.matchMedia("(min-width: 1024px)") : null;
+    const apply = () => setIsDesktop(!!(mq && mq.matches));
+    apply();
+    if (mq && mq.addEventListener) { mq.addEventListener("change", apply); }
+    const move = (e) => {
+      if (!draggingRef.current) return;
+      const max = Math.round(window.innerWidth * 0.48);
+      setListW(Math.min(Math.max(e.clientX, 280), max));
+    };
+    const up = () => { draggingRef.current = false; document.body.style.userSelect = ""; };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    return () => {
+      if (mq && mq.removeEventListener) mq.removeEventListener("change", apply);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+  }, []);
   const now = useClock();
   const [tab, setTab] = useState("world");
   const [CATALOG, setCatalog] = useState([]);
@@ -382,11 +406,7 @@ export default function StreetWatch() {
           </div>
         </nav>
       </header>
-      <style id="sw-resizable-style">{`
-        @media (min-width: 1024px) {
-          .sw-resizable { resize: horizontal; overflow: auto; min-width: 280px; max-width: 48vw; }
-        }
-      `}</style>
+
       {!introOpen && !coachSeen && (
         <div className="flex justify-end px-4 md:px-6" style={{ marginTop: -4 }}>
           <div className="flex items-start gap-2 rounded-lg" onClick={dismissCoach}
@@ -403,8 +423,8 @@ export default function StreetWatch() {
         {/* resize: horizontal gives desktop users a native drag handle (bottom-right corner
             of the panel) to widen or narrow the list — no JS, no library, remembered nowhere
             on purpose (refresh restores the default). Phones keep the stacked layout. */}
-        <aside className="w-full lg:w-80 flex-shrink-0 sw-resizable"
-          style={{ borderRight: `1px solid ${C.line}`, background: C.panel }}>
+        <aside className="w-full flex-shrink-0"
+          style={{ background: C.panel, width: isDesktop ? listW : undefined }}>
           <div className="p-4" style={{ borderBottom: `1px solid ${C.line}` }}>
             <div className="flex items-center gap-2 px-3 rounded" style={{ background: C.ink, border: `1px solid ${C.line}`, height: 40 }}>
               <Search size={16} color={C.faint} />
@@ -574,6 +594,11 @@ export default function StreetWatch() {
               })}
           </div>
         </aside>
+        {/* the divider itself: a grabbable strip, desktop only */}
+        <div className="hidden lg:block flex-shrink-0" role="separator" aria-orientation="vertical"
+          title="Drag to resize the list"
+          onPointerDown={() => { draggingRef.current = true; document.body.style.userSelect = "none"; }}
+          style={{ width: 7, cursor: "col-resize", background: C.line, opacity: 0.6 }} />
 
         <main className="flex-1 p-4 md:p-6 flex flex-col gap-4">
           <section ref={viewerRef} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.line}`, height: 300, flexShrink: 0, scrollMarginTop: 8 }}>

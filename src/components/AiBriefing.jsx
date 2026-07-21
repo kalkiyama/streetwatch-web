@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, FileText, GitCompare, AlertTriangle } from "lucide-react";
+import { Sparkles, FileText, GitCompare, AlertTriangle, Copy, Check } from "lucide-react";
 import { C } from "../theme.js";
 import { AIS_BACKEND_URL } from "../config.js";
 
@@ -15,6 +15,7 @@ export default function AiBriefing({ days = 7 }) {
   const [tab, setTab] = useState("digest");
   const [state, setState] = useState("idle");
   const [data, setData] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const run = async (which, d) => {
     if (!AIS_BACKEND_URL) { setState("error"); setData({ error: "Backend not configured." }); return; }
@@ -22,7 +23,13 @@ export default function AiBriefing({ days = 7 }) {
     try {
       const path = which === "digest" ? `/api/ai/digest?days=${d}` : `/api/ai/correlations?days=${d}`;
       const r = await fetch(`${AIS_BACKEND_URL}${path}`);
-      setData(await r.json());
+      const j = await r.json();
+      if (r.status === 429) {
+        setData({ error: j.note || "Too many analyses in a short time — please wait a few minutes." });
+        setState("error");
+        return;
+      }
+      setData(j);
       setState("done");
     } catch {
       setData({ error: "Could not reach the analysis service." });
@@ -34,23 +41,29 @@ export default function AiBriefing({ days = 7 }) {
 
   // If the user changes the look-back after generating, regenerate for the new window —
   // otherwise the panel would silently show analysis for a window they no longer have selected.
-  useEffect(() => { if (state === "done") run(tab, days); /* eslint-disable-next-line */ }, [days]);
+  useEffect(() => { if (state === "done") run(tab, days);}, [days]);
 
   return (
     <div className="rounded" style={{ background: C.panel, border: `1px solid ${C.line}`, padding: "12px 14px" }}>
       <div className="flex items-center gap-1.5 flex-wrap" style={{ marginBottom: 10 }}>
-        <button onClick={() => pick("digest")} className="flex items-center gap-1 px-2 py-1 rounded font-mono"
+        <button onClick={() => pick("digest")} title="A written summary of activity across the watched airspaces" className="flex items-center gap-1 px-2 py-1 rounded font-mono"
           style={{ fontSize: 10, color: tab === "digest" ? C.ink : C.dim,
             background: tab === "digest" ? C.amber : C.panel2, border: `1px solid ${C.line}` }}>
           <FileText size={10} /> DIGEST
         </button>
-        <button onClick={() => pick("corr")} className="flex items-center gap-1 px-2 py-1 rounded font-mono"
+        <button onClick={() => pick("corr")} title="Aircraft and vessels of interest recorded near each other in time and space" className="flex items-center gap-1 px-2 py-1 rounded font-mono"
           style={{ fontSize: 10, color: tab === "corr" ? C.ink : C.dim,
             background: tab === "corr" ? "#C084FC" : C.panel2, border: `1px solid ${C.line}` }}>
           <GitCompare size={10} /> AIR ↔ SEA
         </button>
         <span style={{ flex: 1 }} />
         <span className="font-mono" style={{ fontSize: 9, color: C.faint }}>window: {days}d (set above)</span>
+      </div>
+
+      <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginBottom: 8, lineHeight: 1.5 }}>
+        {tab === "digest"
+          ? "DIGEST — what changed across the watched airspaces, computed from the archive."
+          : "AIR ↔ SEA — where aircraft and vessels of interest were recorded near each other. Proximity only; no causal link is implied."}
       </div>
 
       {state === "idle" && (
@@ -151,6 +164,27 @@ export default function AiBriefing({ days = 7 }) {
             </div>
           )}
         </>
+      )}
+
+      {data && !data.error && (data.briefing || data.summary) && (
+        <button onClick={() => {
+            const lines = [];
+            lines.push(`StreetWatch — ${tab === "digest" ? "activity digest" : "air-sea co-occurrence analysis"} · last ${data.windowDays || days} days`);
+            if (tab === "digest" && data.totals) lines.push(`${data.totals.contacts} aircraft · ${data.totals.uav} UAV · ${data.totals.military} military · ${data.totals.sites} airspaces`);
+            ((data.topNear && data.topNear.length ? data.topNear : data.top) || []).slice(0, 5)
+              .forEach((x) => lines.push(`  ${x.site}: ${x.nearContacts != null ? x.nearContacts + " within 25nm of " : ""}${x.contacts} within 250nm`));
+            (data.pairs || []).forEach((x) => lines.push(`  ${x.site} <-> ${x.vessel}: ${x.distanceNm}nm`));
+            if (data.briefing) lines.push("", data.briefing);
+            if (data.summary) lines.push("", data.summary);
+            if (data.disclosure) lines.push("", data.disclosure);
+            const txt = lines.join("\n");
+            try { navigator.clipboard.writeText(txt).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }
+            catch { /* clipboard unavailable */ }
+          }}
+          className="mt-2 flex items-center gap-1.5 px-2 py-1 rounded font-mono"
+          style={{ fontSize: 10, color: copied ? "#37C46A" : C.dim, background: C.panel2, border: `1px solid ${C.line}` }}>
+          {copied ? <><Check size={11} /> COPIED</> : <><Copy size={11} /> COPY AS TEXT</>}
+        </button>
       )}
 
       {data && data.disclosure && (
