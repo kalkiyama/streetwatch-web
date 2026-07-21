@@ -74,9 +74,9 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
     layer.current = Leaflet.layerGroup().addTo(map.current);
     guardTouchScroll(map.current);
     data.sites.forEach((s) => {
-      const pick = radius === 25 ? { c: s.c25, u: s.uav25, m: s.mil25 }
-                 : radius === 100 ? { c: s.c100, u: s.uav100, m: s.mil100 }
-                 : { c: s.contacts, u: s.uav, m: s.military };
+      const pick = radius === 25 ? { c: s.c25, u: s.uav25, m: s.mil25, p: s.p25 }
+                 : radius === 100 ? { c: s.c100, u: s.uav100, m: s.mil100, p: s.p100 }
+                 : { c: s.contacts, u: s.uav, m: s.military, p: s.points };
       const shown = pick.c == null ? s.contacts : pick.c;
       const maxAt = (data.maxByRadius && data.maxByRadius[radius]) || data.maxContacts || 2;
       const t = heatIntensity(shown, maxAt);
@@ -98,7 +98,7 @@ export default function HeatMap({ days = 7, height = "min(68vh, 620px)" }) {
             : s.near_contacts != null
               ? `<b>${s.near_contacts}</b> of them within ${nearNm}nm of the site itself<br>`
               : "") +
-          `${s.points} observations over ${s.span_hours || 0}h<br>` +
+          `${pick.p ?? s.points} position reports within ${radiusNm}nm over ${s.span_hours || 0}h<br>` +
           `<span style="opacity:.7">last seen ${new Date(s.last_seen).toLocaleString()}<br>` +
           `A ${radiusNm}nm circle overlaps its neighbours; each aircraft is counted at the site it came closest to.</span>`
         )

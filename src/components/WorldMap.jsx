@@ -73,6 +73,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     const RAMP = ["#3B82F6", "#8B5CF6", "#C084FC", "#F6A821", "#F87171"];
     const rNm = heatRadiusRef.current || 250;
     const pickC = (x) => ((rNm === 25 ? x.c25 : rNm === 100 ? x.c100 : x.contacts) ?? x.contacts);
+    const pickP = (x) => ((rNm === 25 ? x.p25 : rNm === 100 ? x.p100 : x.points) ?? x.points);
     const meta = heatMetaRef.current;
     const heatMaxLocal = (meta && meta.maxByRadius && meta.maxByRadius[rNm])
       || Math.max(2, ...(heatRef.current || []).map((x) => pickC(x) || 0));
@@ -92,7 +93,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
           (rNm !== 250 && s.contacts != null
             ? `<span style="opacity:.75">${s.contacts} within the full 250nm sweep radius</span><br>`
             : "") +
-          `${s.points} observations over ${s.span_hours || 0}h<br>` +
+          `${pickP(s)} position reports within ${rNm}nm over ${s.span_hours || 0}h<br>` +
           `<span style="opacity:.7">Circles overlap; each aircraft is counted at the nearest site.</span>`
         )
         .addTo(lg);
