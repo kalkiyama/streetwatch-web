@@ -413,7 +413,7 @@ export default function StreetWatch() {
 
       {!introOpen && !coachSeen && (
         <div className="flex justify-end px-4 md:px-6" style={{ marginTop: -4 }}>
-          <div className="flex items-start gap-2 rounded-lg" onClick={dismissCoach}
+          <div className="flex items-start gap-2 rounded-lg" role="button" tabIndex={0} onClick={dismissCoach}
             style={{ maxWidth: 300, marginRight: 40, padding: "8px 12px", cursor: "pointer",
               background: C.amber, color: C.ink, fontSize: 12, lineHeight: 1.4,
               boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
