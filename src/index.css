@@ -1,2 +1,26 @@
 @import "tailwindcss";
 html, body, #root { height: 100%; margin: 0; background: #0E1116; }
+
+/* --- Interactive affordance ------------------------------------------------------------
+   Browsers do NOT give <button> the hand cursor by default — they render the plain arrow,
+   which made every chip, tab and filter in the app read as inert text. One global rule
+   restores the universal "this is clickable" signal everywhere at once, including future
+   components, instead of chasing hundreds of inline styles. Disabled controls say so too. */
+button:not(:disabled),
+[role="button"],
+[role="tab"],
+a[href],
+select,
+summary,
+label[for],
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+/* Leaflet's own interactive markers/paths already use pointer; this covers our custom
+   SVG hit targets that opted in via role or class. */
+.sw-clickable { cursor: pointer; }
