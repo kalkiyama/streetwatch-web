@@ -108,7 +108,8 @@ export default function Intro({ open, onClose }) {
             point — analysis is computed from the archive first, and the AI&rsquo;s words are
             labelled and shown next to the numbers they describe. Where StreetWatch cannot
             see, it says so — on the display, in the data, every time. Public feeds only. No
-            private cameras, ever.
+            private cameras, ever. Visits are counted anonymously and cookie-free (no
+            advertising trackers, nothing follows you across the web).
           </div>
         </div>
 
