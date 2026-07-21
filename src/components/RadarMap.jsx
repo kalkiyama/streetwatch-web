@@ -6,6 +6,37 @@ import { guardTouchScroll } from "./mapTouch.js";
 // The same contacts the radar is plotting, on real geography. The radar is better for
 // "what's around me and how far"; the map is better for "where is this actually".
 // Same selection state drives both, so tapping in one highlights in the other.
+
+// Leaflet only offers the four corners, and every corner of a radar is occupied: header chips
+// on top, contact readout and coverage note along the bottom. The vertical middle of the right
+// edge is the one clear strip, so the standard corner container is repositioned there by CSS.
+// Done with a class + stylesheet rather than Leaflet's private _controlCorners.
+const ZOOM_STYLE_ID = "sw-radar-zoom-pos";
+function ensureZoomStyle() {
+  if (typeof document === "undefined" || document.getElementById(ZOOM_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = ZOOM_STYLE_ID;
+  el.textContent = `
+    .sw-radar-map .leaflet-top.leaflet-right {
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .sw-radar-map .leaflet-top.leaflet-right .leaflet-control-zoom {
+      margin-top: 0;
+      margin-right: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+    /* the radar palette is dark; the default white control glares */
+    .sw-radar-map .leaflet-control-zoom a {
+      background: rgba(16,22,30,0.92);
+      color: #E6EAF2;
+      border-color: rgba(255,255,255,0.14);
+    }
+    .sw-radar-map .leaflet-control-zoom a:hover { background: rgba(30,40,52,0.96); }
+  `;
+  document.head.appendChild(el);
+}
+
 export default function RadarMap({ center, contacts, radiusNm, sel, onSel, height = 300, mode = "air" }) {
   const box = useRef(null);
   const map = useRef(null);
@@ -20,7 +51,8 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
     map.current = Leaflet.map(box.current, {
       zoomControl: false, scrollWheelZoom: false, attributionControl: true, minZoom: 2, maxZoom: 12,
     }).setView([center.lat, center.lng], 7);
-    Leaflet.control.zoom({ position: "bottomleft" }).addTo(map.current);   // bottom-right is under the radar footer bar; bottom-left is clear
+    ensureZoomStyle();
+    Leaflet.control.zoom({ position: "topright" }).addTo(map.current);   // CSS recentres this to the middle-right edge
     Leaflet.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       subdomains: "abcd", maxZoom: 12, attribution: "&copy; OpenStreetMap &copy; CARTO",
     }).addTo(map.current);
@@ -118,5 +150,5 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
     }
   }, [contacts, sel, mode]);
 
-  return <div ref={box} style={{ height, borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />;
+  return <div ref={box} className="sw-radar-map" style={{ height, borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />;
 }
