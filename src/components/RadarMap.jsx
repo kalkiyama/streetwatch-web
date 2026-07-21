@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import Leaflet from "leaflet";
+import { addBaseTiles } from "../theme.js";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
 
@@ -65,9 +66,7 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
     }).setView([center.lat, center.lng], 7);
     ensureZoomStyle();
     Leaflet.control.zoom({ position: "topright" }).addTo(map.current);   // CSS recentres this to the middle-right edge
-    Leaflet.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      subdomains: "abcd", maxZoom: 12, attribution: "&copy; OpenStreetMap &copy; CARTO",
-    }).addTo(map.current);
+    addBaseTiles(Leaflet, map.current);
     layer.current = Leaflet.layerGroup().addTo(map.current);
       guardTouchScroll(map.current);
     setTimeout(() => map.current && map.current.invalidateSize(), 80);

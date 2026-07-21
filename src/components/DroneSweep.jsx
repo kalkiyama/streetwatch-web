@@ -139,10 +139,10 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
       </div>
 
       <div className="px-3 pb-1.5" style={{ fontSize: 12, color: C.text, fontWeight: 600 }}>
-        Military &amp; UAV aircraft worldwide
+        Military &amp; UAV watch · air and sea
         <span style={{ display: "block", fontSize: 10, color: C.faint, fontWeight: 400, marginTop: 1 }}>
           {mode === "live"
-            ? `${drones.length} detected now · watching ${(data && data.sweep && data.sweep.sites) || 0} airspaces worldwide`
+            ? `${drones.length} aircraft now · ${((marine && marine.usv && marine.usv.count) || 0) + ((marine && marine.sub && marine.sub.count) || 0)} vessels of interest · ${(data && data.sweep && data.sweep.sites) || 0} airspaces`
             : mode === "heat"
               ? `Where activity concentrates over ${days} day${days > 1 ? "s" : ""} — tap a circle for detail`
               : `${(hist && hist.count) || 0} recorded · archive keeps 90 days`}
@@ -152,7 +152,7 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
       {/* time-window buttons on their own line so nothing runs off a narrow screen */}
       <div className="px-3 pb-2 flex items-center gap-1 font-mono" style={{ flexWrap: "wrap" }}>
         <span style={{ fontSize: 9, color: C.faint, marginRight: 2 }}>{mode === "live" ? "SEEN IN" : "LOOK BACK"}</span>
-        {(mode === "live" ? [[60, "1h"], [360, "6h"], [1440, "24h"]] : [[1, "1 day"], [7, "7 days"], [30, "30 days"], [90, "90 days"]]).map(([v, label]) => {
+        {(mode === "live" ? [[60, "1h"], [360, "6h"], [1440, "24h"]] : [[1, "1d"], [7, "7d"], [30, "30d"], [90, "90d"]]).map(([v, label]) => {
           const active = mode === "live" ? mins === v : days === v;
           return (
             <button key={v} onClick={() => (mode === "live" ? setMins(v) : setDays(v))}
@@ -165,7 +165,7 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
       </div>
 
       {mode === "archive" && (
-        <div className="px-3 pb-2"><AiBriefing /></div>
+        <div className="px-3 pb-2"><AiBriefing days={days} /></div>
       )}
 
       {mode === "live" && state === "ok" && data.sweep && data.sweep.cycles === 0 && (

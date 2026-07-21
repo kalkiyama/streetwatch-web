@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
-import { LAYERS, heatColor, heatIntensity } from "../theme.js";
+import { LAYERS, heatColor, heatIntensity, addBaseTiles } from "../theme.js";
 
 // Viewport clustering, no extra dependency.
 //
@@ -93,8 +93,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
           (rNm !== 250 && s.contacts != null
             ? `<span style="opacity:.75">${s.contacts} within the full 250nm sweep radius</span><br>`
             : "") +
-          `${pickP(s)} position reports within ${rNm}nm, spanning ${s.span_hours || 0}h of recorded data<br>` +
-          `<span style="opacity:.7">Circles overlap; each aircraft is counted at the nearest site.</span>`
+          `<span style="opacity:.75">${pickP(s)} position reports within ${rNm}nm, spanning ${s.span_hours || 0}h of recorded data</span>`
         )
         .addTo(lg);
     });
@@ -321,9 +320,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
         zoomControl: false, minZoom: 1,
       });
       Leaflet.control.zoom({ position: "topright" }).addTo(map);
-      Leaflet.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        subdomains: "abcd", maxZoom: 19, attribution: "&copy; OpenStreetMap, &copy; CARTO",
-      }).addTo(map);
+      addBaseTiles(Leaflet, map);
       layerRef.current = Leaflet.layerGroup().addTo(map);
       mapRef.current = map;
       guardTouchScroll(map);

@@ -382,6 +382,11 @@ export default function StreetWatch() {
           </div>
         </nav>
       </header>
+      <style id="sw-resizable-style">{`
+        @media (min-width: 1024px) {
+          .sw-resizable { resize: horizontal; overflow: auto; min-width: 280px; max-width: 48vw; }
+        }
+      `}</style>
       {!introOpen && !coachSeen && (
         <div className="flex justify-end px-4 md:px-6" style={{ marginTop: -4 }}>
           <div className="flex items-start gap-2 rounded-lg" onClick={dismissCoach}
@@ -395,7 +400,11 @@ export default function StreetWatch() {
       )}
 
       <div className="flex flex-col lg:flex-row" style={{ minHeight: "calc(100vh - 58px)" }}>
-        <aside className="w-full lg:w-80 flex-shrink-0" style={{ borderRight: `1px solid ${C.line}`, background: C.panel }}>
+        {/* resize: horizontal gives desktop users a native drag handle (bottom-right corner
+            of the panel) to widen or narrow the list — no JS, no library, remembered nowhere
+            on purpose (refresh restores the default). Phones keep the stacked layout. */}
+        <aside className="w-full lg:w-80 flex-shrink-0 sw-resizable"
+          style={{ borderRight: `1px solid ${C.line}`, background: C.panel }}>
           <div className="p-4" style={{ borderBottom: `1px solid ${C.line}` }}>
             <div className="flex items-center gap-2 px-3 rounded" style={{ background: C.ink, border: `1px solid ${C.line}`, height: 40 }}>
               <Search size={16} color={C.faint} />
@@ -639,6 +648,12 @@ export default function StreetWatch() {
               </button>
               <div className="mt-2 font-mono break-all" style={{ fontSize: 10, color: C.faint }}>↗ {resolveUrl(selected)}</div>
             </div>
+          </section>
+
+          {/* Own full-width row: expanding the cam grid grows the page downward, and the radar
+              above keeps its size — previously cams shared the radar's flex row and opening
+              them squeezed the radar sideways. */}
+          <section className="rounded-lg" style={{ border: `1px solid ${C.line}`, background: C.panel }}>
             <NearbyCams lat={selected.lat} lon={selected.lng} name={selected.name} />
           </section>
 
