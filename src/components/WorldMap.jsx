@@ -160,7 +160,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       const disputed = d.confidence === "disputed";
       const hdg = Number.isFinite(d.track) ? d.track : (Number.isFinite(d.heading) ? d.heading : 0);
       Leaflet.marker([d.lat, d.lon], {
-        icon: droneIcon(Leaflet, { heading: hdg, color: col, size: 18, faint: disputed }),
+        icon: droneIcon(Leaflet, { heading: hdg, color: col, size: 18, faint: disputed, selected: d.id === selRef.current }),
         interactive: true, keyboard: false,
       })
         .bindTooltip(

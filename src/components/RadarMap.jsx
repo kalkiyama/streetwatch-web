@@ -111,11 +111,11 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
       // Same colour language as the radar scope and the list: sub-support red, sea drone
       // violet, ordinary vessel blue — so the three read apart at a glance on the map too.
       const col = a.military ? "#F0553B" : a.isDrone ? "#C084FC" : "#2563EB";
-      return shipIcon(Leaflet, { heading: rot, color: isSel ? "#FFFFFF" : col, size });
+      return shipIcon(Leaflet, { heading: rot, color: col, size, selected: isSel });
     }
-    if (a.isDrone) return droneIcon(Leaflet, { heading: rot, color: "#C084FC", size, faint: false });
+    if (a.isDrone) return droneIcon(Leaflet, { heading: rot, color: "#C084FC", size, faint: false, selected: isSel });
     const col = a.military ? "#F87171" : "#5AC8FA";
-    return planeIcon(Leaflet, { heading: rot, color: isSel ? "#FFFFFF" : col, size });
+    return planeIcon(Leaflet, { heading: rot, color: col, size, selected: isSel });
   };
 
   useEffect(() => {
