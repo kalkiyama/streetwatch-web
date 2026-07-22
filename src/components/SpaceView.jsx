@@ -76,6 +76,11 @@ export default function SpaceView() {
           ))}
         </div>
       )}
+      <div className="px-3 py-1.5 font-mono" style={{ fontSize: 9, color: C.faint, lineHeight: 1.5, background: "rgba(4,18,31,0.6)" }}>
+        Position computed from public NORAD orbital elements via wheretheiss.at (a third-party
+        service, not verified by StreetWatch). The orbit is inclined ~51.6° to the equator, so
+        the ground track sweeps between about 51.6°N and 51.6°S — it does not follow the equator.
+      </div>
     </div>
   );
 }
