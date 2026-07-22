@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
@@ -16,6 +16,50 @@ const CELL_PX = 64;           // approximate cluster cell size on screen
 export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
+  const issMarkerRef = useRef(null);
+  const [issPos, setIssPos] = useState(null);
+
+  // Live ISS position — same public API the orbital tracker uses. Polled every 5s; the marker
+  // below moves to the new spot each time. No fixed catalogue coordinate is ever invented.
+  useEffect(() => {
+    let alive = true;
+    const pull = async () => {
+      try {
+        const r = await fetch("https://api.wheretheiss.at/v1/satellites/25544");
+        if (!r.ok) return;
+        const j = await r.json();
+        if (alive && Number.isFinite(j.latitude) && Number.isFinite(j.longitude)) {
+          setIssPos({ lat: j.latitude, lon: j.longitude });
+        }
+      } catch { /* offline: simply no ISS dot, rather than a wrong one */ }
+    };
+    pull();
+    const id = setInterval(pull, 5000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  // Draw or move the live ISS marker. A distinct pink diamond so it never reads as a ground feed;
+  // clicking it selects the ISS feed (which opens the full orbital tracker).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !issPos) return;
+    const L = Leaflet;
+    if (!issMarkerRef.current) {
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px">
+                 <div style="width:12px;height:12px;background:#F472B6;border:2px solid #04121F;transform:rotate(45deg);box-shadow:0 0 8px #F472B6"></div>
+                 <span style="font:600 10px ui-monospace,monospace;color:#F472B6;text-shadow:0 0 3px #04121F">ISS</span>
+               </div>`,
+        iconSize: [0, 0],
+      });
+      issMarkerRef.current = L.marker([issPos.lat, issPos.lon], { icon, interactive: true, keyboard: false, zIndexOffset: 1000 })
+        .addTo(map)
+        .on("click", () => onSelectRef.current && onSelectRef.current("S-ISS"));
+    } else {
+      issMarkerRef.current.setLatLng([issPos.lat, issPos.lon]);
+    }
+  }, [issPos]);
   const layerRef = useRef(null);
   const feedsRef = useRef(feeds);
   feedsRef.current = feeds;
@@ -61,6 +105,8 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   subRef.current = subContacts;
   const onOpenVesselRef = useRef(onOpenVessel);
   onOpenVesselRef.current = onOpenVessel;
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
   const selRef = useRef(selectedId);
   selRef.current = selectedId;
   const centred = useRef(null);     // which feed the map is already centred on
@@ -346,7 +392,10 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     // same reason as the cluster handler: flyTo arcs outward first, which looks like the map
     // is throwing you away before it brings you back. Also: never zoom OUT on selection —
     // if the user has already zoomed in past 5, respect where they are.
-    if (f) map.setView([f.lat, f.lng], Math.max(map.getZoom(), 5), { animate: true, duration: 0.6 });
+    // The ISS (and any positionless feed) has no fixed point to fly to — its live marker moves
+    // on its own. Guard against centring on null, which threw inside Leaflet's projection.
+    if (f && Number.isFinite(f.lat) && Number.isFinite(f.lng))
+      map.setView([f.lat, f.lng], Math.max(map.getZoom(), 5), { animate: true, duration: 0.6 });
   }, [selectedId]);
 
   return <div ref={elRef} style={{ width: "100%", height: "100%", background: "#0B0E13" }} />;
