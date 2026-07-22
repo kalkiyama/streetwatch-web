@@ -666,7 +666,7 @@ export default function StreetWatch() {
                 <MapPin size={13} color={LAYERS[selected.layer].color} /> {selected.city}, {selected.country}
               </div>
               <div className="mt-4 space-y-2 font-mono" style={{ fontSize: 12 }}>
-                {[["CONTINENT", selected.continent], ["REGION", selected.region], ["SOURCE", selected.src], ["COORD", `${selected.lat.toFixed(2)}, ${selected.lng.toFixed(2)}`]].map(([k, v]) => (
+                {[["CONTINENT", selected.continent], ["REGION", selected.region], ["SOURCE", selected.src], ["COORD", (Number.isFinite(selected.lat) && Number.isFinite(selected.lng)) ? `${selected.lat.toFixed(2)}, ${selected.lng.toFixed(2)}` : "live · see tracker"]].map(([k, v]) => (
                   <div key={k} className="flex items-center justify-between" style={{ borderBottom: `1px solid ${C.line}`, paddingBottom: 6 }}>
                     <span style={{ color: C.faint }}>{k}</span><span style={{ color: C.text }}>{v}</span>
                   </div>
