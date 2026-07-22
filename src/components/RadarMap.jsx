@@ -102,7 +102,10 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
   // Real silhouettes per kind, rotated to heading. Marine radar passes mode="sea" so its
   // contacts are ships; air radar draws drones vs aircraft by the contact's own flags.
   const iconFor = (a, isSel) => {
-    const rot = Number.isFinite(a.headingDeg) ? a.headingDeg : 0;
+    // A moving contact rotates to its heading; a stationary/moored one (no heading) points
+    // "up" rather than defaulting to a misleading sideways angle.
+    const hasHdg = Number.isFinite(a.headingDeg);
+    const rot = hasHdg ? a.headingDeg : 0;
     const size = isSel ? 22 : 18;
     if (mode === "sea") return shipIcon(Leaflet, { heading: rot, color: isSel ? "#93C5FD" : "#2563EB", size });
     if (a.isDrone)      return droneIcon(Leaflet, { heading: rot, color: "#C084FC", size, faint: false });
