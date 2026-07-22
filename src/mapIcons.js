@@ -27,7 +27,7 @@ const PLANE = `<path d="M12 2 L13.4 9 L22 13 L22 15 L13.4 13.6 L13 20 L16 22 L16
 const DRONE = `<path d="M12 4 L13 11 L23 14 L23 15.5 L13 14.4 L12.7 18 L15 20 L15 21 L12 20 L9 21 L9 20 L11.3 18 L11 14.4 L1 15.5 L1 14 L11 11 Z"/><circle cx="12" cy="12" r="1.3" fill="rgba(4,13,18,0.9)"/>`;
 
 // A surface vessel, bow up.
-const SHIP = `<path d="M12 2 L14 8 L14 13 L20 13 L18 20 L6 20 L4 13 L10 13 L10 8 Z"/>`;
+const SHIP = `<path d="M12 2 C13.6 4 14 6 14 9 L14 17 C14 18.5 13.2 20 12 21 C10.8 20 10 18.5 10 17 L10 9 C10 6 10.4 4 12 2 Z"/><rect x="10.6" y="9" width="2.8" height="1.4" fill="rgba(4,13,18,0.85)"/>`;
 
 // The ISS: central module with two solar-array wings.
 const STATION = `<rect x="10.5" y="8" width="3" height="8" rx="0.6"/><rect x="2" y="10.5" width="6.5" height="3" rx="0.4"/><rect x="15.5" y="10.5" width="6.5" height="3" rx="0.4"/><line x1="12" y1="8" x2="12" y2="4" stroke="currentColor" stroke-width="1.2"/>`;
