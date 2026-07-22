@@ -231,6 +231,7 @@ export default function StreetWatch() {
         // visit. "Near me" has to move everything that has a location, or it half-lies.
         let best = null, bestKm = Infinity;
         CATALOG.forEach((c) => {
+          if (!Number.isFinite(c.lat) || !Number.isFinite(c.lng)) return;  // ISS has no fixed point
           const d = distKm(loc.lat, loc.lng, c.lat, c.lng);
           if (d < bestKm) { bestKm = d; best = c; }
         });
