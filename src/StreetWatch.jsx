@@ -541,7 +541,7 @@ export default function StreetWatch() {
           {browse === "map" && (
             <div className="mx-4 mb-3">
               <MapPanel feeds={results} selectedId={selected ? selected.id : null}
-                userLoc={nearMe ? userLoc : null}
+                userLoc={nearMe ? userLoc : null} tab={tab}
                 onSelect={setSelectedId} onOpenSighting={openSighting} onOpenVessel={openVessel} />
             </div>
           )}
