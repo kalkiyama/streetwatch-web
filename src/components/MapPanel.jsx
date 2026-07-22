@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Layers } from "lucide-react";
 import WorldMap from "./WorldMap.jsx";
 import { C } from "../theme.js";
@@ -19,6 +19,14 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   const [showHeat, setShowHeat] = useState(false);
   const [showUsv, setShowUsv] = useState(isDrones);
   const [showSub, setShowSub] = useState(isDrones);
+  // If the tab changes while the map stays mounted, re-apply the per-tab defaults so the map
+  // always leads with the right dataset (drones-> live contacts, world-> catalogue feeds).
+  const lastTab = useRef(tab);
+  useEffect(() => {
+    if (lastTab.current === tab) return;
+    lastTab.current = tab;
+    setShowFeeds(!isDrones); setShowLive(isDrones); setShowUsv(isDrones); setShowSub(isDrones);
+  }, [tab, isDrones]);
   const [mins, setMins] = useState(60);      // live window
   const [days, setDays] = useState(7);
   // Same radius control the standalone Activity map has. Without it the two surfaces showed
@@ -147,6 +155,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           heatSites={showHeat ? heat : null}
           heatRadius={heatRadius}
           heatMeta={heatMeta}
+          showIss={!isDrones}
         />
       </div>
 

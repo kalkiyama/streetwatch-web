@@ -13,15 +13,18 @@ import { LAYERS, heatColor, heatIntensity, addBaseTiles } from "../theme.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true }) {
+export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const issMarkerRef = useRef(null);
   const [issPos, setIssPos] = useState(null);
+  const showIssRef = useRef(showIss);
+  showIssRef.current = showIss;
 
   // Live ISS position — same public API the orbital tracker uses. Polled every 5s; the marker
   // below moves to the new spot each time. No fixed catalogue coordinate is ever invented.
   useEffect(() => {
+    if (!showIss) return;   // ISS marker is world-tab only
     let alive = true;
     const pull = async () => {
       try {
@@ -36,13 +39,18 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     pull();
     const id = setInterval(pull, 5000);
     return () => { alive = false; clearInterval(id); };
-  }, []);
+  }, [showIss]);
 
   // Draw or move the live ISS marker. A distinct pink diamond so it never reads as a ground feed;
   // clicking it selects the ISS feed (which opens the full orbital tracker).
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !issPos) return;
+    if (!map) return;
+    if (!showIss) {                      // tab hides the ISS: remove any existing marker
+      if (issMarkerRef.current) { issMarkerRef.current.remove(); issMarkerRef.current = null; }
+      return;
+    }
+    if (!issPos) return;
     const L = Leaflet;
     if (!issMarkerRef.current) {
       const icon = L.divIcon({
@@ -59,7 +67,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     } else {
       issMarkerRef.current.setLatLng([issPos.lat, issPos.lon]);
     }
-  }, [issPos]);
+  }, [issPos, showIss]);
   const layerRef = useRef(null);
   const feedsRef = useRef(feeds);
   feedsRef.current = feeds;
