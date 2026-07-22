@@ -358,10 +358,14 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       // when the feed viewer opens its own map instance — start ON that feed. Starting at
       // world view and then jumping looks like the map is zooming out and back in.
       const start = feedsRef.current.find((x) => x.id === selRef.current);
-      if (start) centred.current = start.id;
+      // Only treat it as a starting centre if it actually has coordinates. The ISS is a
+      // positionless feed (its dot moves live), so selecting it must NOT drive the initial
+      // centre — otherwise the map mounts at [null,null] and lands somewhere meaningless.
+      const startFix = start && Number.isFinite(start.lat) && Number.isFinite(start.lng) ? start : null;
+      if (startFix) centred.current = startFix.id;
       const map = Leaflet.map(elRef.current, {
-        center: start ? [start.lat, start.lng] : [20, 0],
-        zoom: start ? 7 : 2,
+        center: startFix ? [startFix.lat, startFix.lng] : [20, 0],
+        zoom: startFix ? 7 : 2,
         worldCopyJump: true, preferCanvas: true,
         zoomControl: false, minZoom: 1,
       });
