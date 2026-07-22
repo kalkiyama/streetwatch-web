@@ -107,8 +107,13 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
     const hasHdg = Number.isFinite(a.headingDeg);
     const rot = hasHdg ? a.headingDeg : 0;
     const size = isSel ? 22 : 18;
-    if (mode === "sea") return shipIcon(Leaflet, { heading: rot, color: isSel ? "#93C5FD" : "#2563EB", size });
-    if (a.isDrone)      return droneIcon(Leaflet, { heading: rot, color: "#C084FC", size, faint: false });
+    if (mode === "sea") {
+      // Same colour language as the radar scope and the list: sub-support red, sea drone
+      // violet, ordinary vessel blue — so the three read apart at a glance on the map too.
+      const col = a.military ? "#F0553B" : a.isDrone ? "#C084FC" : "#2563EB";
+      return shipIcon(Leaflet, { heading: rot, color: isSel ? "#FFFFFF" : col, size });
+    }
+    if (a.isDrone) return droneIcon(Leaflet, { heading: rot, color: "#C084FC", size, faint: false });
     const col = a.military ? "#F87171" : "#5AC8FA";
     return planeIcon(Leaflet, { heading: rot, color: isSel ? "#FFFFFF" : col, size });
   };
