@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { SEL_GREEN } from "../mapIcons.js";
 import { Wifi, WifiOff } from "lucide-react";
 import { C } from "../theme.js";
 import RadarMap from "./RadarMap.jsx";
@@ -257,11 +258,11 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
                   fill="none" stroke={col} strokeWidth={isSel ? 1.4 : 1}
                   strokeOpacity={isSel ? 0.55 : 0.28} strokeLinejoin="round" strokeLinecap="round" />
               )}
-              {isSel && <circle r="11" fill="none" stroke={col} strokeWidth="1" />}
+              {isSel && <circle r="12" fill="none" stroke={SEL_GREEN} strokeWidth="1.6" style={{ filter: "drop-shadow(0 0 4px " + SEL_GREEN + ")" }} />}
               {moving
-                ? <g transform={`rotate(${dir})`}><polygon className={isSel ? "" : "rblip"} points="0,-7 3,-1 2.5,6 -2.5,6 -3,-1" fill={col} stroke="#08130F" strokeWidth="0.5" /></g>
-                : <rect className={isSel ? "" : "rblip"} x="-3" y="-3" width="6" height="6" fill={col} stroke="#08130F" strokeWidth="0.5" transform="rotate(45)" />}
-              {isSel && <text x="10" y="3" fill={col} fontSize="9" fontFamily="monospace">{v.name || v.id}</text>}
+                ? <g transform={`rotate(${dir})`}><polygon className={isSel ? "" : "rblip"} points="0,-7 3,-1 2.5,6 -2.5,6 -3,-1" fill={isSel ? SEL_GREEN : col} stroke="#08130F" strokeWidth="0.5" /></g>
+                : <rect className={isSel ? "" : "rblip"} x="-3" y="-3" width="6" height="6" fill={isSel ? SEL_GREEN : col} stroke="#08130F" strokeWidth="0.5" transform="rotate(45)" />}
+              {isSel && <text x="10" y="3" fill={SEL_GREEN} fontSize="9" fontFamily="monospace">{v.name || v.id}</text>}
             </g>
           );
         })}
