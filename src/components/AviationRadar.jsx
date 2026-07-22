@@ -255,7 +255,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
                   <circle cx="-4.5" cy="4.5" r="1.7" fill={col} /><circle cx="4.5" cy="4.5" r="1.7" fill={col} />
                 </g>
               ) : (
-                <g transform={`rotate(${a.headingDeg || 0})`}><polygon className={isSel ? "" : "rblip"} points="0,-6 4,5 0,2.5 -4,5" fill={col} stroke="#0A0E14" strokeWidth="0.5" /></g>
+                <g transform={`rotate(${a.headingDeg || 0}) scale(0.62)`}><path className={isSel ? "" : "rblip"} d="M0,-9 L1.6,-2 L9,2 L9,3.6 L1.6,2.4 L1.2,7 L3.4,9 L3.4,10 L0,8.6 L-3.4,10 L-3.4,9 L-1.2,7 L-1.6,2.4 L-9,3.6 L-9,2 L-1.6,-2 Z" fill={col} stroke="#0A0E14" strokeWidth="0.6" /></g>
               )}
               {isSel && <text x="10" y="3" fill={col} fontSize="9" fontFamily="monospace">{a.callsign || a.id}</text>}
             </g>

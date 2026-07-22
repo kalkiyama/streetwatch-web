@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import Leaflet from "leaflet";
+import { planeIcon, droneIcon, shipIcon } from "../mapIcons.js";
 import { addBaseTiles } from "../theme.js";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
@@ -98,18 +99,15 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
   // lifetime and we only move it.
   const markers = useRef(new Map());
 
+  // Real silhouettes per kind, rotated to heading. Marine radar passes mode="sea" so its
+  // contacts are ships; air radar draws drones vs aircraft by the contact's own flags.
   const iconFor = (a, isSel) => {
-    const col = a.isDrone ? "#C084FC" : a.military ? "#F87171" : "#5AC8FA";
     const rot = Number.isFinite(a.headingDeg) ? a.headingDeg : 0;
-    return Leaflet.divIcon({
-      className: "", iconSize: [18, 18], iconAnchor: [9, 9],
-      html:
-        `<div style="width:18px;height:18px;transform:rotate(${rot}deg);` +
-        `display:flex;align-items:center;justify-content:center;">` +
-        `<div style="width:0;height:0;border-left:5px solid transparent;` +
-        `border-right:5px solid transparent;border-bottom:12px solid ${col};` +
-        `${isSel ? "filter:drop-shadow(0 0 3px #fff);" : ""}opacity:${isSel ? 1 : 0.85};"></div></div>`,
-    });
+    const size = isSel ? 22 : 18;
+    if (mode === "sea") return shipIcon(Leaflet, { heading: rot, color: isSel ? "#93C5FD" : "#2563EB", size });
+    if (a.isDrone)      return droneIcon(Leaflet, { heading: rot, color: "#C084FC", size, faint: false });
+    const col = a.military ? "#F87171" : "#5AC8FA";
+    return planeIcon(Leaflet, { heading: rot, color: isSel ? "#FFFFFF" : col, size });
   };
 
   useEffect(() => {
