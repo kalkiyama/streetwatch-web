@@ -3,6 +3,7 @@ import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
 import { LAYERS, heatColor, heatIntensity, addBaseTiles } from "../theme.js";
+import { droneIcon, stationIcon } from "../mapIcons.js";
 
 // Viewport clustering, no extra dependency.
 //
@@ -53,15 +54,11 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     if (!issPos) return;
     const L = Leaflet;
     if (!issMarkerRef.current) {
-      const icon = L.divIcon({
-        className: "",
-        html: `<div style="transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px">
-                 <div style="width:12px;height:12px;background:#F472B6;border:2px solid #04121F;transform:rotate(45deg);box-shadow:0 0 8px #F472B6"></div>
-                 <span style="font:600 10px ui-monospace,monospace;color:#F472B6;text-shadow:0 0 3px #04121F">ISS</span>
-               </div>`,
-        iconSize: [0, 0],
-      });
-      issMarkerRef.current = L.marker([issPos.lat, issPos.lon], { icon, interactive: true, keyboard: false, zIndexOffset: 1000 })
+      issMarkerRef.current = L.marker([issPos.lat, issPos.lon], {
+        icon: stationIcon(L, { color: "#F472B6", size: 24 }),
+        interactive: true, keyboard: false, zIndexOffset: 1000,
+      })
+        .bindTooltip("ISS · live position", { direction: "top", opacity: 0.9 })
         .addTo(map)
         .on("click", () => onSelectRef.current && onSelectRef.current("S-ISS"));
     } else {
@@ -161,9 +158,10 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       if (!Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
       const col = d.kind === "uav" ? "#C084FC" : "#F6A821";
       const disputed = d.confidence === "disputed";
-      Leaflet.circleMarker([d.lat, d.lon], {
-        radius: 5, color: col, weight: 2,
-        fillColor: col, fillOpacity: disputed ? 0.15 : 0.85,
+      const hdg = Number.isFinite(d.track) ? d.track : (Number.isFinite(d.heading) ? d.heading : 0);
+      Leaflet.marker([d.lat, d.lon], {
+        icon: droneIcon(Leaflet, { heading: hdg, color: col, size: 18, faint: disputed }),
+        interactive: true, keyboard: false,
       })
         .bindTooltip(
           `${d.callsign || d.id} — ${disputed ? "UAV?" : d.kind === "uav" ? "UAV" : "military"}` +
