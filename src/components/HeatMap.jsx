@@ -20,6 +20,8 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
   const layer = useRef(null);
   const [data, setData] = useState(null);
   const [ageH, setAgeH] = useState(null);
+  const [scaleMax, setScaleMax] = useState(null);
+  const scaleMaxRef = useRef(null);
   // Which radius the circles represent. 25nm ≈ the airfield and its immediate approaches;
   // 100nm ≈ its working airspace; 250nm ≈ the whole region the sweep polls.
   const [radius, setRadius] = useState(250);
@@ -78,13 +80,15 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
     layer.current = Leaflet.layerGroup().addTo(map.current);
     guardTouchScroll(map.current);
     data.sites.forEach((s) => {
-      const pick = radius === 25 ? { c: s.c25, u: s.uav25, m: s.mil25, p: s.p25 }
+      const pick = radius === "field" ? { c: s.terminal_contacts, u: null, m: null, p: s.terminal_points }
+                 : radius === 25 ? { c: s.c25, u: s.uav25, m: s.mil25, p: s.p25 }
                  : radius === 100 ? { c: s.c100, u: s.uav100, m: s.mil100, p: s.p100 }
                  : { c: s.contacts, u: s.uav, m: s.military, p: s.points };
       const shown = pick.c == null ? s.contacts : pick.c;
       const maxAt = (data.maxByRadius && data.maxByRadius[radius]) || data.maxContacts || 2;
+      if (scaleMaxRef.current !== maxAt) { scaleMaxRef.current = maxAt; setScaleMax(maxAt); }
       const t = heatIntensity(shown, maxAt);
-      const radiusNm = radius;
+      const radiusNm = radius === "field" ? 10 : radius;
       const nearNm = data.nearRadiusNm || 25;
       const col = heatColor(t);
       Leaflet.circleMarker([s.lat, s.lon], {
@@ -96,7 +100,9 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
           // name reads as 351 aircraft at that base — which is how Findel, a civil airport
           // ringed by military airspace, came to look like the sixth busiest site on earth.
           `<b>${s.site}</b><br>${s.country || ""}<br>` +
-          `<b>${shown}</b> aircraft within ${radiusNm}nm · ${pick.u ?? s.uav} UAV · ${pick.m ?? s.military} military<br>` +
+          (radius === "field"
+            ? `<b>${shown}</b> aircraft observed within 10nm and below 4,000ft — consistent with using this field<br>`
+            : `<b>${shown}</b> aircraft within ${radiusNm}nm · ${pick.u ?? s.uav} UAV · ${pick.m ?? s.military} military<br>`) +
           (radius !== 250 && s.contacts != null
             ? `<span style="opacity:.75">${s.contacts} within the full 250nm sweep radius</span><br>`
             : s.near_contacts != null
@@ -153,6 +159,13 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
             );
           })}
           {full && <span style={{ width: 4 }} />}
+          <button onClick={() => setRadius("field")} className="rounded font-mono"
+            title="Rank by aircraft observed within 10nm and below 4,000ft — activity at the field itself, not the airspace around it"
+            style={{ fontSize: 8.5, padding: "3px 5px", color: radius === "field" ? "#0A0D12" : "#37C46A",
+              background: radius === "field" ? "#37C46A" : "transparent",
+              border: "1px solid rgba(55,196,106,0.5)" }}>
+            AT FIELD
+          </button>
           {[25, 100, 250].map((r) => (
             <button key={r} onClick={() => setRadius(r)} className="rounded font-mono"
               title={r === 25 ? "The airfield and its immediate approaches"
@@ -181,6 +194,25 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
       {state === "error" && <div style={{ fontSize: 11, color: C.dim, paddingBottom: 6 }}>Activity map unavailable right now.</div>}
       <div ref={box} style={{ height: full ? "auto" : 380, flex: full ? 1 : undefined,
         borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />
+      <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginTop: 4, lineHeight: 1.5 }}>
+        {radius === "field"
+          ? "Colour ranks sites by aircraft seen within 10nm below 4,000ft — activity at the field itself."
+          : `Colour ranks sites by contacts within ${radius}nm — that is the airspace, not the field. Use AT FIELD to rank by aircraft that actually came low and close.`}
+      </div>
+      {scaleMax != null && (
+        <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginTop: 3, lineHeight: 1.5 }}>
+          Colour is RELATIVE to the busiest site in this view ({scaleMax}), on a log scale — so a
+          site can read red without being busy in absolute terms. Bands here:{" "}
+          {HEAT_RAMP.map((stop, i) => {
+            const from = Math.max(1, Math.round(Math.exp(stop.at * Math.log(Math.max(2, scaleMax)))));
+            return (
+              <span key={stop.at}>
+                <span style={{ color: stop.c }}>■</span> {from}+{i < HEAT_RAMP.length - 1 ? " · " : ""}
+              </span>
+            );
+          })}
+        </div>
+      )}
       <div className="flex items-center gap-1.5 font-mono" style={{ fontSize: 9, color: C.faint, marginTop: 4, flexWrap: "wrap" }}>
         <span>quiet</span>
         {HEAT_RAMP.map((r) => <span key={r.at} style={{ width: 14, height: 8, background: r.c, borderRadius: 2, display: "inline-block" }} />)}
