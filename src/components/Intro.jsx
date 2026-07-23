@@ -88,7 +88,7 @@ export default function Intro({ open, onClose, feedCount = null }) {
         </S>
 
         <S icon={Plane} color={C.amber} title="Drones — the watch">
-          A sweep patrols <b>{airspaceText} airspaces</b> around the clock — {namedText} named military airfields across {countryText}, plus a global grid that finds activity nobody thought to watch. It keeps a
+          A sweep patrols <b>{airspaceText} airspaces</b> around the clock — {namedText} named military airfields across {countryText}, plus a global grid that finds activity nobody thought to watch{cov && cov.gridPromoted ? ` (${cov.gridPromoted} grid cells have already been promoted for producing contacts)` : ""}. It keeps a
           <b> 90-day public archive</b>, and lets you replay any contact&rsquo;s recorded track on a
           map. Radars filter to <b>MIL / UAV</b> and flip between radar and real-geography views.
         </S>
