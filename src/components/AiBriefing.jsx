@@ -115,6 +115,10 @@ export default function AiBriefing({ days = 7 }) {
           <div style={{ color: C.faint, fontSize: 9, letterSpacing: 1, marginBottom: 2 }}>
             BUSIEST AT THE FIELD (&le;10nm, &lt;4,000ft)
           </div>
+          <div style={{ color: C.faint, fontSize: 9, marginBottom: 3, lineHeight: 1.4 }}>
+            Close AND low — consistent with using the runway. Different question from the local-airspace
+            ranking below, which counts any altitude within 25nm.
+          </div>
           {data.topField.slice(0, 5).map((r) => (
             <div key={r.site}>
               {r.site}: <b style={{ color: C.text }}>{r.terminal}</b> at the field
@@ -135,15 +139,15 @@ export default function AiBriefing({ days = 7 }) {
             {data.totals.contacts} aircraft · {data.totals.uav} UAV · {data.totals.military} military · {data.totals.sites} airspaces
             {data.top && data.top.length > 0 && (
               <div style={{ marginTop: 4 }}>
-                <div style={{ color: C.faint }}>
-                  busiest airfields — within {data.nearRadiusNm || 25}nm (→ within {data.sweepRadiusNm || 250}nm)
+                <div style={{ color: C.faint, fontSize: 9, letterSpacing: 1, marginBottom: 2 }}>
+                  BUSIEST LOCAL AIRSPACE — within {data.nearRadiusNm || 25}nm, ANY altitude
                 </div>
                 {((data.topNear && data.topNear.length ? data.topNear : data.top) || []).slice(0, 5).map((s) => (
                   <div key={s.site} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <span style={{ color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.site}</span>
-                    <span>
+                    <span style={{ color: C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.site}:</span>
+                    <span style={{ whiteSpace: "nowrap" }}>
                       <b style={{ color: C.text }}>{s.nearContacts != null ? s.nearContacts : "—"}</b>
-                      <span style={{ color: C.faint }}> of {s.contacts}</span>
+                      <span style={{ color: C.faint }}> within 25nm · {s.contacts} within 250nm</span>
                     </span>
                   </div>
                 ))}
