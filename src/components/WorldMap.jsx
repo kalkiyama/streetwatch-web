@@ -18,6 +18,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const roRef = useRef(null);
+  const advLayerRef = useRef(null);
   const advisoriesRef = useRef(advisories);
   advisoriesRef.current = advisories;
   const issMarkerRef = useRef(null);
@@ -150,6 +151,17 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
         .addTo(lg);
     });
   };
+
+  // Advisories live in their own layer group and are rebuilt ONLY when the data or the toggle
+  // changes — never on the live-data redraw cycle. Otherwise an open popup is destroyed with its
+  // rectangle a moment after it opens, which is exactly what "the banner disappears immediately"
+  // was: the click worked every time; the shape underneath it did not survive.
+  useEffect(() => {
+    const lg = advLayerRef.current;
+    if (!lg) return;
+    lg.clearLayers();
+    drawAdvisories(lg);
+  }, [advisories]);
 
   // --- activity heat: measured contact density per airspace, drawn beneath everything ---
   const drawHeat = (lg) => {
@@ -297,7 +309,6 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     const map = mapRef.current, lg = layerRef.current;
     if (!map || !lg) return;
     lg.clearLayers();
-    drawAdvisories(lg);
     drawHeat(lg);
     drawUsv(lg);
     drawSub(lg);
@@ -413,6 +424,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       Leaflet.control.zoom({ position: "topright" }).addTo(map);
       addBaseTiles(Leaflet, map);
       layerRef.current = Leaflet.layerGroup().addTo(map);
+      advLayerRef.current = Leaflet.layerGroup().addTo(map);
       mapRef.current = map;
       guardTouchScroll(map);
       map.on("moveend zoomend", () => drawRef.current());
