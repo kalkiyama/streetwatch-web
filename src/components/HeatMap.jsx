@@ -113,11 +113,11 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
           // missing feature; that exact mistake is how 344 became "at Eglin".
           (s.low25 != null
             ? `<span style="opacity:.85">by lowest altitude seen: ${s.low25} below 10,000ft · ${s.mid25} at 10–25,000ft · ${s.high25} above 25,000ft</span><br>` +
-              `<span style="opacity:.7">${s.terminal_contacts || 0} were within 10nm AND below 10,000ft — consistent with using this field rather than passing over it. Positions only: we never observe a landing.</span><br>`
+              `<span style="opacity:.7">${s.terminal_contacts || 0} ${(s.terminal_contacts === 1 ? "was" : "were")} within 10nm AND below 4,000ft — consistent with using this field rather than passing over it. Positions only: we never observe a landing.</span><br>`
             : "") +
           (pick.p != null
-            ? `${pick.p} position reports within ${radiusNm}nm, spanning ${s.span_hours || 0}h of recorded data<br>`
-            : `${s.points} position reports across the 250nm region, spanning ${s.span_hours || 0}h of recorded data<br>`) +
+            ? `${pick.p} position report${pick.p === 1 ? "" : "s"} within ${radiusNm}nm, spanning ${s.span_hours || 0}h of recorded data<br>`
+            : `${s.points} position report${s.points === 1 ? "" : "s"} across the 250nm region, spanning ${s.span_hours || 0}h of recorded data<br>`) +
           `<span style="opacity:.7">last seen ${new Date(s.last_seen).toLocaleString()}</span>`
         )
         .addTo(layer.current);
