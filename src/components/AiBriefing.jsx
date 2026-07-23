@@ -156,8 +156,23 @@ export default function AiBriefing({ days = 7 }) {
               </div>
             )}
             {data.risers && data.risers.length > 0 && (
-              <div style={{ marginTop: 4, color: "#F0553B" }}>
-                {data.risers.map((r) => <div key={r.site}>▲ {r.site}: {r.prev} → {r.now}</div>)}
+              <div style={{ marginTop: 8 }}>
+                {/* These were an unlabelled red list: no heading, no stated comparison, and — worst —
+                    they are 250nm REGIONAL counts, the exact ambiguity the rest of the app removes.
+                    A rise at Dover means its REGION got busier, not the base. Say all of that. */}
+                <div style={{ color: C.faint, fontSize: 9, letterSpacing: 1, marginBottom: 2 }}>
+                  RISING vs PREVIOUS {data.windowDays} {data.windowDays === 1 ? "DAY" : "DAYS"} · 250nm REGION
+                </div>
+                {data.risers.map((r) => (
+                  <div key={r.site} style={{ color: C.amber }}>
+                    ▲ {r.site}: {r.prev} → {r.now}
+                    <span style={{ opacity: 0.65 }}> ({r.now - r.prev > 0 ? "+" : ""}{r.now - r.prev})</span>
+                  </div>
+                ))}
+                <div style={{ color: C.faint, fontSize: 9, marginTop: 3, lineHeight: 1.5 }}>
+                  Regional counts within 250nm — a rise means the surrounding airspace was busier,
+                  not necessarily the base. More observation can also raise a count on its own.
+                </div>
               </div>
             )}
           </div>
