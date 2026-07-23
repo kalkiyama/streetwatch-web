@@ -98,6 +98,32 @@ export default function AiBriefing({ days = 7 }) {
         </div>
       )}
 
+      {data && !data.error && tab === "digest" && data.countries && data.countries.length > 0 && (
+        <div className="font-mono" style={{ fontSize: 10.5, color: C.dim, marginBottom: 8, lineHeight: 1.6 }}>
+          <div style={{ color: C.faint, fontSize: 9, letterSpacing: 1, marginBottom: 2 }}>BY COUNTRY</div>
+          {data.countries.slice(0, 6).map((c) => (
+            <div key={c.country}>
+              {c.country}: <b style={{ color: C.ink }}>{c.contacts}</b> aircraft · {c.sites} airspaces
+              {c.terminal > 0 ? ` · ${c.terminal} at a field` : ""}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {data && !data.error && tab === "digest" && data.topField && data.topField.length > 0 && (
+        <div className="font-mono" style={{ fontSize: 10.5, color: C.dim, marginBottom: 8, lineHeight: 1.6 }}>
+          <div style={{ color: C.faint, fontSize: 9, letterSpacing: 1, marginBottom: 2 }}>
+            BUSIEST AT THE FIELD (&le;10nm, &lt;4,000ft)
+          </div>
+          {data.topField.slice(0, 5).map((r) => (
+            <div key={r.site}>
+              {r.site}: <b style={{ color: C.ink }}>{r.terminal}</b> at the field
+              <span style={{ opacity: 0.6 }}> · {r.contacts} in the surrounding 250nm</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {data && !data.error && tab === "digest" && data.totals && (
         <>
           <div className="font-mono" style={{ fontSize: 10, color: C.dim, lineHeight: 1.8, marginBottom: 8 }}>
