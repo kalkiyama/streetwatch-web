@@ -136,7 +136,11 @@ export default function AiBriefing({ days = 7 }) {
               {data.archiveAgeHours != null && data.archiveAgeHours < data.windowDays * 24
                 ? ` (archive spans ${data.archiveAgeHours}h)` : ""}
             </div>
-            {data.totals.contacts} aircraft · {data.totals.uav} UAV · {data.totals.military} military · {data.totals.sites} airspaces
+            {data.totals.contacts} aircraft · {data.totals.uav} UAV · {data.totals.military} military
+            <div style={{ color: C.faint, fontSize: 9, marginTop: 2, lineHeight: 1.5 }}>
+              Recorded across {data.totals.sites} airspaces that produced contacts, out of the watched set.
+              This is what the watch SAW — not a worldwide total.
+            </div>
             {data.top && data.top.length > 0 && (
               <div style={{ marginTop: 4 }}>
                 <div style={{ color: C.faint, fontSize: 9, letterSpacing: 1, marginBottom: 2 }}>
