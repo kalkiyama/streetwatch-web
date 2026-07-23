@@ -370,7 +370,7 @@ export default function StreetWatch() {
         button:focus-visible,input:focus-visible{ outline:2px solid ${C.cyan}; outline-offset:2px; }
       `}</style>
 
-      <Intro open={introOpen} onClose={closeIntro} />
+      <Intro open={introOpen} onClose={closeIntro} feedCount={CATALOG.length} />
       <header className="flex items-center justify-between px-4 md:px-6 py-3" style={{ borderBottom: `1px solid ${C.line}` }}>
         <div className="flex items-center gap-2.5">
           <svg width="30" height="30" viewBox="0 0 64 64" aria-label="StreetWatch">

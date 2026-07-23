@@ -1,5 +1,7 @@
 import { X, Globe, Plane, Ship, Layers, Camera, Share2, Hand, Sparkles } from "lucide-react";
 import { C } from "../theme.js";
+import { useEffect, useState } from "react";
+import { BACKEND_URL } from "../config.js";
 
 // First-visit welcome + permanent guide (the "?" in the header).
 //
@@ -19,7 +21,27 @@ const S = ({ icon: Icon, color, title, children }) => (
   </div>
 );
 
-export default function Intro({ open, onClose }) {
+export default function Intro({ open, onClose, feedCount = null }) {
+  // Coverage figures are FETCHED, never typed. Hardcoding them meant the welcome screen quietly
+  // described an older, smaller product every time coverage grew. If the fetch fails we fall back
+  // to durable language ("1,000+") rather than a specific number that might now be wrong.
+  const [cov, setCov] = useState(null);
+  useEffect(() => {
+    if (!open || cov) return;
+    let alive = true;
+    fetch(`${BACKEND_URL}/api/drones`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive && j && j.sweep) setCov(j.sweep); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [open, cov]);
+
+  const airspaces = cov ? (cov.sites || 0) + (cov.deepCells || 0) : null;
+  const countries = cov && cov.countries ? cov.countries : null;
+  const airspaceText = airspaces ? airspaces.toLocaleString() : "1,000+";
+  const countryText = countries ? `${countries} countries` : "170+ countries";
+  const feedText = feedCount ? feedCount.toLocaleString() : "7,000+";
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 flex items-center justify-center p-4"
@@ -36,7 +58,7 @@ export default function Intro({ open, onClose }) {
               Welcome to <span style={{ color: C.amber }}>StreetWatch</span>
             </div>
             <div className="font-mono" style={{ fontSize: 11, color: C.faint, marginTop: 3, lineHeight: 1.5 }}>
-              One console for the living planet — 7,000+ public live feeds:
+              One console for the living planet — {feedText} public live feeds:
               flights, ships, weather satellites, webcams, wildlife and space,
               plus a military &amp; drone watch nobody else runs.
             </div>
@@ -49,7 +71,7 @@ export default function Intro({ open, onClose }) {
         </div>
 
         <S icon={Globe} color={C.cyan} title="World — find anything">
-          Search 7,000+ feeds (typos are fine), or tap <b>MAP</b> to browse the whole planet
+          Search {feedText} feeds (typos are fine), or tap <b>MAP</b> to browse the whole planet
           visually. Tap a cluster to zoom in; tap a dot to open it. Cyan dots are airports,
           blue rings are ports. Every filter — layer, region, search — updates the map live.
         </S>
@@ -63,7 +85,7 @@ export default function Intro({ open, onClose }) {
         </S>
 
         <S icon={Plane} color={C.amber} title="Drones — the watch">
-          A sweep patrols <b>1,000+ airspaces across 172 countries</b> around the clock, keeps a
+          A sweep patrols <b>{airspaceText} airspaces across {countryText}</b> around the clock, keeps a
           <b> 90-day public archive</b>, and lets you replay any contact&rsquo;s recorded track on a
           map. Radars filter to <b>MIL / UAV</b> and flip between radar and real-geography views.
         </S>
