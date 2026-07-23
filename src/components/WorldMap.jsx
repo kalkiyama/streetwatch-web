@@ -14,9 +14,11 @@ import { droneIcon, stationIcon } from "../mapIcons.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true }) {
+export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
+  const advisoriesRef = useRef(advisories);
+  advisoriesRef.current = advisories;
   const issMarkerRef = useRef(null);
   const [issPos, setIssPos] = useState(null);
   const showIssRef = useRef(showIss);
@@ -116,6 +118,37 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   selRef.current = selectedId;
   const centred = useRef(null);     // which feed the map is already centred on
 
+
+  // --- conflict-zone airspace advisories: official publications, drawn beneath everything ---
+  // Rendered as a hatched region rather than a solid "closed" block, because that is what the
+  // data is: an advisory issued BY an authority TO the operators it regulates, over an APPROXIMATE
+  // area. A solid red polygon labelled CLOSED would assert two things the source does not say.
+  const drawAdvisories = (lg) => {
+    const list = advisoriesRef.current;
+    if (!list || !list.length) return;
+    list.forEach((a) => {
+      if (!a.box) return;
+      Leaflet.rectangle(a.box, {
+        color: "#F0553B", weight: 1, dashArray: "5 4", fillColor: "#F0553B", fillOpacity: 0.07,
+      })
+        .bindPopup(
+          `<b>${a.region}</b><br><span style="opacity:.75">${a.fir || ""}</span>` +
+          `<table style="margin-top:6px;font-size:11px;border-collapse:collapse">` +
+          `<tr><td style="padding:1px 8px 1px 0;opacity:.6">Applies to</td><td><b>${a.appliesTo === "civil" ? "CIVIL aviation" : a.appliesTo}</b></td></tr>` +
+          `<tr><td style="padding:1px 8px 1px 0;opacity:.6">Binding on</td><td>${a.bindingOn}</td></tr>` +
+          `<tr><td style="padding:1px 8px 1px 0;opacity:.6">Reason</td><td>${a.reason}</td></tr>` +
+          `<tr><td style="padding:1px 8px 1px 0;opacity:.6">Authority</td><td>${a.authority}</td></tr>` +
+          `</table>` +
+          `<div style="margin-top:6px;font-size:10px;opacity:.7;line-height:1.4">` +
+          `Does NOT close the airspace to the overflown state's own aircraft, and does not bind ` +
+          `military flights. Area shown is approximate — the source document is authoritative.` +
+          (a.sourceChangedSinceCompiled ? `<br><b style="color:#F6A821">Source document has changed since this entry was compiled — verify.</b>` : "") +
+          `<br><a href="${a.source}" target="_blank" rel="noopener noreferrer" style="color:#37C46A">official source ↗</a>` +
+          `<br><b>NOT FOR FLIGHT PLANNING.</b></div>`
+        )
+        .addTo(lg);
+    });
+  };
 
   // --- activity heat: measured contact density per airspace, drawn beneath everything ---
   const drawHeat = (lg) => {
@@ -263,6 +296,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     const map = mapRef.current, lg = layerRef.current;
     if (!map || !lg) return;
     lg.clearLayers();
+    drawAdvisories(lg);
     drawHeat(lg);
     drawUsv(lg);
     drawSub(lg);

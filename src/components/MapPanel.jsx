@@ -17,10 +17,23 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   const [showFeeds, setShowFeeds] = useState(!isDrones);   // world leads with feeds; drones does not
   const [showLive, setShowLive] = useState(isDrones);      // drones leads with live contacts
   const [showHeat, setShowHeat] = useState(false);
+  const [showAdv, setShowAdv] = useState(false);
+  const [adv, setAdv] = useState(null);
   const [showUsv, setShowUsv] = useState(isDrones);
   const [showSub, setShowSub] = useState(isDrones);
   // If the tab changes while the map stays mounted, re-apply the per-tab defaults so the map
   // always leads with the right dataset (drones-> live contacts, world-> catalogue feeds).
+  // Advisories change on the order of days; fetch once when the layer is first switched on.
+  useEffect(() => {
+    if (!showAdv || adv) return;
+    let alive = true;
+    fetch(`${BACKEND_URL}/api/airspace/advisories`)
+      .then((r) => r.json())
+      .then((j) => { if (alive) setAdv(j); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [showAdv, adv]);
+
   const lastTab = useRef(tab);
   useEffect(() => {
     if (lastTab.current === tab) return;
@@ -114,6 +127,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
         <Layers size={11} color={C.faint} />
         {chip(showFeeds, "FEEDS", () => setShowFeeds(!showFeeds), C.cyan)}
         {chip(showLive, "LIVE DRONES", () => setShowLive(!showLive), "#C084FC")}
+        {chip(showAdv, "ADVISORIES", () => setShowAdv(!showAdv), "#F0553B")}
         {chip(showHeat, "ACTIVITY", () => setShowHeat(!showHeat), "#F6A821")}
         {chip(showUsv, "SEA DRONES", () => setShowUsv(!showUsv), "#2DD4BF")}
         {chip(showSub, "SUB SUPPORT", () => setShowSub(!showSub), "#F0553B")}
@@ -156,6 +170,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           heatRadius={heatRadius}
           heatMeta={heatMeta}
           showIss={!isDrones}
+          advisories={showAdv && adv ? adv.advisories : null}
         />
       </div>
 
