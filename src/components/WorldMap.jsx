@@ -17,6 +17,7 @@ const CELL_PX = 64;           // approximate cluster cell size on screen
 export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
+  const roRef = useRef(null);
   const advisoriesRef = useRef(advisories);
   advisoriesRef.current = advisories;
   const issMarkerRef = useRef(null);
@@ -416,9 +417,30 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       guardTouchScroll(map);
       map.on("moveend zoomend", () => drawRef.current());
       setTimeout(() => { try { map.invalidateSize(); draw(); } catch { /* not mounted */ } }, 200);
+
+      // Leaflet caches the container's size. When the pane is resized — dragging the list
+      // divider, rotating a phone, entering fullscreen — it keeps using the OLD dimensions, so
+      // its SVG overlay pane stays clipped to the old viewport and any vector drawn beyond it
+      // (advisory rectangles, heat circles, trails) simply vanishes. Nothing errors; the shapes
+      // are just outside a stale clip rect. invalidateSize() on every resize is the fix.
+      // Throttled to one call per frame so dragging the divider stays smooth.
+      if (typeof ResizeObserver !== "undefined") {
+        let queued = false;
+        const ro = new ResizeObserver(() => {
+          if (queued) return;
+          queued = true;
+          requestAnimationFrame(() => {
+            queued = false;
+            try { map.invalidateSize(); drawRef.current(); } catch { /* unmounted */ }
+          });
+        });
+        ro.observe(elRef.current);
+        roRef.current = ro;
+      }
     } catch { /* leaflet unavailable */ }
     return () => {
       try {
+        if (roRef.current) { roRef.current.disconnect(); roRef.current = null; }
         if (mapRef.current) { mapRef.current.off("moveend zoomend"); mapRef.current.remove(); mapRef.current = null; }
       } catch { /* already gone */ }
     };
