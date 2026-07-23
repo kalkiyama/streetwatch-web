@@ -70,10 +70,10 @@ export default function AiBriefing({ days = 7 }) {
         <div style={{ fontSize: 11.5, color: C.dim, lineHeight: 1.6 }}>
           <button onClick={() => run(tab, days)} className="flex items-center gap-1.5 px-3 py-1.5 rounded font-mono mb-2"
             style={{ fontSize: 11, color: "#0A0D12", background: "#C084FC", border: "none", fontWeight: 700 }}>
-            <Sparkles size={12} /> GENERATE {tab === "digest" ? "DIGEST" : "AIR ↔ SEA ANALYSIS"} · LAST {days} DAYS
+            <Sparkles size={12} /> GENERATE {tab === "digest" ? "DIGEST" : "AIR ↔ SEA ANALYSIS"} · LAST {days} {days === 1 ? "DAY" : "DAYS"}
           </button>
           {tab === "digest"
-            ? "A briefing on the watched airspaces. Each site is polled over a 250nm radius, so its figure counts aircraft across a region rather than at that base — a tighter 25nm count is shown alongside. Counts are computed from the archive; the summary is written from those counts."
+            ? "A briefing on the watched airspaces, grouped by country. Each site is polled over a 250nm radius, so that figure counts a whole region — a 25nm local count and a field-level count (within 10nm, below 4,000ft) are shown alongside, and bases are ranked by the field-level figure. All counts are computed from the archive; the summary only writes them up."
             : "Where air activity and marine contacts of interest occurred near each other in time and space. Co-occurrence only — no causal link is implied or observable from public data."}
         </div>
       )}
@@ -128,7 +128,7 @@ export default function AiBriefing({ days = 7 }) {
         <>
           <div className="font-mono" style={{ fontSize: 10, color: C.dim, lineHeight: 1.8, marginBottom: 8 }}>
             <div style={{ color: C.amber, letterSpacing: 1 }}>
-              COMPUTED · LAST {data.windowDays} DAYS
+              COMPUTED · LAST {data.windowDays} {data.windowDays === 1 ? "DAY" : "DAYS"}
               {data.archiveAgeHours != null && data.archiveAgeHours < data.windowDays * 24
                 ? ` (archive spans ${data.archiveAgeHours}h)` : ""}
             </div>
