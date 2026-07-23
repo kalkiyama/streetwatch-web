@@ -63,7 +63,7 @@ export default function Intro({ open, onClose }) {
         </S>
 
         <S icon={Plane} color={C.amber} title="Drones — the watch">
-          A sweep patrols <b>1,039 airspaces across 169 countries</b> around the clock, keeps a
+          A sweep patrols <b>1,000+ airspaces across 172 countries</b> around the clock, keeps a
           <b> 90-day public archive</b>, and lets you replay any contact&rsquo;s recorded track on a
           map. Radars filter to <b>MIL / UAV</b> and flip between radar and real-geography views.
         </S>
@@ -85,6 +85,14 @@ export default function Intro({ open, onClose }) {
           surveillance&rdquo;), and read a briefing on what changed across the watched airspaces.
           Everything is <b>computed first</b> — the AI only writes the English, the measured
           numbers are always shown beside it, and every AI output is labelled.
+        </S>
+
+        <S icon={Layers} color="#F0553B" title="Reading the maps">
+          <b>AT FIELD</b> ranks bases by aircraft seen within 10nm below 4,000ft — activity at the
+          runway itself, not the surrounding airspace. Those are very different numbers, and the
+          gap between them is usually the interesting part. <b>ADVISORIES</b> shows official
+          conflict-zone bulletins; they advise <i>civil</i> operators and never bind military
+          flights, so military traffic can legitimately appear inside airspace airlines avoid.
         </S>
 
         <S icon={Share2} color={C.dim} title="Share exactly what you see">
