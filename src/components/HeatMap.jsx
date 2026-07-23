@@ -124,11 +124,20 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
             const rows = ordered.map((r) => row(r.label, r.value, String(r.key) === String(radius)));
             if (s.low25 != null)
               rows.push(row("By lowest altitude (25nm)", `${s.low25} &lt;10k &middot; ${s.mid25} 10&ndash;25k &middot; ${s.high25} &gt;25k`, false));
-            rows.push(row("Records", `${s.points} position report${s.points === 1 ? "" : "s"} &middot; ${s.span_hours || 0}h span`, false));
+            const scopePts = radius === "field" ? s.terminal_points
+                           : radius === 25 ? s.p25
+                           : radius === 100 ? s.p100
+                           : s.points;
+            const scopeName = radius === "field" ? "&le;10nm, &lt;4,000ft" : `${radius}nm`;
+            if (scopePts != null)
+              rows.push(row(`Position reports (${scopeName})`,
+                `${scopePts} &middot; site recorded over ${s.span_hours || 0}h`, false));
             rows.push(row("Last seen", new Date(s.last_seen).toLocaleString(), false));
 
             return (
               `<b>${s.site}</b><br><span style="opacity:.7">${s.country || ""}</span>` +
+              `<div style="margin-top:3px;font-size:10px;opacity:.75">Window: last ${days} day${days === 1 ? "" : "s"}` +
+              `${ageH != null && ageH < days * 24 ? ` (archive holds ${ageH}h, so this is everything recorded)` : ""}</div>` +
               `<table style="margin-top:6px;font-size:11px;border-collapse:collapse">${rows.join("")}</table>` +
               `<div style="margin-top:6px;opacity:.65;font-size:10px;line-height:1.4">` +
               `This watch records MILITARY and UAV contacts only &mdash; civil traffic is never counted here. ` +
