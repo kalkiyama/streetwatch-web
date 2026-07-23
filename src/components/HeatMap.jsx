@@ -96,29 +96,45 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
         color: col, weight: 1.5, fillColor: col, fillOpacity: 0.35,
       })
         .bindPopup(
-          // The headline number counts a 250nm REGION. Saying "351 contacts" beside a base
-          // name reads as 351 aircraft at that base — which is how Findel, a civil airport
-          // ringed by military airspace, came to look like the sixth busiest site on earth.
-          `<b>${s.site}</b><br>${s.country || ""}<br>` +
-          (radius === "field"
-            ? `<b>${shown}</b> aircraft observed within 10nm and below 4,000ft — consistent with using this field<br>`
-            : `<b>${shown}</b> aircraft within ${radiusNm}nm · ${pick.u ?? s.uav} UAV · ${pick.m ?? s.military} military<br>`) +
-          (radius !== 250 && s.contacts != null
-            ? `<span style="opacity:.75">${s.contacts} within the full 250nm sweep radius</span><br>`
-            : s.near_contacts != null
-              ? `<b>${s.near_contacts}</b> of them within ${nearNm}nm of the site itself<br>`
-              : "") +
-          // If the per-radius count isn't in the payload yet (older backend), fall back to the
-          // region-wide figure — but LABEL IT AS REGION-WIDE. A wrong label is worse than a
-          // missing feature; that exact mistake is how 344 became "at Eglin".
-          (s.low25 != null
-            ? `<span style="opacity:.85">by lowest altitude seen: ${s.low25} below 10,000ft · ${s.mid25} at 10–25,000ft · ${s.high25} above 25,000ft</span><br>` +
-              `<span style="opacity:.7">${s.terminal_contacts || 0} ${(s.terminal_contacts === 1 ? "was" : "were")} within 10nm AND below 4,000ft — consistent with using this field rather than passing over it. Positions only: we never observe a landing.</span><br>`
-            : "") +
-          (pick.p != null
-            ? `${pick.p} position report${pick.p === 1 ? "" : "s"} within ${radiusNm}nm, spanning ${s.span_hours || 0}h of recorded data<br>`
-            : `${s.points} position report${s.points === 1 ? "" : "s"} across the 250nm region, spanning ${s.span_hours || 0}h of recorded data<br>`) +
-          `<span style="opacity:.7">last seen ${new Date(s.last_seen).toLocaleString()}</span>`
+          // Structured, not prose: one row per fact, each stated ONCE, widest area to tightest.
+          // The old version repeated the terminal figure in AT FIELD mode and read as a paragraph,
+          // which buried the very distinction the rows exist to make.
+          (() => {
+            // The row you selected leads. A table where the chosen figure sits third reads as
+            // "here are some numbers"; putting it first reads as "here is the answer, and here is
+            // the context that qualifies it".
+            const row = (label, value, lead) =>
+              `<tr><td style="padding:${lead ? 3 : 1}px 8px ${lead ? 3 : 1}px 0;opacity:${lead ? 0.95 : 0.6};white-space:nowrap;` +
+              `${lead ? "color:#C084FC;" : ""}">${label}</td>` +
+              `<td style="padding:${lead ? 3 : 1}px 0;font-weight:${lead ? 700 : 400};${lead ? "color:#C084FC;font-size:12px;" : ""}">${value}</td></tr>`;
+
+            const primary = [
+              { key: "field", label: "At the field (&le;10nm, &lt;4,000ft)", value: s.terminal_contacts != null ? `${s.terminal_contacts} aircraft` : null },
+              { key: 25,      label: "Within 25nm",                          value: s.c25 != null ? `${s.c25} aircraft` : null },
+              { key: 100,     label: "Within 100nm",                         value: s.c100 != null ? `${s.c100} aircraft` : null },
+              { key: 250,     label: "Within 250nm (full sweep)",            value: s.contacts != null ? `${s.contacts} aircraft` : null },
+            ].filter((r) => r.value != null);
+
+            // selected first, everything else in its natural tightest-to-widest order
+            const ordered = [
+              ...primary.filter((r) => String(r.key) === String(radius)),
+              ...primary.filter((r) => String(r.key) !== String(radius)),
+            ];
+
+            const rows = ordered.map((r) => row(r.label, r.value, String(r.key) === String(radius)));
+            if (s.low25 != null)
+              rows.push(row("By lowest altitude (25nm)", `${s.low25} &lt;10k &middot; ${s.mid25} 10&ndash;25k &middot; ${s.high25} &gt;25k`, false));
+            rows.push(row("Records", `${s.points} position report${s.points === 1 ? "" : "s"} &middot; ${s.span_hours || 0}h span`, false));
+            rows.push(row("Last seen", new Date(s.last_seen).toLocaleString(), false));
+
+            return (
+              `<b>${s.site}</b><br><span style="opacity:.7">${s.country || ""}</span>` +
+              `<table style="margin-top:6px;font-size:11px;border-collapse:collapse">${rows.join("")}</table>` +
+              `<div style="margin-top:6px;opacity:.65;font-size:10px;line-height:1.4">` +
+              `Positions only &mdash; never an observed landing. Counts are aircraft that broadcast ADS-B.` +
+              `</div>`
+            );
+          })()
         )
         .addTo(layer.current);
     });
