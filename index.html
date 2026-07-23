@@ -62,7 +62,7 @@
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
       "description": "A live console for the public planet: a 24/7 military and drone watch across 1,000+ airspaces with a 90-day public archive, plus 7,000+ public live feeds — flights, ships, weather satellites, webcams, wildlife and the ISS.",
       "featureList": [
-        "24/7 military & UAV sweep across 1,039 airspaces in 169 countries",
+        "24/7 military & UAV sweep across 1,000+ airspaces in 172 countries",
         "90-day public archive of military and drone tracks with map replay",
         "AI-assisted analysis: plain-English search, flight-profile explanation and activity briefings — computed from the archive, never invented",
         "Live flight radar with military/UAV filters",
@@ -77,30 +77,18 @@
     <div id="root">
       <!-- Crawlable content: replaced the moment the app hydrates, but this is what
            non-JS crawlers and slow connections see instead of an empty div. -->
-      <main style="font-family:system-ui,sans-serif;background:#0E1116;color:#E6EAF2;min-height:100vh;padding:40px 24px;max-width:720px;margin:0 auto">
-        <h1 style="font-size:24px">StreetWatch — a live console for the public planet</h1>
-        <p>Watch the world through <strong>7,000+ public live feeds</strong>: flight radar,
-        ship positions, weather satellites, public webcams, wildlife cameras and the ISS —
-        and a capability nobody else runs: a <strong>24/7 military &amp; drone watch</strong>
-        sweeping <strong>1,039 airspaces across 169 countries</strong>, with a
-        <strong>90-day public archive</strong> of every military and UAV contact, replayable
-        on a map.</p>
-        <h2 style="font-size:18px">What makes it different</h2>
-        <p>Honesty. Public data has hard edges — aircraft flying with transponders off are
-        invisible, submarines cannot be tracked by anyone because radio does not travel
-        through seawater, and marine AIS coverage varies by region. Where StreetWatch cannot
-        see, it says so, on every display and in every API response. Public feeds only;
-        never private cameras.</p>
-        <h2 style="font-size:18px">What you can do</h2>
-        <ul>
-          <li>Browse the whole catalog on a clustered world map with live drone, activity-heat, sea-drone and submarine-support layers</li>
-          <li>Open any airport's radar and filter to military or UAV traffic</li>
-          <li>Replay archived drone tracks over real geography with a timeline</li>
-          <li>Ask in plain English ("drone activity near the Black Sea last week") and get any archived track explained by AI-assisted analysis &mdash; every figure computed first, every AI summary labelled</li>
-          <li>See live ships in the Baltic and along the Norwegian coast from state-run open feeds</li>
-          <li>Find public webcams within 50&nbsp;km of anything</li>
-        </ul>
-        <p>Loading the live console… (StreetWatch needs JavaScript to display live data.)</p>
+      <!-- Crawlable fallback, replaced the instant the app hydrates. Kept SHORT: on a slow
+           connection this is the first thing a human sees, and a wall of text read as a bug
+           ("what is this random text screen?"). Enough for a non-JS crawler, brief enough to
+           look like a loading state. -->
+      <main style="font-family:system-ui,sans-serif;background:#0E1116;color:#E6EAF2;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px">
+        <h1 style="font-size:20px;letter-spacing:2px;margin:0 0 10px">STREETWATCH</h1>
+        <p style="max-width:460px;margin:0 0 18px;line-height:1.6;opacity:.85;font-size:14px">
+          A live console for the public planet — flights, ships, satellites, webcams, and a
+          24/7 military &amp; drone watch across 1,000+ airspaces with a 90-day public archive.
+          Public feeds only, and it states plainly what it cannot see.
+        </p>
+        <p style="font-size:12px;opacity:.55;margin:0">Loading the live console…</p>
       </main>
     </div>
     <script type="module" src="/src/main.jsx"></script>
