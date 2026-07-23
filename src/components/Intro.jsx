@@ -36,9 +36,12 @@ export default function Intro({ open, onClose, feedCount = null }) {
     return () => { alive = false; };
   }, [open, cov]);
 
-  const airspaces = cov ? (cov.sites || 0) + (cov.deepCells || 0) : null;
+  // cov.sites already CONTAINS the deep-grid cells, so never add deepCells to it.
+  const airspaces = cov && cov.sites ? cov.sites : null;
+  const named = cov && cov.namedSites ? cov.namedSites : null;
   const countries = cov && cov.countries ? cov.countries : null;
   const airspaceText = airspaces ? airspaces.toLocaleString() : "1,000+";
+  const namedText = named ? named.toLocaleString() : "300+";
   const countryText = countries ? `${countries} countries` : "170+ countries";
   const feedText = feedCount ? feedCount.toLocaleString() : "7,000+";
 
@@ -85,7 +88,7 @@ export default function Intro({ open, onClose, feedCount = null }) {
         </S>
 
         <S icon={Plane} color={C.amber} title="Drones — the watch">
-          A sweep patrols <b>{airspaceText} airspaces across {countryText}</b> around the clock, keeps a
+          A sweep patrols <b>{airspaceText} airspaces</b> around the clock — {namedText} named military airfields across {countryText}, plus a global grid that finds activity nobody thought to watch. It keeps a
           <b> 90-day public archive</b>, and lets you replay any contact&rsquo;s recorded track on a
           map. Radars filter to <b>MIL / UAV</b> and flip between radar and real-geography views.
         </S>
