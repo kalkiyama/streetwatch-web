@@ -103,6 +103,10 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
           // If the per-radius count isn't in the payload yet (older backend), fall back to the
           // region-wide figure — but LABEL IT AS REGION-WIDE. A wrong label is worse than a
           // missing feature; that exact mistake is how 344 became "at Eglin".
+          (s.terminal_contacts != null
+            ? `<b>${s.terminal_contacts}</b> observed low and close (within 10nm, below 10,000ft) — consistent with using this field<br>` +
+              `<span style="opacity:.7">${s.overflight_contacts || 0} were at cruise altitude overhead — transiting, not using it</span><br>`
+            : "") +
           (pick.p != null
             ? `${pick.p} position reports within ${radiusNm}nm, spanning ${s.span_hours || 0}h of recorded data<br>`
             : `${s.points} position reports across the 250nm region, spanning ${s.span_hours || 0}h of recorded data<br>`) +
