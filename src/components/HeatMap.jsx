@@ -109,10 +109,10 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
               `<td style="padding:${lead ? 3 : 1}px 0;font-weight:${lead ? 700 : 400};${lead ? "color:#C084FC;font-size:12px;" : ""}">${value}</td></tr>`;
 
             const primary = [
-              { key: "field", label: "At the field (&le;10nm, &lt;4,000ft)", value: s.terminal_contacts != null ? `${s.terminal_contacts} aircraft` : null },
-              { key: 25,      label: "Within 25nm",                          value: s.c25 != null ? `${s.c25} aircraft` : null },
-              { key: 100,     label: "Within 100nm",                         value: s.c100 != null ? `${s.c100} aircraft` : null },
-              { key: 250,     label: "Within 250nm (full sweep)",            value: s.contacts != null ? `${s.contacts} aircraft` : null },
+              { key: "field", label: "At the field (&le;10nm, &lt;4,000ft)", value: s.terminal_contacts != null ? `${s.terminal_contacts} military/UAV` : null },
+              { key: 25,      label: "Within 25nm",                          value: s.c25 != null ? `${s.c25} military/UAV${s.uav25 ? ` (${s.uav25} UAV)` : ""}` : null },
+              { key: 100,     label: "Within 100nm",                         value: s.c100 != null ? `${s.c100} military/UAV${s.uav100 ? ` (${s.uav100} UAV)` : ""}` : null },
+              { key: 250,     label: "Within 250nm (full sweep)",            value: s.contacts != null ? `${s.contacts} military/UAV${s.uav ? ` (${s.uav} UAV)` : ""}` : null },
             ].filter((r) => r.value != null);
 
             // selected first, everything else in its natural tightest-to-widest order
@@ -131,7 +131,8 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
               `<b>${s.site}</b><br><span style="opacity:.7">${s.country || ""}</span>` +
               `<table style="margin-top:6px;font-size:11px;border-collapse:collapse">${rows.join("")}</table>` +
               `<div style="margin-top:6px;opacity:.65;font-size:10px;line-height:1.4">` +
-              `Positions only &mdash; never an observed landing. Counts are aircraft that broadcast ADS-B.` +
+              `This watch records MILITARY and UAV contacts only &mdash; civil traffic is never counted here. ` +
+              `Positions only, never an observed landing. Only aircraft broadcasting ADS-B are visible.` +
               `</div>`
             );
           })()
