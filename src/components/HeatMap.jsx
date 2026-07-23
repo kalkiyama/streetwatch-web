@@ -19,6 +19,7 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
   const map = useRef(null);
   const layer = useRef(null);
   const [data, setData] = useState(null);
+  const [ageH, setAgeH] = useState(null);
   // Which radius the circles represent. 25nm ≈ the airfield and its immediate approaches;
   // 100nm ≈ its working airspace; 250nm ≈ the whole region the sweep polls.
   const [radius, setRadius] = useState(250);
@@ -30,7 +31,8 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
     setState("loading");
     fetch(`${BACKEND_URL}/api/drones/heat?days=${days}`)
       .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
-      .then((j) => { if (alive) { setData(j); setState("ok"); } })
+      .then((j) => { if (alive) { setData(j);
+        setAgeH(j.archiveAgeHours != null ? j.archiveAgeHours : null); setState("ok"); } })
       .catch((e) => { if (alive) setState(String(e.message) === "503" ? "off" : "error"); });
     return () => { alive = false; };
   }, [days]);
@@ -104,7 +106,7 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
           // region-wide figure — but LABEL IT AS REGION-WIDE. A wrong label is worse than a
           // missing feature; that exact mistake is how 344 became "at Eglin".
           (s.low25 != null
-            ? `<span style="opacity:.85">of those, by altitude: ${s.low25} below 10,000ft · ${s.mid25} at 10–25,000ft · ${s.high25} above 25,000ft</span><br>` +
+            ? `<span style="opacity:.85">by lowest altitude seen: ${s.low25} below 10,000ft · ${s.mid25} at 10–25,000ft · ${s.high25} above 25,000ft</span><br>` +
               `<span style="opacity:.7">${s.terminal_contacts || 0} were within 10nm AND below 10,000ft — consistent with using this field rather than passing over it. Positions only: we never observe a landing.</span><br>`
             : "") +
           (pick.p != null
@@ -135,14 +137,21 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
         <div className="flex items-center gap-1" style={{ flexWrap: "wrap" }}>
           {/* In normal view the archive tab's own selector drives `days` (shown twice was
               noise); in fullscreen that selector is buried, so the chips appear here instead. */}
-          {full && [1, 7, 30, 90].map((d) => (
-            <button key={d} onClick={() => setDays(d)} className="rounded font-mono"
-              style={{ fontSize: 8.5, padding: "3px 5px", color: days === d ? "#0A0D12" : C.amber,
-                background: days === d ? C.amber : "transparent",
-                border: `1px solid ${C.amber}66` }}>
-              {d}d
-            </button>
-          ))}
+          {full && [1, 7, 30, 90].map((d) => {
+            // A window longer than the archive cannot return more than the archive holds. Rather
+            // than let "90d" imply three months over a three-day-old archive, dim it and say what
+            // it will actually return.
+            const beyond = ageH != null && d * 24 > ageH;
+            return (
+              <button key={d} onClick={() => setDays(d)} className="rounded font-mono"
+                title={beyond ? `Archive holds ${ageH}h so far — this window returns everything recorded` : `Last ${d} days`}
+                style={{ fontSize: 8.5, padding: "3px 5px", color: days === d ? "#0A0D12" : C.amber,
+                  background: days === d ? C.amber : "transparent",
+                  border: `1px solid ${C.amber}66`, opacity: beyond && days !== d ? 0.45 : 1 }}>
+                {d}d
+              </button>
+            );
+          })}
           {full && <span style={{ width: 4 }} />}
           {[25, 100, 250].map((r) => (
             <button key={r} onClick={() => setRadius(r)} className="rounded font-mono"
@@ -161,6 +170,12 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
           </button>
         </div>
       </div>
+      {ageH != null && (
+        <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginBottom: 4, lineHeight: 1.5 }}>
+          Archive holds {ageH}h of recorded activity so far ({(ageH / 24).toFixed(1)} days).
+          {ageH < days * 24 ? ` The ${days}-day window therefore shows everything recorded, not ${days} full days.` : ""}
+        </div>
+      )}
       {state === "loading" && <div style={{ fontSize: 11, color: C.dim, paddingBottom: 6 }}>measuring activity…</div>}
       {state === "off" && <div style={{ fontSize: 11, color: C.dim, paddingBottom: 6 }}>No archive configured on this instance.</div>}
       {state === "error" && <div style={{ fontSize: 11, color: C.dim, paddingBottom: 6 }}>Activity map unavailable right now.</div>}
