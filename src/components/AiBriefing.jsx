@@ -103,7 +103,7 @@ export default function AiBriefing({ days = 7 }) {
           <div style={{ color: C.faint, fontSize: 9, letterSpacing: 1, marginBottom: 2 }}>BY COUNTRY</div>
           {data.countries.slice(0, 6).map((c) => (
             <div key={c.country}>
-              {c.country}: <b style={{ color: C.ink }}>{c.contacts}</b> aircraft · {c.sites} airspaces
+              {c.country}: <b style={{ color: C.text }}>{c.contacts}</b> aircraft · {c.sites} airspaces
               {c.terminal > 0 ? ` · ${c.terminal} at a field` : ""}
             </div>
           ))}
@@ -117,7 +117,7 @@ export default function AiBriefing({ days = 7 }) {
           </div>
           {data.topField.slice(0, 5).map((r) => (
             <div key={r.site}>
-              {r.site}: <b style={{ color: C.ink }}>{r.terminal}</b> at the field
+              {r.site}: <b style={{ color: C.text }}>{r.terminal}</b> at the field
               <span style={{ opacity: 0.6 }}> · {r.contacts} in the surrounding 250nm</span>
             </div>
           ))}
@@ -202,7 +202,7 @@ export default function AiBriefing({ days = 7 }) {
       {data && !data.error && (data.briefing || data.summary) && (
         <button onClick={() => {
             const lines = [];
-            lines.push(`StreetWatch — ${tab === "digest" ? "activity digest" : "air-sea co-occurrence analysis"} · last ${data.windowDays || days} days`);
+            lines.push(`StreetWatch — ${tab === "digest" ? "activity digest" : "air-sea co-occurrence analysis"} · last ${data.windowDays || days} day${(data.windowDays || days) === 1 ? "" : "s"}`);
             if (tab === "digest" && data.totals) lines.push(`${data.totals.contacts} aircraft · ${data.totals.uav} UAV · ${data.totals.military} military · ${data.totals.sites} airspaces`);
             ((data.topNear && data.topNear.length ? data.topNear : data.top) || []).slice(0, 5)
               .forEach((x) => lines.push(`  ${x.site}: ${x.nearContacts != null ? x.nearContacts + " within 25nm of " : ""}${x.contacts} within 250nm`));
