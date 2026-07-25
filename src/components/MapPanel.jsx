@@ -133,6 +133,15 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
         {chip(showSub, "SUB SUPPORT", () => setShowSub(!showSub), "#F0553B")}
       </div>
 
+      {showLive && (
+        <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginBottom: 5, lineHeight: 1.5 }}>
+          LIVE DRONES plots the <b>worldwide</b> sweep — every watched airspace, anything seen in the
+          selected window. A radar below plots only what is broadcasting <b>near that one site, right
+          now</b>. So contacts can appear here and not there: they are elsewhere on the planet, or were
+          seen earlier in the window.
+        </div>
+      )}
+
       {(showLive || showHeat) && (
         <div className="flex items-center gap-3 flex-wrap" style={{ marginBottom: 5 }}>
           {showLive && (
