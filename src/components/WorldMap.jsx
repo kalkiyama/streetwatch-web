@@ -460,7 +460,12 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
 
   // redraw when the DATA changes — not when a parent re-render hands us new function
   // identities, which would clear and rebuild every marker for no reason
-  useEffect(() => { drawRef.current(); }, [feeds, selectedId, liveContacts, heatSites, heatRadius, showFeeds]);
+  // Every input draw() reads must appear here, or toggling that layer changes nothing until some
+  // OTHER dependency happens to fire. usvContacts and subContacts were missing: switching SEA
+  // DRONES or SUB SUPPORT on fetched the data and passed it down, but no redraw was scheduled, so
+  // the contacts only appeared on the next zoom/pan (which redraws via the moveend handler).
+  useEffect(() => { drawRef.current(); },
+    [feeds, selectedId, liveContacts, heatSites, heatRadius, heatMeta, usvContacts, subContacts, showFeeds]);
 
   useEffect(() => {
     const map = mapRef.current; if (!map || !selectedId) return;
