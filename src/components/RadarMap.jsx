@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import Leaflet from "leaflet";
 import { planeIcon, droneIcon, shipIcon } from "../mapIcons.js";
+import { watchUserPan, keepInView } from "../mapFollow.js";
 import { addBaseTiles } from "../theme.js";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
@@ -68,6 +69,7 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
     ensureZoomStyle();
     Leaflet.control.zoom({ position: "topright" }).addTo(map.current);   // CSS recentres this to the middle-right edge
     addBaseTiles(Leaflet, map.current);
+    watchUserPan(map.current);   // following must never fight a deliberate pan
     layer.current = Leaflet.layerGroup().addTo(map.current);
       guardTouchScroll(map.current);
     setTimeout(() => map.current && map.current.invalidateSize(), 80);
@@ -137,6 +139,9 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
         markers.current.set(a.id, m);
       } else {
         m.setLatLng([a.lat, a.lon]);
+        // Keep the selected contact on screen as it moves. Without this you zoom in to watch
+        // something and it quietly leaves the viewport a minute later.
+        if (isSel) keepInView(map.current, [a.lat, a.lon]);
         if (m._key !== key) {           // only rebuild the icon when it would actually differ
           m.setIcon(iconFor(a, isSel));
           m.setZIndexOffset(isSel ? 1000 : 0);
