@@ -128,10 +128,17 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
                            : radius === 25 ? s.p25
                            : radius === 100 ? s.p100
                            : s.points;
-            const scopeName = radius === "field" ? "&le;10nm, &lt;4,000ft" : `${radius}nm`;
+            // The aircraft rows count DISTINCT aircraft; this one counts OBSERVATIONS. One
+            // aircraft seen on three sweep passes is 1 there and 3 here, which reads as a
+            // contradiction unless the row says so outright. State the relationship.
+            const scopeCount = radius === "field" ? s.terminal_contacts
+                             : radius === 25 ? s.c25
+                             : radius === 100 ? s.c100
+                             : s.contacts;
             if (scopePts != null)
-              rows.push(row(`Position reports (${scopeName})`,
-                `${scopePts} &middot; site recorded over ${s.span_hours || 0}h`, false));
+              rows.push(row("Sightings",
+                `${scopePts} report${scopePts === 1 ? "" : "s"} of those ${scopeCount} aircraft` +
+                ` &middot; recorded over ${s.span_hours || 0}h`, false));
             rows.push(row("Last seen", new Date(s.last_seen).toLocaleString(), false));
 
             return (
