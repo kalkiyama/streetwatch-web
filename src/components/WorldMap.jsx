@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
 import { LAYERS, heatColor, heatIntensity, addBaseTiles } from "../theme.js";
 import { droneIcon, stationIcon } from "../mapIcons.js";
+import { watchUserPan, keepInView } from "../mapFollow.js";
 
 // Viewport clustering, no extra dependency.
 //
@@ -67,6 +68,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
         .on("click", () => onSelectRef.current && onSelectRef.current("S-ISS"));
     } else {
       issMarkerRef.current.setLatLng([issPos.lat, issPos.lon]);
+      if (selRef.current === "S-ISS") keepInView(map, [issPos.lat, issPos.lon]);
     }
   }, [issPos, showIss]);
   const layerRef = useRef(null);
@@ -162,6 +164,17 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     lg.clearLayers();
     drawAdvisories(lg);
   }, [advisories]);
+
+  // Follow the selected live contact. Selecting centres the map once; without this the aircraft
+  // then flies off the edge and the one thing you asked to watch is the one you cannot see.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !selectedId) return;
+    const hit = (liveContacts || []).find((d) => d.id === selectedId)
+      || (usvContacts || []).find((v) => v.id === selectedId)
+      || (subContacts || []).find((v) => v.id === selectedId);
+    if (hit) keepInView(map, [hit.lat, hit.lon]);
+  }, [liveContacts, usvContacts, subContacts, selectedId]);
 
   // --- activity heat: measured contact density per airspace, drawn beneath everything ---
   const drawHeat = (lg) => {
@@ -427,6 +440,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       advLayerRef.current = Leaflet.layerGroup().addTo(map);
       mapRef.current = map;
       guardTouchScroll(map);
+      watchUserPan(map);   // so following never fights a deliberate pan
       map.on("moveend zoomend", () => drawRef.current());
       setTimeout(() => { try { map.invalidateSize(); draw(); } catch { /* not mounted */ } }, 200);
 
