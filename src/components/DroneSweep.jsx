@@ -322,6 +322,11 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
             <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
               {d.desc || d.typeCode || "unknown type"}
               {d.why ? ` · ${d.why}` : ""}
+              {d.posMethod ? (
+                <span style={{ color: d.posComputed ? "#F6A821" : C.faint }}>
+                  {` · pos: ${d.posMethod}`}
+                </span>
+              ) : ""}
               {(() => {
                 // Callsign conventions are a published naming scheme, not an identification.
                 // Shown with "callsign" so nobody reads it as a confirmed operator.
