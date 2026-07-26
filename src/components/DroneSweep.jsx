@@ -123,7 +123,7 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
 
   return (
     <div className="mx-4 mt-2 mb-1 rounded" style={{ background: "rgba(192,132,252,0.08)", border: "1px solid rgba(192,132,252,0.35)" }}>
-      <div className="px-3 py-2 flex items-center justify-between font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1 }}>
+      <div className="px-3 py-2 flex items-center justify-between font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1, flexWrap: "wrap", gap: 6 }}>
         <span className="flex items-center gap-1.5"><Radio size={11} /> GLOBAL SWEEP</span>
         <span className="flex items-center gap-1">
           <span className="flex rounded overflow-hidden" style={{ border: "1px solid rgba(192,132,252,0.45)" }}>

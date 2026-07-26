@@ -82,7 +82,7 @@ export default function RouteTrace({ days = 7 }) {
                     {` +${a.callsignChanges} more callsign${a.callsignChanges > 1 ? "s" : ""}`}
                   </span>
                 )}
-                <span style={{ display: "block", color: C.text, fontSize: 11, marginTop: 1 }}>
+                <span style={{ display: "block", color: C.text, fontSize: 11, marginTop: 1, overflowWrap: "anywhere" }}>
                   {a.route}
                 </span>
                 <span style={{ display: "block", color: C.faint, fontSize: 10, marginTop: 1 }}>
@@ -103,7 +103,8 @@ export default function RouteTrace({ days = 7 }) {
                     callsigns observed: {a.callsigns.join(" · ")}
                   </div>
                 )}
-                <table style={{ fontSize: 11, borderCollapse: "collapse", width: "100%" }}>
+                <div style={{ overflowX: "auto", maxWidth: "100%" }}>
+                <table style={{ fontSize: 11, borderCollapse: "collapse" }}>
                   <tbody>
                     {a.stops.map((s, i) => {
                       const ev = EVIDENCE[s.evidence] || EVIDENCE["single sighting"];
@@ -129,6 +130,7 @@ export default function RouteTrace({ days = 7 }) {
                     })}
                   </tbody>
                 </table>
+                </div>
                 <div style={{ fontSize: 9.5, color: C.faint, marginTop: 5, lineHeight: 1.5 }}>
                   Times are the observed span inside the terminal area — a lower bound, not a dwell
                   time. Neighbouring airfields under ~20nm apart can both register one approach.
