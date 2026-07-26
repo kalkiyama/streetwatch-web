@@ -218,7 +218,8 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       const disputed = d.confidence === "disputed";
       const hdg = Number.isFinite(d.track) ? d.track : (Number.isFinite(d.heading) ? d.heading : 0);
       Leaflet.marker([d.lat, d.lon], {
-        icon: droneIcon(Leaflet, { heading: hdg, color: col, size: 18, faint: disputed, selected: d.id === selRef.current }),
+        icon: droneIcon(Leaflet, { heading: hdg, color: col, size: 18, faint: disputed,
+          selected: d.id === selRef.current, estimated: !!d.posComputed }),
         interactive: true, keyboard: false,
       })
         .bindTooltip(
@@ -406,6 +407,12 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
         .addTo(lg);
     });
     drawLive(lg, onSelect, onOpenSighting);
+  // drawUsv/drawSub/drawHeat are plain functions rebuilt each render, so the linter wants them
+  // listed. Adding them would recreate `draw` on every render — which is harmless (it is
+  // immediately stored in drawRef and only ever invoked through that ref) but also pointless,
+  // and it obscures that this callback exists to capture the CURRENT selection and handlers.
+  // The rule is right in general; here the ref indirection is the deliberate design.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, onSelect, onOpenSighting]);
 
   // The map must be created ONCE. Depending on `draw` here re-created it on every parent
