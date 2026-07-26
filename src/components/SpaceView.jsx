@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Satellite } from "lucide-react";
-import { C, LAYERS } from "../theme.js";
+import { C } from "../theme.js";
 
 export default function SpaceView() {
   const [pos, setPos] = useState(null);

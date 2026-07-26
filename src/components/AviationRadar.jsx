@@ -3,7 +3,7 @@ import { SEL_GREEN } from "../mapIcons.js";
 import { Wifi, WifiOff, X } from "lucide-react";
 import { C } from "../theme.js";
 import RadarMap from "./RadarMap.jsx";
-import { BACKEND_URL, AIS_BACKEND_URL } from "../config.js";
+import { BACKEND_URL } from "../config.js";
 import { RAD, rnd } from "../geo.js";
 
 const altColor = (a) => a.onGround ? "#6B7280" : a.altFt == null ? C.dim

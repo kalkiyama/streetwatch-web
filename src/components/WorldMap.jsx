@@ -180,7 +180,6 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   const drawHeat = (lg) => {
     const sites = heatRef.current;
     if (!sites || !sites.length) return;
-    const RAMP = ["#3B82F6", "#8B5CF6", "#C084FC", "#F6A821", "#F87171"];
     const rNm = heatRadiusRef.current || 250;
     const pickC = (x) => ((rNm === 25 ? x.c25 : rNm === 100 ? x.c100 : x.contacts) ?? x.contacts);
     const pickP = (x) => ((rNm === 25 ? x.p25 : rNm === 100 ? x.p100 : x.points) ?? x.points);

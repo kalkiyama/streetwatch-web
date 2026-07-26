@@ -9,7 +9,7 @@ import { AIS_BACKEND_URL } from "./config.js";
 import WorldMap from "./components/WorldMap.jsx";
 import MapPanel from "./components/MapPanel.jsx";
 import NearbyCams from "./components/NearbyCams.jsx";
-import Frame, { useClock, LiveViewport, DataPreview } from "./components/FeedViewer.jsx";
+import { useClock, LiveViewport, DataPreview } from "./components/FeedViewer.jsx";
 import AviationRadar from "./components/AviationRadar.jsx";
 import { norm, fuzzyHit, budgetFor, words } from "./search.js";
 import MarineRadar from "./components/MarineRadar.jsx";
@@ -324,18 +324,6 @@ export default function StreetWatch() {
         </span>
       </button>
     );
-  };
-
-  const bounds = useMemo(() => {
-    const set = results.length ? results : CATALOG;
-    return { minLat: Math.min(...set.map((c) => c.lat)), maxLat: Math.max(...set.map((c) => c.lat)),
-             minLng: Math.min(...set.map((c) => c.lng)), maxLng: Math.max(...set.map((c) => c.lng)) };
-  }, [results]);
-  const plot = (c) => {
-    const { minLat, maxLat, minLng, maxLng } = bounds;
-    const nx = maxLng === minLng ? 0.5 : (c.lng - minLng) / (maxLng - minLng);
-    const ny = maxLat === minLat ? 0.5 : (c.lat - minLat) / (maxLat - minLat);
-    return { left: `${8 + nx * 84}%`, top: `${88 - ny * 76}%` };
   };
 
   const Preview = (selected && LAYERS[selected.layer].camera) ? LiveViewport : DataPreview;

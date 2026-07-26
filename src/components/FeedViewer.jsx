@@ -1,10 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { ExternalLink } from "lucide-react";
 import { C, LAYERS } from "../theme.js";
-import AviationRadar from "./AviationRadar.jsx";
-import MarineRadar from "./MarineRadar.jsx";
-import EarthView from "./EarthView.jsx";
-import SpaceView from "./SpaceView.jsx";
 
 export function useClock() {
   const [now, setNow] = useState(new Date());
