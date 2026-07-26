@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import Leaflet from "leaflet";
 import { planeIcon, droneIcon, shipIcon } from "../mapIcons.js";
 import { watchUserPan, keepInView } from "../mapFollow.js";
@@ -103,7 +103,9 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
 
   // Real silhouettes per kind, rotated to heading. Marine radar passes mode="sea" so its
   // contacts are ships; air radar draws drones vs aircraft by the contact's own flags.
-  const iconFor = (a, isSel) => {
+  // Memoised on `mode` — the only outer value it reads. Without this the function identity
+  // changed every render, so the draw effect could not honestly depend on it.
+  const iconFor = useCallback((a, isSel) => {
     // A moving contact rotates to its heading; a stationary/moored one (no heading) points
     // "up" rather than defaulting to a misleading sideways angle.
     const hasHdg = Number.isFinite(a.headingDeg);
@@ -115,10 +117,10 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
       const col = a.military ? "#F0553B" : a.isDrone ? "#C084FC" : "#2563EB";
       return shipIcon(Leaflet, { heading: rot, color: col, size, selected: isSel });
     }
-    if (a.isDrone) return droneIcon(Leaflet, { heading: rot, color: "#C084FC", size, faint: false, selected: isSel });
+    if (a.isDrone) return droneIcon(Leaflet, { heading: rot, color: "#C084FC", size, faint: false, selected: isSel, estimated: !!a.posComputed });
     const col = a.military ? "#F87171" : "#5AC8FA";
-    return planeIcon(Leaflet, { heading: rot, color: col, size, selected: isSel });
-  };
+    return planeIcon(Leaflet, { heading: rot, color: col, size, selected: isSel, estimated: !!a.posComputed });
+  }, [mode]);
 
   useEffect(() => {
     if (!map.current || !layer.current) return;
@@ -128,7 +130,9 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
       if (!Number.isFinite(a.lat) || !Number.isFinite(a.lon)) return;
       live.add(a.id);
       const isSel = a.id === sel;
-      const key = `${Math.round((a.headingDeg || 0) / 5)}|${isSel}|${a.isDrone}|${a.military}`;
+      // posComputed belongs in the key: a contact can switch from a broadcast fix to an MLAT
+      // estimate between updates, and without it the icon would keep its old solid style.
+      const key = `${Math.round((a.headingDeg || 0) / 5)}|${isSel}|${a.isDrone}|${a.military}|${!!a.posComputed}`;
       let m = markers.current.get(a.id);
 
       if (!m) {
@@ -170,7 +174,7 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
       const col = chosen.isDrone ? "#C084FC" : chosen.military ? "#F87171" : "#5AC8FA";
       trailRef.current = Leaflet.polyline(chosen.trail, { color: col, weight: 1.5, opacity: 0.6 }).addTo(layer.current);
     }
-  }, [contacts, sel, mode]);
+  }, [contacts, sel, mode, iconFor]);
 
   return <div ref={box} className="sw-radar-map" style={{ height, borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />;
 }
