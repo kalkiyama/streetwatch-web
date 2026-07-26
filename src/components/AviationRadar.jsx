@@ -279,6 +279,16 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
         ) : chosen ? (
           <span style={{ color: chosen.isDrone ? "#C084FC" : altColor(chosen), lineHeight: 1.5 }}>
             {chosen.isDrone ? "◇ UAV · " : ""}{chosen.callsign || chosen.id} · {chosen.typeCode || "—"} · {chosen.onGround ? "GND" : (chosen.altFt / 1000).toFixed(0) + "k ft"} · {chosen.groundSpeedKt}kt · {Math.round(chosen.headingDeg)}°
+            {chosen.posMethod && (
+              /* How this position was DERIVED. An MLAT estimate and a broadcast GPS fix are not the
+                 same claim, and until now they were displayed identically. */
+              <span style={{ display: "block", fontSize: 10, marginTop: 2,
+                color: chosen.posComputed ? "#F6A821" : C.faint }}>
+                position: {chosen.posMethod}
+                {chosen.posBasis ? ` · ${chosen.posBasis}` : ""}
+                {chosen.posDetail ? <span style={{ display: "block", opacity: 0.8 }}>{chosen.posDetail}</span> : null}
+              </span>
+            )}
             {(chosen.desc || chosen.registration || chosen.operator || chosen.military) && (
               <span style={{ display: "block", color: C.dim, fontSize: 10 }}>
                 {chosen.military && <b style={{ color: "#F87171" }}>MIL · </b>}
