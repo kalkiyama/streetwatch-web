@@ -72,6 +72,11 @@ export default function RouteTrace({ days = 7 }) {
       </div>
 
       <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5, marginBottom: 8 }}>
+        <b style={{ color: C.text }}>One airframe, several airfields.</b> Legs are linked by the
+        aircraft&rsquo;s <b style={{ color: C.text }}>ICAO address</b> — a permanent 24-bit identifier
+        tied to the airframe — <i>not</i> by callsign, which changes with each mission. That is why
+        one itinerary can carry several callsigns.
+        <span style={{ display: "block", marginTop: 4 }} />
         Aircraft seen <b style={{ color: C.text }}>{data.criteria ? data.criteria.split(" — ")[0] : "close and low"}</b> at two or more
         airfields over the last {days} day{days > 1 ? "s" : ""} — the trace a multi-leg run leaves.
         <span style={{ display: "block", color: C.faint, fontSize: 10, marginTop: 3 }}>
@@ -100,14 +105,13 @@ export default function RouteTrace({ days = 7 }) {
               {isOpen ? <ChevronDown size={12} style={{ color: "#C084FC", marginTop: 2, flexShrink: 0 }} />
                       : <ChevronRight size={12} style={{ color: "#C084FC", marginTop: 2, flexShrink: 0 }} />}
               <span className="flex-1" style={{ minWidth: 0 }}>
-                <span style={{ color: "#C084FC", fontSize: 12, fontWeight: 700 }}>{name}</span>
-                {a.callsignChanges > 0 && (
-                  /* The callsign is set per MISSION, not per airframe. Several across one itinerary
-                     is ordinary practice — reported as an observation, with no motive attached. */
-                  <span style={{ color: C.faint, fontSize: 10 }}>
-                    {` +${a.callsignChanges} more callsign${a.callsignChanges > 1 ? "s" : ""}`}
-                  </span>
-                )}
+                <span style={{ color: "#C084FC", fontSize: 12, fontWeight: 700, fontFamily: "ui-monospace, monospace" }}>
+                  {a.icao.toUpperCase()}
+                </span>
+                <span style={{ color: C.faint, fontSize: 10 }}>{"  airframe"}</span>
+                <span style={{ display: "block", color: C.text, fontSize: 11 }}>
+                  {a.callsigns && a.callsigns.length ? `flown as ${a.callsigns.join(", ")}` : name}
+                </span>
                 <span style={{ display: "block", color: C.text, fontSize: 11, marginTop: 1, overflowWrap: "anywhere" }}>
                   {a.route}
                 </span>
