@@ -19,7 +19,17 @@ const EVIDENCE = {
   "single sighting": { color: C.faint, label: "single",    hint: "one sweep caught it low and close — consistent with a stop, and equally consistent with an approach it flew away from" },
 };
 
+// The terminal criteria are a genuine trade-off, not a setting with a right answer: 10nm/4,000ft
+// catches more candidate stops and admits more ambiguity, 5nm/2,000ft is much closer to approach
+// geometry and yields fewer, firmer ones. Exposed as a choice because only the reader knows which
+// question they are asking.
+const PRECISION = [
+  { key: "wide",   label: "10nm / 4,000ft", nm: 10, alt: 4000, hint: "More candidate stops, more ambiguity — a low transit can look like a visit" },
+  { key: "strict", label: "5nm / 2,000ft",  nm: 5,  alt: 2000, hint: "Closer to real approach geometry: fewer stops, firmer evidence" },
+];
+
 export default function RouteTrace({ days = 7 }) {
+  const [precision, setPrecision] = useState("wide");
   const [data, setData] = useState(null);
   const [state, setState] = useState("idle");
   const [open, setOpen] = useState(null);
@@ -27,12 +37,13 @@ export default function RouteTrace({ days = 7 }) {
   useEffect(() => {
     let alive = true;
     setState("loading");
-    fetch(`${BACKEND_URL}/api/drones/multistop?days=${days}`)
+    const p = PRECISION.find((x) => x.key === precision) || PRECISION[0];
+    fetch(`${BACKEND_URL}/api/drones/multistop?days=${days}&nm=${p.nm}&alt=${p.alt}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j) => { if (alive) { setData(j); setState("ok"); } })
       .catch(() => { if (alive) setState("error"); });
     return () => { alive = false; };
-  }, [days]);
+  }, [days, precision]);
 
   if (state === "loading") {
     return <div className="px-3 pb-3 font-mono" style={{ fontSize: 11, color: C.dim }}>tracing routes across the archive…</div>;
@@ -46,12 +57,27 @@ export default function RouteTrace({ days = 7 }) {
 
   return (
     <div className="px-3 pb-3">
+      <div className="flex items-center gap-1.5 flex-wrap" style={{ marginBottom: 6 }}>
+        <span className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1 }}>COUNTS AS A STOP</span>
+        {PRECISION.map((x) => (
+          <button key={x.key} onClick={() => setPrecision(x.key)} title={x.hint}
+            className="rounded font-mono"
+            style={{ fontSize: 9, padding: "2px 6px", cursor: "pointer",
+              color: precision === x.key ? "#0A0E14" : "#C084FC",
+              background: precision === x.key ? "#C084FC" : "transparent",
+              border: "1px solid rgba(192,132,252,0.45)" }}>
+            {x.label}
+          </button>
+        ))}
+      </div>
+
       <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.5, marginBottom: 8 }}>
-        Aircraft seen <b style={{ color: C.text }}>within 10nm and below 4,000ft</b> at two or more
+        Aircraft seen <b style={{ color: C.text }}>{data.criteria ? data.criteria.split(" — ")[0] : "close and low"}</b> at two or more
         airfields over the last {days} day{days > 1 ? "s" : ""} — the trace a multi-leg run leaves.
         <span style={{ display: "block", color: C.faint, fontSize: 10, marginTop: 3 }}>
           Positions only, never an observed landing. A gap between stops means it was not seen in
           between, not that it flew directly. Ordered by how much of each route is well-evidenced.
+          Tightening the criteria removes stops that were never firm, not stops that stopped happening.
         </span>
       </div>
 
