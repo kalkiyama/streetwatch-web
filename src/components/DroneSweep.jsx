@@ -6,6 +6,7 @@ import PathMap from "./PathMap.jsx";
 import TrackNarrative from "./TrackNarrative.jsx";
 import AiBriefing from "./AiBriefing.jsx";
 import HeatMap from "./HeatMap.jsx";
+import RouteTrace from "./RouteTrace.jsx";
 import { BACKEND_URL } from "../config.js";
 
 // Planet-wide view of ADS-B category B6 (unmanned) contacts, aggregated
@@ -126,9 +127,9 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
         <span className="flex items-center gap-1.5"><Radio size={11} /> GLOBAL SWEEP</span>
         <span className="flex items-center gap-1">
           <span className="flex rounded overflow-hidden" style={{ border: "1px solid rgba(192,132,252,0.45)" }}>
-            {[["live", "LIVE"], ["archive", "ARCHIVE"], ["heat", "ACTIVITY"]].map(([m, label]) => (
+            {[["live", "LIVE"], ["archive", "ARCHIVE"], ["heat", "ACTIVITY"], ["routes", "ROUTES"]].map(([m, label]) => (
               <button key={m} onClick={() => { setMode(m); setTrack(null); }}
-                title={m === "live" ? "Contacts detected right now" : m === "archive" ? "Everything recorded over the last 90 days" : "Where activity concentrates, measured from the archive"}
+                title={m === "live" ? "Contacts detected right now" : m === "archive" ? "Everything recorded over the last 90 days" : m === "heat" ? "Where activity concentrates, measured from the archive" : "One aircraft across several airfields — the trace a multi-leg run leaves"}
                 style={{ fontSize: 9, padding: "2px 7px", border: "none",
                   background: mode === m ? "#C084FC" : "transparent", color: mode === m ? "#0A0E14" : "#C084FC" }}>
                 {label}
@@ -145,7 +146,9 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
             ? `${drones.length} aircraft now · ${((marine && marine.usv && marine.usv.count) || 0) + ((marine && marine.sub && marine.sub.count) || 0)} vessels of interest · ${(data && data.sweep && data.sweep.sites) || 0} airspaces`
             : mode === "heat"
               ? `Where activity concentrates over ${days} day${days > 1 ? "s" : ""} — tap a circle for detail`
-              : `${(hist && hist.count) || 0} recorded · archive keeps 90 days`}
+              : mode === "routes"
+                ? `One aircraft across several airfields over ${days} day${days > 1 ? "s" : ""} — tap to see each stop`
+                : `${(hist && hist.count) || 0} recorded · archive keeps 90 days`}
         </span>
       </div>
 
@@ -213,6 +216,8 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
         </div>
       )}
       {mode === "heat" && <HeatMap days={days} />}
+
+      {mode === "routes" && <RouteTrace days={days} />}
 
       {mode === "archive" && (
         <>
