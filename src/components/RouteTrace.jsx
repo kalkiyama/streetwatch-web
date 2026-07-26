@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Route, ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronRight, ChevronDown } from "lucide-react";
 import { C } from "../theme.js";
 import { BACKEND_URL } from "../config.js";
 
