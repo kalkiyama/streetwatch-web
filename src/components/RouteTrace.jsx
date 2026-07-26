@@ -151,7 +151,12 @@ export default function RouteTrace({ days = 7 }) {
                       <div className="font-mono" style={{ color: C.faint, fontSize: 10,
                         marginTop: 1, overflowWrap: "anywhere" }}>
                         {s.callsign || "no callsign recorded"}
-                        {" · "}{String(s.firstSeen).slice(11, 16)}&ndash;{String(s.lastSeen).slice(11, 16)}
+                        {/* DATE MATTERS. Showing only HH:MM over a 7-day window made a correct
+                            chronological sequence read as though it ran backwards — 22:56 then
+                            13:46 then 09:08 are three visits on three different days, but with no
+                            date the reader has no way to know that. */}
+                        {" · "}{new Date(s.firstSeen).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        {" "}{String(s.firstSeen).slice(11, 16)}&ndash;{String(s.lastSeen).slice(11, 16)}
                         {" · "}{s.observedMinutes}min
                         {" · "}{s.points} observation{s.points === 1 ? "" : "s"}
                       </div>
