@@ -123,19 +123,22 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
 
   return (
     <div>
+      <div className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginBottom: 3 }}>
+        LAYERS — stack any combination
+      </div>
       <div className="flex items-center gap-1.5 flex-wrap" style={{ marginBottom: 5 }}>
         <Layers size={11} color={C.faint} />
         {chip(showFeeds, "FEEDS", () => setShowFeeds(!showFeeds), C.cyan)}
-        {chip(showLive, "LIVE DRONES", () => setShowLive(!showLive), "#C084FC")}
+        {chip(showLive, "LIVE", () => setShowLive(!showLive), "#C084FC")}
         {chip(showAdv, "ADVISORIES", () => setShowAdv(!showAdv), "#F0553B")}
         {chip(showHeat, "ACTIVITY", () => setShowHeat(!showHeat), "#F6A821")}
-        {chip(showUsv, "SEA DRONES", () => setShowUsv(!showUsv), "#2DD4BF")}
-        {chip(showSub, "SUB SUPPORT", () => setShowSub(!showSub), "#F0553B")}
+        {chip(showUsv, "SEA", () => setShowUsv(!showUsv), "#2DD4BF")}
+        {chip(showSub, "SUB", () => setShowSub(!showSub), "#F0553B")}
       </div>
 
       {showLive && (
         <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginBottom: 5, lineHeight: 1.5 }}>
-          LIVE DRONES plots the <b>worldwide</b> sweep — every watched airspace, anything seen in the
+          LIVE plots the <b>worldwide</b> sweep — every watched airspace, anything seen in the
           selected window. A radar below plots only what is broadcasting <b>near that one site, right
           now</b>. So contacts can appear here and not there: they are elsewhere on the planet, or were
           seen earlier in the window.

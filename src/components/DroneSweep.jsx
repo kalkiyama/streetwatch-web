@@ -126,6 +126,7 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
       <div className="px-3 py-2 flex items-center justify-between font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1, flexWrap: "wrap", gap: 6 }}>
         <span className="flex items-center gap-1.5"><Radio size={11} /> GLOBAL SWEEP</span>
         <span className="flex items-center gap-1">
+          <span className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginRight: 4 }}>VIEW</span>
           <span className="flex rounded overflow-hidden" style={{ border: "1px solid rgba(192,132,252,0.45)" }}>
             {[["live", "LIVE"], ["archive", "ARCHIVE"], ["heat", "ACTIVITY"], ["routes", "ROUTES"]].map(([m, label]) => (
               <button key={m} onClick={() => { setMode(m); setTrack(null); }}
