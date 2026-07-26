@@ -141,6 +141,12 @@ export default function AiBriefing({ days = 7 }) {
                 ? ` (archive spans ${data.archiveAgeHours}h)` : ""}
             </div>
             {data.totals.contacts} aircraft · {data.totals.uav} UAV · {data.totals.military} military
+            {data.totals.bothKinds > 0 ? (
+              /* The two kinds are not a partition — classification is per observation, so an
+                 aircraft seen both ways lands in both counts. Say so rather than let the two
+                 numbers appear to add up to more aircraft than exist. */
+              <span style={{ color: C.faint }}>{` (${data.totals.bothKinds} classified as both)`}</span>
+            ) : null}
             <div style={{ color: C.faint, fontSize: 9, marginTop: 2, lineHeight: 1.5 }}>
               Recorded across {data.totals.sites} airspaces that produced contacts, out of the watched set.
               This is what the watch SAW — not a worldwide total.
