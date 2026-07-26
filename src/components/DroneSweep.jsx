@@ -183,6 +183,16 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
           </span>
         </div>
       )}
+      {/* Only shown when running on a FALLBACK upstream. Silent when normal, because a notice that
+          is always on is wallpaper. A different provider means a different receiver network, so
+          coverage differs — "nothing visible here" means something different, and that has to be
+          said rather than quietly absorbed. */}
+      {mode === "live" && state === "ok" && data.upstream && data.upstream !== "airplanes.live" && (
+        <div className="px-3 pb-1.5" style={{ fontSize: 10, color: "#F6A821", lineHeight: 1.5 }}>
+          Serving from fallback source <b>{data.upstream}</b> — the primary feed is unavailable.
+          Coverage differs between receiver networks, so counts may not match earlier readings.
+        </div>
+      )}
       {mode === "live" && state === "ok" && data.sweep && data.sweep.cycles === 0 && (
         <div className="px-3 pb-1.5" style={{ fontSize: 10, color: C.dim }}>
           First sweep in progress — {data.sweep.visited}/{data.sweep.passSize || data.sweep.sites} airspaces checked this pass.
