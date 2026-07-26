@@ -103,34 +103,35 @@ export default function RouteTrace({ days = 7 }) {
                     callsigns observed: {a.callsigns.join(" · ")}
                   </div>
                 )}
-                <div style={{ overflowX: "auto", maxWidth: "100%" }}>
-                <table style={{ fontSize: 11, borderCollapse: "collapse" }}>
-                  <tbody>
-                    {a.stops.map((s, i) => {
-                      const ev = EVIDENCE[s.evidence] || EVIDENCE["single sighting"];
-                      return (
-                        <tr key={i}>
-                          <td style={{ padding: "2px 8px 2px 0", color: C.text, whiteSpace: "nowrap" }}>
-                            {s.site}
-                          </td>
-                          <td style={{ padding: "2px 8px 2px 0", color: C.faint, whiteSpace: "nowrap" }}>
-                            {s.callsign || "—"}
-                          </td>
-                          <td style={{ padding: "2px 8px 2px 0", color: C.faint, whiteSpace: "nowrap" }}>
-                            {String(s.firstSeen).slice(11, 16)}–{String(s.lastSeen).slice(11, 16)}
-                          </td>
-                          <td style={{ padding: "2px 8px 2px 0", color: C.faint, whiteSpace: "nowrap" }}>
-                            {s.observedMinutes}min · {s.points}pt{s.points === 1 ? "" : "s"}
-                          </td>
-                          <td style={{ padding: "2px 0", color: ev.color, whiteSpace: "nowrap" }} title={ev.hint}>
-                            {ev.label}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                </div>
+                {/* Stacked, not tabular. A five-column nowrap table cannot fit the resizable
+                    panel at its narrower widths, and the horizontal scroll that hid the overflow
+                    was itself invisible on macOS until you happened to scroll — content silently
+                    cut off with no cue it existed. Two wrapping lines per stop always fit. */}
+                {a.stops.map((s, i) => {
+                  const ev = EVIDENCE[s.evidence] || EVIDENCE["single sighting"];
+                  return (
+                    <div key={i} style={{ marginBottom: 6, paddingLeft: 8,
+                      borderLeft: `2px solid ${ev.color}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between",
+                        alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ color: C.text, fontSize: 11.5, overflowWrap: "anywhere" }}>
+                          {s.site}
+                        </span>
+                        <span style={{ color: ev.color, fontSize: 10, whiteSpace: "nowrap" }}
+                          title={ev.hint}>
+                          {ev.label}
+                        </span>
+                      </div>
+                      <div className="font-mono" style={{ color: C.faint, fontSize: 10,
+                        marginTop: 1, overflowWrap: "anywhere" }}>
+                        {s.callsign || "no callsign recorded"}
+                        {" · "}{String(s.firstSeen).slice(11, 16)}&ndash;{String(s.lastSeen).slice(11, 16)}
+                        {" · "}{s.observedMinutes}min
+                        {" · "}{s.points} observation{s.points === 1 ? "" : "s"}
+                      </div>
+                    </div>
+                  );
+                })}
                 <div style={{ fontSize: 9.5, color: C.faint, marginTop: 5, lineHeight: 1.5 }}>
                   Times are the observed span inside the terminal area — a lower bound, not a dwell
                   time. Neighbouring airfields under ~20nm apart can both register one approach.
