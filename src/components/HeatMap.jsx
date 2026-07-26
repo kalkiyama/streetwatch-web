@@ -107,7 +107,7 @@ export default function HeatMap({ days: initialDays = 7 }) {
               `<td style="padding:${lead ? 3 : 1}px 0;font-weight:${lead ? 700 : 400};${lead ? "color:#C084FC;font-size:12px;" : ""}">${value}</td></tr>`;
 
             const primary = [
-              { key: "field", label: "At the field (&le;10nm, &lt;4,000ft)", value: s.terminal_contacts != null ? `${s.terminal_contacts} military/UAV` : null },
+              { key: "field", label: "Low and close to this site (&le;10nm, &lt;4,000ft)", value: s.terminal_contacts != null ? `${s.terminal_contacts} military/UAV` : null },
               { key: 25,      label: "Within 25nm",                          value: s.c25 != null ? `${s.c25} military/UAV${s.uav25 ? ` (${s.uav25} UAV)` : ""}` : null },
               { key: 100,     label: "Within 100nm",                         value: s.c100 != null ? `${s.c100} military/UAV${s.uav100 ? ` (${s.uav100} UAV)` : ""}` : null },
               { key: 250,     label: "Within 250nm (full sweep)",            value: s.contacts != null ? `${s.contacts} military/UAV${s.uav ? ` (${s.uav} UAV)` : ""}` : null },
@@ -144,7 +144,14 @@ export default function HeatMap({ days: initialDays = 7 }) {
               `<div style="margin-top:3px;font-size:10px;opacity:.75">Window: last ${days} day${days === 1 ? "" : "s"}` +
               `${ageH != null && ageH < days * 24 ? ` (archive holds ${ageH}h, so this is everything recorded)` : ""}</div>` +
               `<table style="margin-top:6px;font-size:11px;border-collapse:collapse">${rows.join("")}</table>` +
+              (s.nearbySites && s.nearbySites.length
+                ? `<div style="margin-top:6px;font-size:10px;line-height:1.45;color:#F6A821">` +
+                  `&#9888; ${s.nearbySites.map((x) => `${x.site} is ${x.nm}nm away`).join("; ")}. ` +
+                  `Their terminal areas overlap, so a contact counted here could have been operating there.` +
+                  `</div>`
+                : "") +
               `<div style="margin-top:6px;opacity:.65;font-size:10px;line-height:1.4">` +
+              `Distances are measured to this WATCHED SITE, not to the nearest airfield &mdash; other airfields may lie inside the radius and are not counted separately. ` +
               `This watch records MILITARY and UAV contacts only &mdash; civil traffic is never counted here. ` +
               `Positions only, never an observed landing. Only aircraft broadcasting ADS-B are visible.` +
               `</div>`
@@ -193,7 +200,7 @@ export default function HeatMap({ days: initialDays = 7 }) {
           })}
           {full && <span style={{ width: 4 }} />}
           <button onClick={() => setRadius("field")} className="rounded font-mono"
-            title="Rank by aircraft observed within 10nm and below 4,000ft — activity at the field itself, not the airspace around it"
+            title="Rank by aircraft observed within 10nm and below 4,000ft of this watched site. Other airfields may lie inside that radius, so this measures proximity to the site rather than use of this particular base."
             style={{ fontSize: 8.5, padding: "3px 5px", color: radius === "field" ? "#0A0D12" : "#37C46A",
               background: radius === "field" ? "#37C46A" : "transparent",
               border: "1px solid rgba(55,196,106,0.5)" }}>
@@ -229,7 +236,7 @@ export default function HeatMap({ days: initialDays = 7 }) {
         borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />
       <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginTop: 4, lineHeight: 1.5 }}>
         {radius === "field"
-          ? "Colour ranks sites by aircraft seen within 10nm below 4,000ft — activity at the field itself."
+          ? "Colour ranks sites by aircraft seen within 10nm below 4,000ft of the watched site. Other airfields can lie inside that radius, so this is proximity to the site, not confirmed use of this base."
           : `Colour ranks sites by contacts within ${radius}nm — that is the airspace, not the field. Use AT FIELD to rank by aircraft that actually came low and close.`}
       </div>
       {scaleMax != null && (

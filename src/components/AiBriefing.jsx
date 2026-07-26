@@ -125,7 +125,7 @@ export default function AiBriefing({ days = 7 }) {
           </div>
           {data.topField.slice(0, 5).map((r) => (
             <div key={r.site}>
-              {r.site}: <b style={{ color: C.text }}>{r.terminal}</b> at the field
+              {r.site}: <b style={{ color: C.text }}>{r.terminal}</b> low and close
               <span style={{ opacity: 0.6 }}> · {r.contacts} in the surrounding 250nm</span>
             </div>
           ))}
