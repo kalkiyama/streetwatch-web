@@ -41,6 +41,10 @@ export default function AiBriefing({ days = 7 }) {
 
   // If the user changes the look-back after generating, regenerate for the new window —
   // otherwise the panel would silently show analysis for a window they no longer have selected.
+  // Deliberately depends on `days` ONLY. Adding `state`/`tab` would re-fire when state becomes
+  // "done" — which run() itself sets — producing an endless regenerate loop. The rule is right
+  // in general and wrong here, so it is silenced with the reason rather than obeyed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (state === "done") run(tab, days);}, [days]);
 
   return (

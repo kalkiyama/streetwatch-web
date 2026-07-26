@@ -10,7 +10,7 @@ import { BACKEND_URL } from "../config.js";
 // archive. Colour and size come from observed contact counts — not from any outside
 // claim about where a conflict is.
 
-export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620px)" }) {
+export default function HeatMap({ days: initialDays = 7 }) {
   // The look-back selector must live INSIDE this component: in fullscreen the HeatMap div is
   // the only thing above the overlay, so any controls rendered by the parent are buried.
   const [days, setDays] = useState(initialDays);
@@ -88,8 +88,6 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
       const maxAt = (data.maxByRadius && data.maxByRadius[radius]) || data.maxContacts || 2;
       if (scaleMaxRef.current !== maxAt) { scaleMaxRef.current = maxAt; setScaleMax(maxAt); }
       const t = heatIntensity(shown, maxAt);
-      const radiusNm = radius === "field" ? 10 : radius;
-      const nearNm = data.nearRadiusNm || 25;
       const col = heatColor(t);
       Leaflet.circleMarker([s.lat, s.lon], {
         radius: 5 + t * 16,
@@ -156,7 +154,9 @@ export default function HeatMap({ days: initialDays = 7, height = "min(68vh, 620
         .addTo(layer.current);
     });
     setTimeout(() => map.current && map.current.invalidateSize(), 60);
-  }, [data, radius]);
+    // days/ageH are PRINTED in the popups, so a change to either must redraw them. Relying on
+    // `data` changing is indirect and breaks when a fetch fails or is still in flight.
+  }, [data, radius, days, ageH]);
 
   // Fullscreen must sit ABOVE everything else the app renders. The page behind contains other
   // Leaflet maps whose panes and controls run z 400-1000, and our own radar overlay bars sit at

@@ -289,7 +289,7 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
       {mode === "live" && state === "ok" && vessels.map((v) => (
         <button key={v.id} onClick={() => onOpenVessel && onOpenVessel(v)}
           className="w-full text-left px-3 py-2 flex items-center gap-2"
-          style={{ borderTop: "1px solid rgba(192,132,252,0.18)", background: "transparent", border: "none", borderTop: "1px solid rgba(192,132,252,0.18)", cursor: "pointer" }}>
+          style={{ background: "transparent", border: "none", borderTop: "1px solid rgba(192,132,252,0.18)", cursor: "pointer" }}>
           <span style={{ color: kind === "usv" ? "#2DD4BF" : "#F0553B", fontSize: 12, fontWeight: 700, minWidth: 74 }}>
             {v.name || v.id}
             <span style={{ display: "block", fontSize: 8, opacity: 0.75 }}>

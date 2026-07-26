@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { CloudSun, Satellite, SignalHigh } from "lucide-react";
-import { C, LAYERS } from "../theme.js";
+import { CloudSun, SignalHigh } from "lucide-react";
+import { C } from "../theme.js";
 
 const GIBS_LAYERS = [
   { id: "MODIS_Terra_CorrectedReflectance_TrueColor", label: "Terra" },
