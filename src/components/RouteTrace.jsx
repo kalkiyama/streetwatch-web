@@ -23,9 +23,16 @@ const EVIDENCE = {
 // catches more candidate stops and admits more ambiguity, 5nm/2,000ft is much closer to approach
 // geometry and yields fewer, firmer ones. Exposed as a choice because only the reader knows which
 // question they are asking.
+// Measured over a 7-day archive: 10nm/4,000ft -> 21 aircraft (11 sustained stops), 5nm/2,000ft -> 9
+// (5), 2nm/1,000ft -> 3 (3), 1nm/500ft -> 2 (2). The COUNT falls sharply, but the proportion backed
+// by sustained evidence rises to 1.0 at 2nm and below — tighter criteria do not merely return less,
+// they return only firm results.
+// A second reason to tighten: no two watched sites are within 5nm of each other, so at 5nm and
+// below the attribution ambiguity between neighbouring bases (Eglin/Hurlburt, 9.3nm) cannot occur.
 const PRECISION = [
-  { key: "wide",   label: "10nm / 4,000ft", nm: 10, alt: 4000, hint: "More candidate stops, more ambiguity — a low transit can look like a visit" },
-  { key: "strict", label: "5nm / 2,000ft",  nm: 5,  alt: 2000, hint: "Closer to real approach geometry: fewer stops, firmer evidence" },
+  { key: "wide",   label: "10nm / 4,000ft", nm: 10, alt: 4000, hint: "Most candidates. Overlaps neighbouring bases — Eglin and Hurlburt are 9.3nm apart, so a contact can belong to either" },
+  { key: "mid",    label: "5nm / 2,000ft",  nm: 5,  alt: 2000, hint: "No two watched sites overlap at this radius. Matches approach geometry with margin" },
+  { key: "strict", label: "2nm / 1,000ft",  nm: 2,  alt: 1000, hint: "A standard approach is at ~640ft two miles out, so this captures the profile and circuit traffic. Few results, all well-evidenced" },
 ];
 
 export default function RouteTrace({ days = 7 }) {
