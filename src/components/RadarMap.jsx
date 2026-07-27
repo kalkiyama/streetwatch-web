@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import Leaflet from "leaflet";
 import { planeIcon, droneIcon, shipIcon } from "../mapIcons.js";
 import { watchUserPan, keepInView } from "../mapFollow.js";
-import { addBaseTiles } from "../theme.js";
+import { addBaseTiles, addSeamarks } from "../theme.js";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
 
@@ -69,12 +69,14 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
     ensureZoomStyle();
     Leaflet.control.zoom({ position: "topright" }).addTo(map.current);   // CSS recentres this to the middle-right edge
     addBaseTiles(Leaflet, map.current);
+    // Marine view only: nautical context under the contacts. Blank below z9 by design.
+    if (mode === "sea") addSeamarks(Leaflet, map.current);
     watchUserPan(map.current);   // following must never fight a deliberate pan
     layer.current = Leaflet.layerGroup().addTo(map.current);
       guardTouchScroll(map.current);
     setTimeout(() => map.current && map.current.invalidateSize(), 80);
     return () => { if (map.current) { map.current.remove(); map.current = null; } };
-  }, [center.lat, center.lng]);
+  }, [center.lat, center.lng, mode]);
 
   // range ring + centre, refitted when the radius changes
   useEffect(() => {
