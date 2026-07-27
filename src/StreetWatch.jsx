@@ -699,7 +699,8 @@ export default function StreetWatch() {
           <a href="https://worldview.earthdata.nasa.gov" target="_blank" rel="noreferrer" style={{ color: C.dim }}>NASA</a> ·{" "}
           <a href="https://wheretheiss.at" target="_blank" rel="noreferrer" style={{ color: C.dim }}>wheretheiss.at</a> ·{" "}
           <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" style={{ color: C.dim }}>© OpenStreetMap</a> ·{" "}
-          <a href="https://carto.com/attributions" target="_blank" rel="noreferrer" style={{ color: C.dim }}>© CARTO</a>
+          <a href="https://www.esri.com/en-us/legal/terms/data-attributions" target="_blank" rel="noreferrer" style={{ color: C.dim }}>Esri</a> ·{" "}
+          <a href="https://www.openseamap.org" target="_blank" rel="noreferrer" style={{ color: C.dim }}>OpenSeaMap</a>
         </span>
         <span>PUBLIC FEEDS ONLY · © 2026 STREETWATCH · v1.0</span>
       </footer>

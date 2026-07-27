@@ -63,6 +63,33 @@ export const LABEL_TILE_URL = "https://server.arcgisonline.com/ArcGIS/rest/servi
 export const TILE_ATTR = "Esri, HERE, Garmin, © OpenStreetMap contributors";
 export const TILE_MAX_ZOOM = 16;
 
+// OpenSeaMap seamark overlay — buoys, beacons, lights, harbours, navigation lines. A
+// TRANSPARENT overlay, so it composites onto the Esri basemap rather than replacing it, and it
+// works in plain Leaflet: no MapLibre, no vector tiles, no key.
+//
+// TWO THINGS TO KNOW BEFORE READING IT AS COVERAGE:
+// 1. Seamarks only render from roughly z9 upward. At world or continent zoom the layer is
+//    legitimately blank — that is the zoom level, NOT an absence of marks. Same standing rule
+//    as everywhere else: empty means "not rendered here", never "nothing there".
+// 2. The tiles are community-run and donation-funded, not a commercial CDN. They can be slow or
+//    briefly unavailable. errorTileUrl is set to a transparent pixel so a failed tile leaves the
+//    basemap clean instead of showing a broken-image box over the water.
+export const SEAMARK_TILE_URL = "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png";
+export const SEAMARK_ATTR = "Sea marks © OpenSeaMap contributors";
+export const SEAMARK_MIN_ZOOM = 9;
+const BLANK_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
+// Returns the layer so a caller can remove() it; callers that never toggle can ignore it.
+export function addSeamarks(Leaflet, map) {
+  return Leaflet.tileLayer(SEAMARK_TILE_URL, {
+    attribution: SEAMARK_ATTR,
+    minZoom: SEAMARK_MIN_ZOOM,
+    maxZoom: TILE_MAX_ZOOM,
+    opacity: 0.9,
+    errorTileUrl: BLANK_PNG,
+  }).addTo(map);
+}
+
 export function addBaseTiles(Leaflet, map) {
   Leaflet.tileLayer(BASE_TILE_URL, { attribution: TILE_ATTR, maxZoom: TILE_MAX_ZOOM }).addTo(map);
   Leaflet.tileLayer(LABEL_TILE_URL, { maxZoom: TILE_MAX_ZOOM, pane: "shadowPane" }).addTo(map);
