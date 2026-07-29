@@ -94,6 +94,11 @@ export default function StreetWatch() {
   const [viewRadius, setViewRadius] = useState(null);
   const [viewSel, setViewSel] = useState(null);
   const [pendingSel, setPendingSel] = useState(null);
+  // A watched site with no catalog feed, synthesised in openSighting. Held in state because
+  // `selected` resolves selectedId back through CATALOG, so a synthetic id would otherwise fall
+  // through to results[0] and open the wrong place — a tap that does the WRONG thing rather than
+  // nothing, which is worse. Same shape as the ME-AV / ME-MR cases below.
+  const [siteFeed, setSiteFeed] = useState(null);
   const [pendingSelInfo, setPendingSelInfo] = useState(null);
   // Natural-language search: Claude turns the sentence into a FILTER, which is shown back to
   // the user and executed by existing code. The model never sees or returns feed data.
@@ -176,7 +181,19 @@ export default function StreetWatch() {
   const openSighting = useCallback((d) => {
     const feed = CATALOG.find((c) => c.tag === "uav" && c.name.endsWith(d.site))
       || CATALOG.find((c) => c.tag === "uav" && Math.hypot(c.lat - (d.siteLat || 0), c.lng - (d.siteLon || 0)) < 0.5);
-    if (!feed) return;
+    // A TAP MUST NEVER DO NOTHING. There are 240 uav feeds against 1,103 watched sites, so 62
+    // named sites and all 799 deep cells had no feed and `return` left the tap dead and silent —
+    // Iran, North Korea, Russia and the international waters among them, i.e. the sites people
+    // most want to open. The catalog feed was never the point: the contact carries its own site
+    // position. Synthesise one, exactly as ME-AV / ME-MR already do for "my location".
+    const target = feed || (Number.isFinite(d.siteLat) && Number.isFinite(d.siteLon) ? {
+      id: `SITE-${d.site}`, name: `UAV Watch · ${d.site}`, layer: "aviation", tag: "uav",
+      city: d.site, region: "—", country: d.country || "", continent: "",
+      src: "ADS-B live", url: "https://globe.adsbexchange.com/",
+      lat: d.siteLat, lng: d.siteLon,
+    } : null);
+    if (!target) return;
+    setSiteFeed(feed ? null : target);
     setPendingSel(d.id);
     // carry enough context for the radar to explain itself if the aircraft has since left
     setPendingSelInfo({
@@ -184,7 +201,7 @@ export default function StreetWatch() {
       seen: d.lastSeen ? timeAgo(d.lastSeen) : null,
     });
     setViewRadius(250);
-    setSelectedId(feed.id);
+    setSelectedId(target.id);
   }, [CATALOG]);
 
   const [copied, setCopied] = useState(false);
@@ -288,6 +305,7 @@ export default function StreetWatch() {
   const selected =
     (selectedId === "ME-AV" && userLoc && { id: "ME-AV", name: "Radar over my location", layer: "aviation", city: "Your location", region: "—", country: "", continent: "", src: "ADS-B live", url: "https://globe.adsbexchange.com/", lat: userLoc.lat, lng: userLoc.lng }) ||
     (selectedId === "ME-MR" && userLoc && { id: "ME-MR", name: "Ships near my location", layer: "marine", city: "Your location", region: "—", country: "", continent: "", src: "AIS live", url: "https://www.marinetraffic.com/", lat: userLoc.lat, lng: userLoc.lng }) ||
+    (siteFeed && siteFeed.id === selectedId && siteFeed) ||
     CATALOG.find((c) => c.id === selectedId) || results[0] || CATALOG[0];
 
   const grouped = useMemo(() => {
