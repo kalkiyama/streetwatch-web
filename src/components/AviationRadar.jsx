@@ -84,7 +84,16 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
   const acRef = useRef({}); const lastRef = useRef(Date.now()); const liveRef = useRef(false); const failRef = useRef(0);
 
   useEffect(() => {
-    acRef.current = seedSim(center.lat, center.lng, radius); lastRef.current = Date.now(); setSel(null); failRef.current = 0;
+    // NEVER SEED SIMULATED CONTACTS WHEN A BACKEND IS CONFIGURED. This line used to run on
+    // every radius or location change, filling the view with fabricated contacts while
+    // `status` still held "live" from the previous poll — so invented ships and aircraft
+    // were displayed under a green LIVE badge for as long as the fetch took. seedSim exists
+    // so the NO-BACKEND build can honestly say SIM, and for nothing else.
+    // Resetting status here is the other half: the badge must not keep asserting LIVE for
+    // data that has not arrived yet. Brief emptiness is honest; fabricated contacts are not.
+    acRef.current = BACKEND_URL ? {} : seedSim(center.lat, center.lng, radius);
+    if (BACKEND_URL) { setStatus("connecting"); liveRef.current = false; }
+    lastRef.current = Date.now(); setSel(null); failRef.current = 0;
     let alive = true;
     async function poll() {
       if (!BACKEND_URL) { setStatus("sim"); liveRef.current = false; return; }
@@ -161,7 +170,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
         <span className="flex items-center gap-1.5 px-2 py-0.5 rounded font-mono"
           style={{ fontSize: 11, letterSpacing: 1, background: status === "live" ? "rgba(55,196,106,0.16)" : status === "error" ? "rgba(240,85,59,0.16)" : "rgba(246,168,33,0.16)",
             color: status === "live" ? "#37C46A" : status === "error" ? "#F0553B" : C.amber }}>
-          {status === "live" ? <Wifi size={12} /> : <WifiOff size={12} />}{status === "live" ? "LIVE" : status === "error" ? "PROXY DOWN" : "SIM"}
+          {status === "live" ? <Wifi size={12} /> : <WifiOff size={12} />}{status === "live" ? "LIVE" : status === "error" ? "PROXY DOWN" : status === "connecting" ? "CONNECTING" : "SIM"}
         </span>
         <div className="flex items-center gap-1">
           <button onClick={() => setUavInfo((v) => !v)} className="px-1.5 py-0.5 rounded font-mono flex items-center gap-1"
