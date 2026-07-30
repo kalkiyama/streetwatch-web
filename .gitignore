@@ -2,3 +2,7 @@ node_modules/
 dist/
 .vercel/
 .DS_Store
+chrome/
+lh-mobile.report.json
+lh-mobile.report.html
+psi-mobile.json
