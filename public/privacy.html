@@ -16,53 +16,89 @@
 <body>
 <main>
   <h1>StreetWatch — Privacy Policy</h1>
-  <p class="meta">Effective: July 19, 2026 · Applies to the StreetWatch web app and Android app.</p>
+  <p class="meta">Effective: July 31, 2026 · Applies to the StreetWatch web app and Android app.
+  Supersedes the version of July 19, 2026, which stated that the app used no analytics and never
+  transmitted your location. Both statements were true when written and had stopped being true.
+  The corrections are described below.</p>
 
   <h2>The short version</h2>
-  <p>StreetWatch has no accounts, no sign-in, no analytics, no advertising, and no database of users.
-  We do not collect, store, sell, or share personal information. There is nothing to breach because
-  we hold nothing.</p>
+  <p>StreetWatch has no accounts, no sign-in, no advertising, and no database of users. We do not
+  sell or share personal information, and we build no profiles. What we do collect is limited and
+  described precisely below: an approximate location if you ask for a view centred on you, a
+  cookieless page-view count, and a daily count of distinct visitors derived from IP addresses that
+  are never stored.</p>
 
-  <h2>Location ("Near me")</h2>
-  <p>If you tap <b>Near me</b>, your browser or device asks your permission to read your approximate
-  location. That location is used <b>only on your device</b>, in the moment, to sort feeds by distance.
-  It is never transmitted to our servers, never stored, and never shared. Declining permission simply
-  disables the feature.</p>
+  <h2>Location</h2>
+  <p>Two different things happen with location, and the earlier version of this policy described
+  only the first.</p>
+  <p><b>Sorting feeds by distance ("Near me").</b> Your browser asks permission to read your
+  approximate location, and it is used on your device to order the feed list. It is not sent
+  anywhere.</p>
+  <p><b>"Radar over my location" / "Ships near my location".</b> These centre a live radar on you,
+  which means your approximate coordinates <b>are sent to our server</b> so it can ask the upstream
+  data provider what is near that point. Those coordinates are used to answer that one request and
+  are not stored, logged against you, or archived. Declining location permission simply disables
+  both features.</p>
 
   <h2>Favorites</h2>
   <p>Feeds you star are saved in your own browser's local storage on your device. They never leave it.</p>
 
+  <h2>Analytics</h2>
+  <p>The web app loads <b>Vercel Web Analytics</b>, which counts page views and referrers. It is
+  cookieless, sets no persistent identifier, and does not follow you across sites. We use it only to
+  see which parts of the app are used. The earlier version of this policy said the app had no
+  analytics; that was correct when written and became incorrect when analytics was added.</p>
+
   <h2>What our servers see</h2>
   <p>When the app shows live aircraft or ships, it asks our proxy server for public transponder data
-  near a map coordinate. Like any web server, ours momentarily processes your IP address to answer the
-  request and enforce fair-use rate limits (counts are kept in memory for about one minute, then
-  discarded). We keep no logs tying IP addresses to activity, and no profiles of any kind.</p>
+  near a map coordinate. Like any web server, ours sees your IP address in order to answer the
+  request. Two things are done with it, and neither retains it:</p>
+  <p><b>Fair-use rate limiting.</b> A per-minute request count is held in memory and discarded.</p>
+  <p><b>A daily count of distinct visitors.</b> Your IP is combined with a random salt and hashed;
+  only the hash is kept, in memory, to count how many different people used the API today. <b>The
+  salt is regenerated at UTC midnight and never written down</b>, so yesterday's hashes cannot be
+  matched to today's and none of them can be turned back into an IP address. Raw IP addresses are
+  never stored. The earlier version of this policy said these counts were discarded after about a
+  minute; that is true of the rate-limit counter but not of the daily visitor count, which lasts
+  until midnight.</p>
+  <p>We keep no logs tying IP addresses to activity, and no profiles of any kind.</p>
 
   <h2>What we do archive: public military and UAV aircraft</h2>
   <p>StreetWatch keeps a rolling 90-day record of aircraft that broadcast themselves as
-  <b>unmanned (ADS-B emitter category B6 or a known UAV type)</b> or that appear in public
-  registries as <b>military</b>. For those aircraft we store position, altitude, speed, callsign,
+  unmanned (ADS-B emitter category B6 or a known UAV type) or that appear in public
+  registries as military. For those aircraft we store position, altitude, speed, callsign,
   type and the airspace where they were observed.</p>
+
   <p>This is deliberately narrow. We do <b>not</b> archive civil aircraft, and we do <b>not</b>
   archive any vessel movements — keeping months of tracks for private planes and boats would build
   a pattern-of-life record of private individuals, which we consider out of bounds. Military and
   government aircraft are publicly funded assets operating in public airspace and broadcasting
   unencrypted by choice, which is why they are the one category we think merits a public record.</p>
+
   <p>The archive contains no information about you: no accounts, no IP addresses, no search or
-  viewing history. Records older than 90 days are deleted automatically.</p>
+  viewing history, and no record of anyone's location. Records older than 90 days are deleted
+  automatically.</p>
+
+  <h2>Security</h2>
+  <p>All traffic between the app, our servers and our database is encrypted in transit using HTTPS.</p>
 
   <h2>Data sources</h2>
   <p>All content shown is published for public viewing by its providers: aircraft positions
-  (airplanes.live), ship positions (aisstream.io, Fintraffic), satellite imagery (NASA), ISS position
-  (wheretheiss.at), map tiles (© OpenStreetMap contributors, © CARTO), and links to public traffic and
-  webcam sites operated by their respective authorities. Opening those external sites is subject to
-  their own privacy policies. StreetWatch shows public feeds only and never accesses private cameras.</p>
+  (airplanes.live, with adsb.lol and adsb.fi as fallbacks), ship positions (aisstream.io, Fintraffic
+  Digitraffic, Kystverket), satellite imagery (NASA), ISS position (wheretheiss.at), map tiles
+  (Esri, HERE, Garmin, © OpenStreetMap contributors), sea marks (© OpenSeaMap contributors),
+  airfield reference data (OurAirports, public domain), and links to public traffic and webcam sites
+  operated by their respective authorities. Opening those external sites is subject to their own
+  privacy policies. StreetWatch shows public feeds only and never accesses private cameras.</p>
 
   <h2>Children</h2>
-  <p>StreetWatch does not target children and, collecting no data, gathers none from anyone.</p>
+  <p>StreetWatch does not target children. It has no accounts and no sign-in, and the limited data
+  described above is not associated with any individual.</p>
 
   <h2>Changes</h2>
-  <p>If this policy ever changes, the new version will be posted at this address with a new effective date.</p>
+  <p>If this policy ever changes, the new version will be posted at this address with a new effective
+  date. Where a change corrects something the previous version got wrong, we say so rather than
+  quietly editing it.</p>
 
   <h2>Contact</h2>
   <p>Questions: open an issue at
