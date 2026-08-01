@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Maximize2, X } from "lucide-react";
-import Leaflet from "leaflet";
-import "leaflet/dist/leaflet.css";
-import { guardTouchScroll } from "./mapTouch.js";
-import { C, heatColor, heatIntensity, HEAT_RAMP, addBaseTiles } from "../theme.js";
+import { C, HEAT_RAMP } from "../theme.js";
+import WorldMap from "./WorldMap.jsx";
 import { BACKEND_URL } from "../config.js";
 
 // Where military / UAV activity actually concentrates, measured from this sweep's own
@@ -15,9 +13,6 @@ export default function HeatMap({ days: initialDays = 7 }) {
   // the only thing above the overlay, so any controls rendered by the parent are buried.
   const [days, setDays] = useState(initialDays);
   useEffect(() => { setDays(initialDays); }, [initialDays]);   // external selector (when visible) still wins
-  const box = useRef(null);
-  const map = useRef(null);
-  const layer = useRef(null);
   const [data, setData] = useState(null);
   const [ageH, setAgeH] = useState(null);
   const [scaleMax, setScaleMax] = useState(null);
@@ -39,24 +34,10 @@ export default function HeatMap({ days: initialDays = 7 }) {
     return () => { alive = false; };
   }, [days]);
 
-  useEffect(() => {
-    if (!box.current || map.current) return;
-    map.current = Leaflet.map(box.current, {
-      zoomControl: false, attributionControl: true, scrollWheelZoom: false,
-      minZoom: 1, maxZoom: 10, worldCopyJump: true,
-    }).setView([25, 10], 2);
-    Leaflet.control.zoom({ position: "topright" }).addTo(map.current);
-    addBaseTiles(Leaflet, map.current);
-    setTimeout(() => map.current && map.current.invalidateSize(), 60);
-    return () => { if (map.current) { map.current.remove(); map.current = null; } };
-  }, []);
-
-  useEffect(() => {
-    if (map.current) setTimeout(() => map.current && map.current.invalidateSize(), 150);
-  }, [full]);
-
-  // re-measure whenever the frame size changes (entering AND leaving fullscreen)
-  useEffect(() => { const t = setTimeout(() => map.current && map.current.invalidateSize(), 90); return () => clearTimeout(t); }, [full]);
+  // The Leaflet instance, the fullscreen invalidateSize timers and the draw effect that used
+  // to live here are GONE — WorldMap owns the map now (Aug 1). The two setTimeout re-measures
+  // (90ms and 150ms after a fullscreen toggle) are deliberately NOT ported: WorldMap has a
+  // ResizeObserver, which responds to the actual resize instead of guessing a duration.
 
 
   // Esc exits fullscreen, and the page behind shouldn't scroll while it's open
@@ -66,99 +47,12 @@ export default function HeatMap({ days: initialDays = 7 }) {
     window.addEventListener("keydown", esc);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const t = setTimeout(() => map.current && map.current.invalidateSize(), 80);
     return () => {
       window.removeEventListener("keydown", esc);
       document.body.style.overflow = prev;
-      clearTimeout(t);
     };
   }, [full]);
 
-  useEffect(() => {
-    if (!map.current || !data || !data.sites) return;
-    if (layer.current) layer.current.remove();
-    layer.current = Leaflet.layerGroup().addTo(map.current);
-    guardTouchScroll(map.current);
-    data.sites.forEach((s) => {
-      const pick = radius === "field" ? { c: s.terminal_contacts, u: null, m: null, p: s.terminal_points }
-                 : radius === 25 ? { c: s.c25, u: s.uav25, m: s.mil25, p: s.p25 }
-                 : radius === 100 ? { c: s.c100, u: s.uav100, m: s.mil100, p: s.p100 }
-                 : { c: s.contacts, u: s.uav, m: s.military, p: s.points };
-      const shown = pick.c == null ? s.contacts : pick.c;
-      const maxAt = (data.maxByRadius && data.maxByRadius[radius]) || data.maxContacts || 2;
-      if (scaleMaxRef.current !== maxAt) { scaleMaxRef.current = maxAt; setScaleMax(maxAt); }
-      const t = heatIntensity(shown, maxAt);
-      const col = heatColor(t);
-      Leaflet.circleMarker([s.lat, s.lon], {
-        radius: 5 + t * 16,
-        color: col, weight: 1.5, fillColor: col, fillOpacity: 0.35,
-      })
-        .bindPopup(
-          // Structured, not prose: one row per fact, each stated ONCE, widest area to tightest.
-          // The old version repeated the terminal figure in AT FIELD mode and read as a paragraph,
-          // which buried the very distinction the rows exist to make.
-          (() => {
-            // The row you selected leads. A table where the chosen figure sits third reads as
-            // "here are some numbers"; putting it first reads as "here is the answer, and here is
-            // the context that qualifies it".
-            const row = (label, value, lead) =>
-              `<tr><td style="padding:${lead ? 3 : 1}px 8px ${lead ? 3 : 1}px 0;opacity:${lead ? 0.95 : 0.6};white-space:nowrap;` +
-              `${lead ? "color:#C084FC;" : ""}">${label}</td>` +
-              `<td style="padding:${lead ? 3 : 1}px 0;font-weight:${lead ? 700 : 400};${lead ? "color:#C084FC;font-size:12px;" : ""}">${value}</td></tr>`;
-
-            // ONE FIGURE — the one the user asked for. Everything else was noise dressed as
-            // context: a user selecting "at the field" does not need the 25, 100 and 250nm counts
-            // alongside it, and showing them is what forced four sentences of disclaimer
-            // explaining which was which.
-            const pick = {
-              field: { label: "Low and close", value: s.terminal_contacts, uav: null,
-                       scope: "within 10nm and below 4,000ft", points: s.terminal_points },
-              25:    { label: "Within 25nm",  value: s.c25,  uav: s.uav25,  scope: "within 25nm, any altitude",  points: s.p25 },
-              100:   { label: "Within 100nm", value: s.c100, uav: s.uav100, scope: "within 100nm, any altitude", points: s.p100 },
-              250:   { label: "Full sweep",   value: s.contacts, uav: s.uav, scope: "within 250nm — the whole polling radius, not this airfield", points: s.points },
-            }[radius] || {};
-
-            const rows = [];
-            if (pick.value != null)
-              rows.push(row(pick.label, `${pick.value} military/UAV${pick.uav ? ` (${pick.uav} UAV)` : ""}`, true));
-
-            // Sightings QUALIFIES the figure above rather than competing with it: one aircraft seen
-            // on three passes is 1 there and 3 here, which reads as a contradiction unless stated.
-            if (pick.points != null)
-              rows.push(row("Sightings",
-                `${pick.points} report${pick.points === 1 ? "" : "s"} of those ${pick.value} aircraft` +
-                ` &middot; over ${s.span_hours || 0}h`, false));
-            rows.push(row("Last seen", new Date(s.last_seen).toLocaleString(), false));
-
-            return (
-              `<b>${s.site}</b><br><span style="opacity:.7">${s.country || ""}</span>` +
-              (s.nearestAirfield ? `<div style="margin-top:2px;font-size:10px;opacity:.6">near ${s.nearestAirfield}</div>` : "") +
-              `<div style="margin-top:3px;font-size:10px;opacity:.75">Last ${days} day${days === 1 ? "" : "s"}` +
-              `${ageH != null && ageH < days * 24 ? ` &middot; archive holds ${ageH}h` : ""}</div>` +
-              `<table style="margin-top:6px;font-size:11px;border-collapse:collapse">${rows.join("")}</table>` +
-              // A WARNING, not a caveat. It says THIS NUMBER MAY BE WRONG, which is a different
-              // kind of statement from explaining what the number means. It stays at full strength.
-              (s.nearbySites && s.nearbySites.length
-                ? `<div style="margin-top:6px;font-size:10px;line-height:1.45;color:#F6A821">` +
-                  `&#9888; ${s.nearbySites.map((x) => `${x.site} is ${x.nm}nm away`).join("; ")} &mdash; ` +
-                  `a contact counted here could have been operating there.` +
-                  `</div>`
-                : "") +
-              // ONE line, scoped to what is actually on screen. The remaining statements are true
-              // and worth having, but they belong behind a toggle rather than in front of everyone
-              // on every site. Four sentences nobody reads protect nobody.
-              `<div style="margin-top:6px;opacity:.6;font-size:10px;line-height:1.4">` +
-              `${pick.scope || ""} &middot; military and UAV only &middot; positions, not landings` +
-              `</div>`
-            );
-          })()
-        )
-        .addTo(layer.current);
-    });
-    setTimeout(() => map.current && map.current.invalidateSize(), 60);
-    // days/ageH are PRINTED in the popups, so a change to either must redraw them. Relying on
-    // `data` changing is indirect and breaks when a fetch fails or is still in flight.
-  }, [data, radius, days, ageH]);
 
   // Fullscreen must sit ABOVE everything else the app renders. The page behind contains other
   // Leaflet maps whose panes and controls run z 400-1000, and our own radar overlay bars sit at
@@ -227,8 +121,23 @@ export default function HeatMap({ days: initialDays = 7 }) {
       {state === "loading" && <div style={{ fontSize: 11, color: C.dim, paddingBottom: 6 }}>measuring activity…</div>}
       {state === "off" && <div style={{ fontSize: 11, color: C.dim, paddingBottom: 6 }}>No archive configured on this instance.</div>}
       {state === "error" && <div style={{ fontSize: 11, color: C.dim, paddingBottom: 6 }}>Activity map unavailable right now.</div>}
-      <div ref={box} style={{ height: full ? "auto" : 380, flex: full ? 1 : undefined,
-        borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />
+      <div style={{ height: full ? "auto" : 380, flex: full ? 1 : undefined,
+        borderRadius: 4, overflow: "hidden", background: "#0A0D12" }}>
+        {/* WorldMap fills its parent (height:100%), so the height MUST live on this wrapper —
+            without it the map collapses to zero and renders nothing, which looks like a broken
+            merge rather than a missing style. scrollWheelZoom is off because this sits inside a
+            scrolling panel and wheel-zoom would hijack the page scroll. */}
+        <WorldMap
+          feeds={[]} showFeeds={false} showIss={false}
+          selectedId={null} onSelect={() => {}}
+          heatSites={data && data.sites ? data.sites : null}
+          heatRadius={radius}
+          heatMeta={data}
+          scrollWheelZoom={false}
+          maxZoom={10}
+          initialView={{ center: [25, 10], zoom: 2 }}
+        />
+      </div>
       <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginTop: 4, lineHeight: 1.5 }}>
         {radius === "field"
           ? "Colour ranks sites by aircraft seen within 10nm below 4,000ft of the watched site. Other airfields can lie inside that radius, so this is proximity to the site, not confirmed use of this base."

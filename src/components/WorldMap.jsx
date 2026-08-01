@@ -15,7 +15,12 @@ import { watchUserPan, keepInView } from "../mapFollow.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null }) {
+export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null,
+  // Added Aug 1 so HeatMap can delegate its map here instead of running a second Leaflet
+  // instance. Defaults are WorldMap's existing behaviour, so no existing caller changes.
+  // scrollWheelZoom MATTERS: the activity map sits in a scrolling panel and wheel-zoom
+  // there hijacks the page scroll. It is off for that caller and on for this one.
+  scrollWheelZoom = true, maxZoom = undefined, initialView = null }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const roRef = useRef(null);
@@ -76,6 +81,15 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   feedsRef.current = feeds;
   const liveRef = useRef(liveContacts);
   liveRef.current = liveContacts;
+  // Read through refs: the map is created ONCE in an effect with an empty dependency array,
+  // so these cannot be closed over directly without either re-creating the map on every
+  // prop change or reading a stale value. Same pattern as heatRef below.
+  const scrollWheelRef = useRef(scrollWheelZoom); scrollWheelRef.current = scrollWheelZoom;
+  const maxZoomRef = useRef(maxZoom); maxZoomRef.current = maxZoom;
+  const initialViewRef = useRef(initialView); initialViewRef.current = initialView;
+  // Set when a redraw was skipped because a popup was open; flushed on popupclose so the map
+  // never silently stays stale after the user dismisses a popup.
+  const pendingDraw = useRef(false);
   const heatRef = useRef(heatSites);
   heatRef.current = heatSites;
   // Radius + per-radius maxima, so this layer answers the same question as the standalone
@@ -478,11 +492,14 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       // centre — otherwise the map mounts at [null,null] and lands somewhere meaningless.
       const startFix = start && Number.isFinite(start.lat) && Number.isFinite(start.lng) ? start : null;
       if (startFix) centred.current = startFix.id;
+      const iv = initialViewRef.current;
       const map = Leaflet.map(elRef.current, {
-        center: startFix ? [startFix.lat, startFix.lng] : [20, 0],
-        zoom: startFix ? 7 : 2,
+        center: startFix ? [startFix.lat, startFix.lng] : (iv ? iv.center : [20, 0]),
+        zoom: startFix ? 7 : (iv ? iv.zoom : 2),
         worldCopyJump: true, preferCanvas: true,
         zoomControl: false, minZoom: 1,
+        ...(maxZoomRef.current ? { maxZoom: maxZoomRef.current } : {}),
+        scrollWheelZoom: scrollWheelRef.current,
       });
       Leaflet.control.zoom({ position: "topright" }).addTo(map);
       addBaseTiles(Leaflet, map);
@@ -491,7 +508,13 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       mapRef.current = map;
       guardTouchScroll(map);
       watchUserPan(map);   // so following never fights a deliberate pan
-      map.on("moveend zoomend", () => drawRef.current());
+      // DO NOT redraw while a popup is open. draw() clears and rebuilds the layer group,
+      // which destroys the marker the popup is bound to — the popup opened and vanished in
+      // the same instant. Leaflet pans to fit a popup in view, that pan fires moveend, and
+      // moveend redraws: the popup killed itself. HeatMap never hit this because it had no
+      // moveend redraw at all; the bug surfaced with the Aug 1 merge onto WorldMap.
+      map.on("moveend zoomend", () => { if (!map._popup) drawRef.current(); });
+      map.on("popupclose", () => { if (pendingDraw.current) { pendingDraw.current = false; drawRef.current(); } });
       setTimeout(() => { try { map.invalidateSize(); draw(); } catch { /* not mounted */ } }, 200);
 
       // Leaflet caches the container's size. When the pane is resized — dragging the list
@@ -528,7 +551,18 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   // OTHER dependency happens to fire. usvContacts and subContacts were missing: switching SEA
   // DRONES or SUB SUPPORT on fetched the data and passed it down, but no redraw was scheduled, so
   // the contacts only appeared on the next zoom/pan (which redraws via the moveend handler).
-  useEffect(() => { drawRef.current(); },
+  // AND DO NOT REDRAW WHILE A POPUP IS OPEN — same reason as the moveend handler above. draw()
+  // clears the layer group, so the marker holding the popup is destroyed and the popup closes in
+  // the instant it opened. This path is the one HeatMap hits: it REFETCHES on a timer, so
+  // data.sites arrives as a new array identity every cycle, this effect re-runs, and the popup
+  // dies — which is why the composite MAP view was fine (it does not refetch heat on a timer) and
+  // the Drones ACTIVITY view was not.
+  // The deferred redraw is not skipped: closing the popup fires popupclose, which runs it.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && map._popup) { pendingDraw.current = true; return; }
+    drawRef.current();
+  },
     [feeds, selectedId, liveContacts, heatSites, heatRadius, heatMeta, usvContacts, subContacts, showFeeds]);
 
   useEffect(() => {
