@@ -39,6 +39,18 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
     if (lastTab.current === tab) return;
     lastTab.current = tab;
     setShowFeeds(!isDrones); setShowLive(isDrones); setShowUsv(isDrones); setShowSub(isDrones);
+    // showHeat was the ONE layer this line did not set, so switching to the drones tab turned on
+    // live contacts, sea drones and sub support — but left the activity layer off, which is the
+    // most drone-specific layer of the four. The map looked empty and there was nothing to say
+    // a layer was available. Note the heat fetch only runs when showHeat is true, so this does
+    // add one archive query per visit to the drones tab in map mode.
+    setShowHeat(isDrones);
+    // showHeat was the ONE layer this line did not set, so switching to the drones tab turned on
+    // live contacts, sea drones and sub support — but left the activity layer off, which is the
+    // most drone-specific layer of the four. The map looked empty and there was nothing to say
+    // a layer was available. Note the heat fetch only runs when showHeat is true, so this does
+    // add one archive query per visit to the drones tab in map mode.
+    setShowHeat(isDrones);
   }, [tab, isDrones]);
   const [mins, setMins] = useState(60);      // live window
   const [days, setDays] = useState(7);
