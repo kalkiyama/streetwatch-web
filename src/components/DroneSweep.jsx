@@ -52,7 +52,8 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
   const [mins, setMins] = useState(60);
   const [kind, setKind] = useState("all");
   const [marine, setMarine] = useState(null);   // { usv, sub } — sea drones and sub support
-  const [mode, setMode] = useState("live");     // live | archive
+  const [mode, setMode] = useState("live");
+  const [why, setWhy] = useState(false);   // the coverage explanation, on demand     // live | archive
   const [days, setDays] = useState(7);
   const [hist, setHist] = useState(null);       // archived contact list
   const [histState, setHistState] = useState("idle");
@@ -171,18 +172,34 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
       )}
 
       {mode === "live" && state === "ok" && (
+        // ~110 words of standing prose used to live here, on screen at all times: coverage is
+        // uneven, silence is not absence, nothing is verified, labels come from public databases,
+        // the broadcast is unauthenticated. Every clause TRUE and worth knowing — and nobody reads
+        // a paragraph above a live list. Now one line, with the rest behind a toggle.
+        // The reframe matters as much as the length: "only aircraft that broadcast are visible" is
+        // the RULE OF THE THING, where "aircraft with transponders off are not counted" is an
+        // apology for a limitation. Same fact, and the first one does not read as a confession.
         <div className="px-3 pb-1.5" style={{ fontSize: 9.5, color: C.faint, lineHeight: 1.5 }}>
-          Coverage is uneven: the ADS-B receiver network is volunteer-fed and dense over North
-          America, Europe and Japan, sparse over Russia, China, Central Asia, Africa and most
-          oceans — and many air forces do not broadcast at all. An airspace showing nothing
-          means nothing was <i>visible</i> there, not that nothing happened.
-          <span style={{ display: "block", marginTop: 3 }}>
-            Nothing here is verified by StreetWatch. An aircraft is listed as military because a
-            public aircraft database flags its transponder code, and as a UAV because a registry
-            names the type or the aircraft broadcasts the unmanned category itself. ADS-B is
-            unauthenticated — it carries no signature, so a misconfigured or deliberately false
-            broadcast looks identical to a true one. Each contact shows the basis for its label.
-          </span>
+          Only aircraft that broadcast are visible — an empty airspace means nothing was seen there.
+          {" "}
+          <button onClick={() => setWhy((v) => !v)}
+            style={{ color: C.dim, background: "none", border: "none", padding: 0,
+              textDecoration: "underline", cursor: "pointer", fontSize: 9.5 }}>
+            {why ? "less" : "why?"}
+          </button>
+          {why && (
+            <span style={{ display: "block", marginTop: 4 }}>
+              Receiver coverage is volunteer-fed: dense over North America, Europe and Japan, sparse
+              over Russia, China, Central Asia, Africa and most oceans. Many air forces do not
+              broadcast at all.
+              <span style={{ display: "block", marginTop: 3 }}>
+                Nothing here is verified by StreetWatch. An aircraft is called military because a
+                public database flags it, and a UAV because a registry names the type or the
+                aircraft says so itself. Those broadcasts carry no signature, so a false one looks
+                identical to a true one. Each contact shows the basis for its label.
+              </span>
+            </span>
+          )}
         </div>
       )}
       {/* Only shown when running on a FALLBACK upstream. Silent when normal, because a notice that
@@ -358,7 +375,7 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
                     (mins ? ` · ~${mins} min cycle` : "");
                 })() : ""}
           {data.counts && data.counts.disputed > 0 && ` · ${data.counts.disputed} disputed (broadcast says unmanned, registry says manned)`}
-          {" "}· ADS-B broadcasters only — aircraft with transponders off are invisible to every public feed
+
         </div>
       )}
     </div>
