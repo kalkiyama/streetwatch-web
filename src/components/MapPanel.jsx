@@ -159,7 +159,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
               <span style={{ fontSize: 9, color: "#F6A821" }}>ACTIVITY OVER</span>
               {windowChips([[1, "1d"], [7, "7d"], [30, "30d"], [90, "90d"]], days, setDays)}
               <span style={{ fontSize: 9, color: "#F6A821", marginLeft: 4 }}>WITHIN</span>
-              {windowChips([[25, "25nm"], [100, "100nm"], [250, "250nm"]], heatRadius, setHeatRadius)}
+              {windowChips([["field", "at field"], [25, "25nm"], [100, "100nm"], [250, "250nm"]], heatRadius, setHeatRadius)}
               <span style={{ fontSize: 9, color: C.faint }}>{heat ? `${heat.length} airspaces` : "…"}</span>
             </div>
           )}

@@ -177,33 +177,77 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   }, [liveContacts, usvContacts, subContacts, selectedId]);
 
   // --- activity heat: measured contact density per airspace, drawn beneath everything ---
+  // PORTED FROM HeatMap Jul 31. This function and HeatMap.jsx were two implementations of the
+  // same circles and they had drifted: this copy did not support the "field" radius at all, so
+  // selecting AT FIELD here silently drew and reported the 250nm REGIONAL count — a wrong number
+  // with nothing to indicate it. It also still carried the pre-Jul-31 popup, which showed all
+  // four figures and four sentences of disclaimer.
   const drawHeat = (lg) => {
     const sites = heatRef.current;
     if (!sites || !sites.length) return;
     const rNm = heatRadiusRef.current || 250;
-    const pickC = (x) => ((rNm === 25 ? x.c25 : rNm === 100 ? x.c100 : x.contacts) ?? x.contacts);
-    const pickP = (x) => ((rNm === 25 ? x.p25 : rNm === 100 ? x.p100 : x.points) ?? x.points);
     const meta = heatMetaRef.current;
-    const heatMaxLocal = (meta && meta.maxByRadius && meta.maxByRadius[rNm])
-      || Math.max(2, ...(heatRef.current || []).map((x) => pickC(x) || 0));
+
+    // "field" is a KEY, not a distance — it means within 10nm AND below 4,000ft. Treating it as a
+    // number is what made the old version fall through to the regional count.
+    const pickOf = (s) =>
+      rNm === "field" ? { c: s.terminal_contacts, u: null, m: null, p: s.terminal_points }
+      : rNm === 25    ? { c: s.c25,  u: s.uav25,  m: s.mil25,   p: s.p25 }
+      : rNm === 100   ? { c: s.c100, u: s.uav100, m: s.mil100,  p: s.p100 }
+      :                 { c: s.contacts, u: s.uav, m: s.military, p: s.points };
+
+    const maxAt = (meta && meta.maxByRadius && meta.maxByRadius[rNm])
+      || Math.max(2, ...sites.map((x) => (pickOf(x).c ?? x.contacts) || 0));
+
     sites.forEach((s) => {
-      const shown = pickC(s);
-      const t = heatIntensity(shown, heatMaxLocal);
+      const pick = pickOf(s);
+      const shown = pick.c == null ? s.contacts : pick.c;
+      const t = heatIntensity(shown, maxAt);
       const col = heatColor(t);
       Leaflet.circleMarker([s.lat, s.lon], {
-        radius: 6 + t * 18, color: col, weight: 1.2,
-        fillColor: col, fillOpacity: 0.22, interactive: true,
+        radius: 5 + t * 16,
+        color: col, weight: 1.5, fillColor: col, fillOpacity: 0.35,
+        interactive: true,
       })
-        .bindPopup(
-          `<b>${s.site}</b><br>${s.country || ""}<br>` +
-          `<b>${shown}</b> aircraft within ${rNm}nm · ` +
-          `${(rNm === 25 ? s.uav25 : rNm === 100 ? s.uav100 : s.uav) ?? s.uav} UAV · ` +
-          `${(rNm === 25 ? s.mil25 : rNm === 100 ? s.mil100 : s.military) ?? s.military} military<br>` +
-          (rNm !== 250 && s.contacts != null
-            ? `<span style="opacity:.75">${s.contacts} within the full 250nm sweep radius</span><br>`
-            : "") +
-          `<span style="opacity:.75">${pickP(s)} position reports within ${rNm}nm, spanning ${s.span_hours || 0}h of recorded data</span>`
-        )
+        .bindPopup((() => {
+          // ONE FIGURE — the one the radius selector asked for. Showing all four is what forced
+          // four sentences of disclaimer explaining which was which.
+          const label = rNm === "field" ? "Low and close"
+                      : rNm === 250 ? "Full sweep" : `Within ${rNm}nm`;
+          const scope = rNm === "field" ? "within 10nm and below 4,000ft"
+                      : rNm === 250 ? "within 250nm — the whole polling radius, not this airfield"
+                      : `within ${rNm}nm, any altitude`;
+          const row = (l, v, lead) =>
+            `<tr><td style="padding:${lead ? 3 : 1}px 8px ${lead ? 3 : 1}px 0;opacity:${lead ? 0.95 : 0.6};` +
+            `white-space:nowrap;${lead ? "color:#C084FC;" : ""}">${l}</td>` +
+            `<td style="padding:${lead ? 3 : 1}px 0;font-weight:${lead ? 700 : 400};` +
+            `${lead ? "color:#C084FC;font-size:12px;" : ""}">${v}</td></tr>`;
+
+          const rows = [];
+          if (shown != null)
+            rows.push(row(label, `${shown} military/UAV${pick.u ? ` (${pick.u} UAV)` : ""}`, true));
+          if (pick.p != null)
+            rows.push(row("Sightings",
+              `${pick.p} report${pick.p === 1 ? "" : "s"} of those ${shown} aircraft` +
+              ` &middot; over ${s.span_hours || 0}h`, false));
+          if (s.last_seen)
+            rows.push(row("Last seen", new Date(s.last_seen).toLocaleString(), false));
+
+          return (
+            `<b>${s.site}</b><br><span style="opacity:.7">${s.country || ""}</span>` +
+            (s.nearestAirfield ? `<div style="margin-top:2px;font-size:10px;opacity:.6">near ${s.nearestAirfield}</div>` : "") +
+            `<table style="margin-top:6px;font-size:11px;border-collapse:collapse">${rows.join("")}</table>` +
+            // A WARNING, not a caveat: it says THIS NUMBER MAY BE WRONG, which is a different kind
+            // of statement from explaining what a number means. Kept at full strength.
+            (s.nearbySites && s.nearbySites.length
+              ? `<div style="margin-top:6px;font-size:10px;line-height:1.45;color:#F6A821">` +
+                `&#9888; ${s.nearbySites.map((x) => `${x.site} is ${x.nm}nm away`).join("; ")} &mdash; ` +
+                `a contact counted here could have been operating there.</div>`
+              : "") +
+            `<div style="margin-top:6px;opacity:.6;font-size:10px;line-height:1.4">` +
+            `${scope} &middot; military and UAV only &middot; positions, not landings</div>`
+          );
+        })())
         .addTo(lg);
     });
   };
