@@ -698,11 +698,14 @@ export default function StreetWatch() {
               <SignalHigh size={12} color={C.amber} /> PUBLISHED PUBLIC FEEDS ONLY
             </div>
             <p style={{ fontSize: 13, color: C.dim, marginTop: 8, lineHeight: 1.6 }}>
-              Every layer draws only on feeds published for public viewing — official traffic authorities, open ADS-B & AIS
-              networks, government/space-agency imagery, and public webcam directories. Clicking any feed hands off to the
-              source's own live page in the browser, so there's no cross-origin or RTSP barrier. Private cameras of private
-              spaces (homes, shop interiors, anything reachable only because it's unsecured) are deliberately excluded — viewing
-              those is unauthorized access, not public data.
+              {/* This is the ONE place the terms get introduced, so they are spelled out here and
+                  used plainly everywhere else. Dropping the technical dropped nothing: the
+                  cross-origin/RTSP sentence explained an implementation detail no reader needs. */}
+              Every layer draws only on feeds published for public viewing: traffic authorities, the open networks where
+              aircraft and ships broadcast their own positions (ADS-B and AIS), government and space-agency imagery, and
+              public webcam directories. Clicking a feed opens the source's own page.
+              Private cameras of private spaces — homes, shop interiors, anything reachable only because it is unsecured —
+              are deliberately excluded. Viewing those is unauthorized access, not public data.
             </p>
           </section>
         </main>
