@@ -106,54 +106,49 @@ export default function HeatMap({ days: initialDays = 7 }) {
               `${lead ? "color:#C084FC;" : ""}">${label}</td>` +
               `<td style="padding:${lead ? 3 : 1}px 0;font-weight:${lead ? 700 : 400};${lead ? "color:#C084FC;font-size:12px;" : ""}">${value}</td></tr>`;
 
-            const primary = [
-              { key: "field", label: "Low and close to this site (&le;10nm, &lt;4,000ft)", value: s.terminal_contacts != null ? `${s.terminal_contacts} military/UAV` : null },
-              { key: 25,      label: "Within 25nm",                          value: s.c25 != null ? `${s.c25} military/UAV${s.uav25 ? ` (${s.uav25} UAV)` : ""}` : null },
-              { key: 100,     label: "Within 100nm",                         value: s.c100 != null ? `${s.c100} military/UAV${s.uav100 ? ` (${s.uav100} UAV)` : ""}` : null },
-              { key: 250,     label: "Within 250nm (full sweep)",            value: s.contacts != null ? `${s.contacts} military/UAV${s.uav ? ` (${s.uav} UAV)` : ""}` : null },
-            ].filter((r) => r.value != null);
+            // ONE FIGURE — the one the user asked for. Everything else was noise dressed as
+            // context: a user selecting "at the field" does not need the 25, 100 and 250nm counts
+            // alongside it, and showing them is what forced four sentences of disclaimer
+            // explaining which was which.
+            const pick = {
+              field: { label: "Low and close", value: s.terminal_contacts, uav: null,
+                       scope: "within 10nm and below 4,000ft", points: s.terminal_points },
+              25:    { label: "Within 25nm",  value: s.c25,  uav: s.uav25,  scope: "within 25nm, any altitude",  points: s.p25 },
+              100:   { label: "Within 100nm", value: s.c100, uav: s.uav100, scope: "within 100nm, any altitude", points: s.p100 },
+              250:   { label: "Full sweep",   value: s.contacts, uav: s.uav, scope: "within 250nm — the whole polling radius, not this airfield", points: s.points },
+            }[radius] || {};
 
-            // selected first, everything else in its natural tightest-to-widest order
-            const ordered = [
-              ...primary.filter((r) => String(r.key) === String(radius)),
-              ...primary.filter((r) => String(r.key) !== String(radius)),
-            ];
+            const rows = [];
+            if (pick.value != null)
+              rows.push(row(pick.label, `${pick.value} military/UAV${pick.uav ? ` (${pick.uav} UAV)` : ""}`, true));
 
-            const rows = ordered.map((r) => row(r.label, r.value, String(r.key) === String(radius)));
-            if (s.low25 != null)
-              rows.push(row("By lowest altitude (25nm)", `${s.low25} &lt;10k &middot; ${s.mid25} 10&ndash;25k &middot; ${s.high25} &gt;25k`, false));
-            const scopePts = radius === "field" ? s.terminal_points
-                           : radius === 25 ? s.p25
-                           : radius === 100 ? s.p100
-                           : s.points;
-            // The aircraft rows count DISTINCT aircraft; this one counts OBSERVATIONS. One
-            // aircraft seen on three sweep passes is 1 there and 3 here, which reads as a
-            // contradiction unless the row says so outright. State the relationship.
-            const scopeCount = radius === "field" ? s.terminal_contacts
-                             : radius === 25 ? s.c25
-                             : radius === 100 ? s.c100
-                             : s.contacts;
-            if (scopePts != null)
+            // Sightings QUALIFIES the figure above rather than competing with it: one aircraft seen
+            // on three passes is 1 there and 3 here, which reads as a contradiction unless stated.
+            if (pick.points != null)
               rows.push(row("Sightings",
-                `${scopePts} report${scopePts === 1 ? "" : "s"} of those ${scopeCount} aircraft` +
-                ` &middot; recorded over ${s.span_hours || 0}h`, false));
+                `${pick.points} report${pick.points === 1 ? "" : "s"} of those ${pick.value} aircraft` +
+                ` &middot; over ${s.span_hours || 0}h`, false));
             rows.push(row("Last seen", new Date(s.last_seen).toLocaleString(), false));
 
             return (
               `<b>${s.site}</b><br><span style="opacity:.7">${s.country || ""}</span>` +
-              `<div style="margin-top:3px;font-size:10px;opacity:.75">Window: last ${days} day${days === 1 ? "" : "s"}` +
-              `${ageH != null && ageH < days * 24 ? ` (archive holds ${ageH}h, so this is everything recorded)` : ""}</div>` +
+              (s.nearestAirfield ? `<div style="margin-top:2px;font-size:10px;opacity:.6">near ${s.nearestAirfield}</div>` : "") +
+              `<div style="margin-top:3px;font-size:10px;opacity:.75">Last ${days} day${days === 1 ? "" : "s"}` +
+              `${ageH != null && ageH < days * 24 ? ` &middot; archive holds ${ageH}h` : ""}</div>` +
               `<table style="margin-top:6px;font-size:11px;border-collapse:collapse">${rows.join("")}</table>` +
+              // A WARNING, not a caveat. It says THIS NUMBER MAY BE WRONG, which is a different
+              // kind of statement from explaining what the number means. It stays at full strength.
               (s.nearbySites && s.nearbySites.length
                 ? `<div style="margin-top:6px;font-size:10px;line-height:1.45;color:#F6A821">` +
-                  `&#9888; ${s.nearbySites.map((x) => `${x.site} is ${x.nm}nm away`).join("; ")}. ` +
-                  `Their terminal areas overlap, so a contact counted here could have been operating there.` +
+                  `&#9888; ${s.nearbySites.map((x) => `${x.site} is ${x.nm}nm away`).join("; ")} &mdash; ` +
+                  `a contact counted here could have been operating there.` +
                   `</div>`
                 : "") +
-              `<div style="margin-top:6px;opacity:.65;font-size:10px;line-height:1.4">` +
-              `Distances are measured to this WATCHED SITE, not to the nearest airfield &mdash; other airfields may lie inside the radius and are not counted separately. ` +
-              `This watch records MILITARY and UAV contacts only &mdash; civil traffic is never counted here. ` +
-              `Positions only, never an observed landing. Only aircraft broadcasting ADS-B are visible.` +
+              // ONE line, scoped to what is actually on screen. The remaining statements are true
+              // and worth having, but they belong behind a toggle rather than in front of everyone
+              // on every site. Four sentences nobody reads protect nobody.
+              `<div style="margin-top:6px;opacity:.6;font-size:10px;line-height:1.4">` +
+              `${pick.scope || ""} &middot; military and UAV only &middot; positions, not landings` +
               `</div>`
             );
           })()
