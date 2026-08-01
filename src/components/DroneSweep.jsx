@@ -339,7 +339,21 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
             <span style={{ display: "block", fontSize: 8, opacity: 0.75 }}>{styleOf(d).label}</span>
           </span>
           <span className="flex-1" style={{ fontSize: 11, color: C.text, minWidth: 0 }}>
+            {/* TWO DIFFERENT FACTS, and the list showed only the first. `site` names the WATCHER
+                that found this contact — it can be 200nm away, and the country is the SITE's, not
+                the aircraft's. One live example: a contact filed under "Bushehr · Iran" at 186.6nm
+                was actually beside an airfield in QATAR, the other side of the Gulf.
+                nearestAirfield resolves the AIRCRAFT's own position against 85,758 reference
+                records. It is what is NEARBY, never what the aircraft is using or heading for. */}
             {d.site} <span style={{ color: C.faint }}>· {d.country}</span>
+            {Number.isFinite(d.siteDistNm) && d.siteDistNm >= 25 && (
+              <span style={{ color: C.faint }}> · watcher {Math.round(d.siteDistNm)}nm away</span>
+            )}
+            {d.nearestAirfield && (
+              <span style={{ display: "block", color: C.faint, fontSize: 10, marginTop: 1 }}>
+                near {d.nearestAirfield}
+              </span>
+            )}
             <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
               {d.desc || d.typeCode || "unknown type"}
               {d.why ? ` · ${d.why}` : ""}
