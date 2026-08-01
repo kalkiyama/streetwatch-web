@@ -64,11 +64,6 @@ export default function AiBriefing({ days = 7 }) {
         <span className="font-mono" style={{ fontSize: 9, color: C.faint }}>window: {days}d (set above)</span>
       </div>
 
-      <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginBottom: 8, lineHeight: 1.5 }}>
-        {tab === "digest"
-          ? "DIGEST — what changed across the watched airspaces, computed from the archive."
-          : "AIR ↔ SEA — where aircraft and vessels of interest were recorded near each other. Proximity only; no causal link is implied."}
-      </div>
 
       {state === "idle" && (
         <div style={{ fontSize: 11.5, color: C.dim, lineHeight: 1.6 }}>
@@ -76,9 +71,13 @@ export default function AiBriefing({ days = 7 }) {
             style={{ fontSize: 11, color: "#0A0D12", background: "#C084FC", border: "none", fontWeight: 700 }}>
             <Sparkles size={12} /> GENERATE {tab === "digest" ? "DIGEST" : "AIR ↔ SEA ANALYSIS"} · LAST {days} {days === 1 ? "DAY" : "DAYS"}
           </button>
+          {/* ONE line, and only before you press the button. This said the same thing THREE times:
+              a subtitle above (deleted), this paragraph, and the tab button's own title tooltip.
+              The digest version ran to 380 characters explaining 250nm vs 25nm vs field before the
+              user had pressed anything — scope belongs on the RESULT, where the number is. */}
           {tab === "digest"
-            ? "A briefing on the watched airspaces, grouped by country. Each site is polled over a 250nm radius, so that figure counts a whole region — a 25nm local count and a field-level count (within 10nm, below 4,000ft) are shown alongside, and bases are ranked by the field-level figure. All counts are computed from the archive; the summary only writes them up."
-            : "Where air activity and marine contacts of interest occurred near each other in time and space. Co-occurrence only — no causal link is implied or observable from public data."}
+            ? "Sites ranked by aircraft at the field. Counts come from the archive; the summary writes them up."
+            : "Proximity in time and space. No causal link."}
         </div>
       )}
 
