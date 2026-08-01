@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { RefreshCw, Radio, History, X } from "lucide-react";
 import { C } from "../theme.js";
 import { lookupCallsign } from "../callsigns.js";
-import PathMap from "./PathMap.jsx";
 import TrackNarrative from "./TrackNarrative.jsx";
 import AiBriefing from "./AiBriefing.jsx";
 import HeatMap from "./HeatMap.jsx";
@@ -33,7 +32,6 @@ function PathView({ track, onClose }) {
             }, 0);
             return (
               <>
-                <div className="mt-1.5"><PathMap points={pts} fitKey={track.contact.icao} /></div>
                 <TrackNarrative icao={track.contact.icao} />
                 <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.6 }}>
                   {pts.length} recorded positions · {km.toFixed(0)}km of track
