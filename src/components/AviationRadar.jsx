@@ -217,8 +217,12 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
             <button onClick={() => setUavInfo(false)} aria-label="close" style={{ color: "#C084FC" }}><X size={13} /></button>
           </div>
           <div className="mt-1.5" style={{ fontSize: 12, color: C.text, lineHeight: 1.55 }}>
-            Drones broadcasting ADS-B category <b>B6</b> (large military, government, and test
-            platforms) appear here as violet quad-rotor marks — live, real aircraft.
+            {/* ADS-B and B6 STAY here. This panel is the EVIDENCE for calling something a drone —
+                the aircraft declares the category itself. Replacing it with plain words would make
+                the label unverifiable, which is the opposite of the point. Explained inline instead. */}
+            Aircraft that declare themselves unmanned — category <b>B6</b> in the ADS-B broadcast,
+            used by large military, government and test platforms — appear as violet quad-rotor
+            marks. Live, real aircraft.
           </div>
           <div className="mt-1.5" style={{ fontSize: 12, color: C.dim, lineHeight: 1.55 }}>
             <b style={{ color: C.text }}>Most radars show 0 UAVs most of the time — that's accurate, not a fault.</b>{" "}
@@ -317,7 +321,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
             </span>
           </span>
         ) : status === "live" && plotted.length === 0 ? (
-          <span style={{ color: C.faint }}>0 in range — thin ADS-B receiver coverage here · real data, sparse net</span>
+          <span style={{ color: C.faint }}>nothing broadcasting here right now — few receivers cover this area</span>
         ) : (<span style={{ color: C.faint }}>Tap an aircraft · {shown.length}{only !== "all" ? ` of ${plotted.length}` : ""} in range{(() => { const d = plotted.filter((a) => a.isDrone).length; return d ? ` · ${d} UAV` : ""; })()}</span>)}
         <span style={{ color: C.dim }}>{center.name.split("·").pop().trim() || center.city}</span>
       </div>
