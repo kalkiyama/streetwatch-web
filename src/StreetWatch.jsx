@@ -5,7 +5,7 @@ import Intro from "./components/Intro.jsx";
 // Catalog is fetched at runtime from /catalog.json (5,000+ feeds — too big to bundle).
 import { C, LAYERS, layerKeys, resolveUrl, openLive } from "./theme.js";
 import { distKm } from "./geo.js";
-import { AIS_BACKEND_URL } from "./config.js";
+import { AIS_BACKEND_URL, BACKEND_URL } from "./config.js";
 import WorldMap from "./components/WorldMap.jsx";
 import MapPanel from "./components/MapPanel.jsx";
 import NearbyCams from "./components/NearbyCams.jsx";
@@ -315,6 +315,31 @@ export default function StreetWatch() {
     return { list: exact.concat(near), fuzzy: near.length };
   }, [query, active, continent, country, favOnly, favorites, tab, CATALOG, searchText]);
 
+  // ARCHIVE SEARCH — a SECOND search, over AIRCRAFT rather than places.
+  // setAcHits is called only inside the debounced callback and the cleanup, never synchronously on
+  // the render path: React Compiler flags a synchronous set inside an effect, and on a search box
+  // that fires per keystroke it is a real cascade rather than a style nit.
+  const [acHits, setAcHits] = useState(null);   // null = not searched · [] = searched, no match
+  const [acBusy, setAcBusy] = useState(false);
+  useEffect(() => {
+    const q = query.trim();
+    // 3 characters minimum. Shorter prefixes match a large slice of the archive and the round trip
+    // is wasted — "ae" alone is most US military airframes.
+    if (q.length < 3) {
+      const id = setTimeout(() => { setAcHits(null); setAcBusy(false); }, 0);
+      return () => clearTimeout(id);
+    }
+    let alive = true;
+    const t = setTimeout(() => {
+      setAcBusy(true);
+      fetch(`${BACKEND_URL}/api/drones/history?days=90&limit=8&q=${encodeURIComponent(q)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => { if (alive) { setAcHits(j && Array.isArray(j.contacts) ? j.contacts : []); setAcBusy(false); } })
+        .catch(() => { if (alive) { setAcHits([]); setAcBusy(false); } });
+    }, 350);   // the catalog filter is instant; this is a database query, so it waits for a pause
+    return () => { alive = false; clearTimeout(t); };
+  }, [query]);
+
   const results = search.list;
 
   const selected =
@@ -533,6 +558,59 @@ export default function StreetWatch() {
                 <Navigation size={12} /> Near me
               </button>
             </div>
+              {/* AIRCRAFT — archive matches, shown ABOVE the places. A callsign is a more specific
+                  query than a place name, so if someone typed one they almost certainly meant it. */}
+              {acHits !== null && (
+                <div style={{ borderBottom: `1px solid ${C.line}` }}>
+                  <div className="px-4 py-2.5 font-mono flex items-center gap-1.5"
+                    style={{ fontSize: 10, color: C.faint, letterSpacing: 1, background: C.ink,
+                      borderTop: `1px solid ${C.line}`, borderBottom: `1px solid ${C.line}` }}>
+                    <Plane size={11} />AIRCRAFT · {acBusy ? "searching…" : acHits.length}
+                  </div>
+                  {/* NOT CLICKABLE, deliberately. openSighting needs siteLat/siteLon to centre a
+                      radar, and archive rows do not carry them, so the click silently did nothing.
+                      Opening a LIVE radar would also answer the wrong question: most archived
+                      airframes are not flying when you look them up, so it would be empty and read
+                      as "no data" rather than "not airborne".
+                      The row already answers what someone typing a callsign is asking — type, how
+                      often seen, where last seen. The proper destination is DroneSweep's existing
+                      track panel, which needs a cross-component handoff (an openIcao prop and a tab
+                      switch) and deserves doing on its own rather than bolted on here. */}
+                  {acHits.map((a) => (
+                    <div key={a.icao}
+                      className="w-full text-left px-4 py-2.5 flex items-center gap-3"
+                      style={{ borderLeft: "2px solid transparent", borderBottom: `1px solid ${C.line}` }}>
+                      <div className="flex items-center justify-center flex-shrink-0 rounded"
+                        style={{ width: 30, height: 30, background: C.ink, border: `1px solid ${C.line}` }}>
+                        <Plane size={14} color={a.kind === "uav" ? "#C084FC" : C.amber} />
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: C.text }}>
+                          {a.callsign || a.icao}
+                          <span className="font-mono" style={{ fontSize: 10, color: C.dim, marginLeft: 6 }}>
+                            {a.icao}
+                          </span>
+                        </div>
+                        <div className="font-mono" style={{ fontSize: 10, color: C.faint }}>
+                          {a.descr || a.type_code || "unknown type"} · {a.points} sighting{a.points === "1" ? "" : "s"}
+                          {a.last_site ? ` · last near ${a.last_site}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {!acBusy && acHits.length === 0 && (
+                    <div className="px-4 py-2.5" style={{ fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
+                      No military or UAV contact matching “{query.trim()}” in the archive.
+                      {/* SAY WHY. This archive is military and UAV ONLY, by design — civil traffic is
+                          never stored. Without this line, someone typing a commercial flight number
+                          reads an empty result as a broken search rather than as out of scope. */}
+                      <span style={{ display: "block", color: C.faint, fontSize: 10, marginTop: 2 }}>
+                        Only military and UAV aircraft are archived — civil flights are never stored.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             {nearMe && !geoErr && (
               <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.5 }}>
                 sorted by distance from you · map centred on you · nearest feed opened
