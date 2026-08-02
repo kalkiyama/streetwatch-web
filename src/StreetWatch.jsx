@@ -594,6 +594,13 @@ export default function StreetWatch() {
                         <div className="font-mono" style={{ fontSize: 10, color: C.faint }}>
                           {a.descr || a.type_code || "unknown type"} · {a.points} sighting{a.points === "1" ? "" : "s"}
                           {a.last_site ? ` · last near ${a.last_site}` : ""}
+                          {/* WHEN. Without a date these read as LIVE aircraft — the user's first
+                              reaction on seeing the results was "maybe they are past records".
+                              They are: archived sightings over up to 90 days. The API returns
+                              last_seen and the row simply was not showing it. A date makes "past
+                              record" obvious without a word of explanation, which is the better
+                              version of the honesty this project keeps reaching for. */}
+                          {a.last_seen ? ` · ${new Date(a.last_seen).toLocaleDateString()}` : ""}
                         </div>
                       </div>
                     </div>
