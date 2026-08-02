@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import Leaflet from "leaflet";
 import { planeIcon, droneIcon, shipIcon } from "../mapIcons.js";
 import { watchUserPan, keepInView } from "../mapFollow.js";
@@ -56,7 +56,6 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
   const box = useRef(null);
   const map = useRef(null);
   const roRef = useRef(null);   // DEF-035: the ResizeObserver, disconnected on teardown
-  const [ready, setReady] = useState(0);
   const layer = useRef(null);
   const fitted = useRef(false);
   const trailRef = useRef(null);
@@ -100,7 +99,6 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
       ro.observe(box.current);
       roRef.current = ro;
     }
-    setReady((n) => n + 1);
     return () => {
       // Disconnect BEFORE removing the map: the observer fires on teardown as the element
       // collapses, and invalidateSize on a removed map throws.
@@ -125,7 +123,7 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
     }).bindTooltip(center.name || "feed centre", { direction: "top" }).addTo(m);
     m.fitBounds(m._ring.getBounds().pad(0.05));
     fitted.current = true;
-  }, [radiusNm, center.lat, center.lng, center.name, ready]);
+  }, [radiusNm, center.lat, center.lng, center.name]);
 
   // Reuse markers instead of clearing and rebuilding them.
   //
@@ -209,7 +207,7 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
       const col = chosen.isDrone ? "#C084FC" : chosen.military ? "#F87171" : "#5AC8FA";
       trailRef.current = Leaflet.polyline(chosen.trail, { color: col, weight: 1.5, opacity: 0.6 }).addTo(layer.current);
     }
-  }, [contacts, sel, mode, iconFor, ready]);
+  }, [contacts, sel, mode, iconFor]);
 
   return <div ref={box} className="sw-radar-map" style={{ height, borderRadius: 4, overflow: "hidden", background: "#0A0D12" }} />;
 }
