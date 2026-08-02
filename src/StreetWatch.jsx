@@ -592,7 +592,7 @@ export default function StreetWatch() {
                           </span>
                         </div>
                         <div className="font-mono" style={{ fontSize: 10, color: C.faint }}>
-                          {a.descr || a.type_code || "unknown type"} · {a.points} sighting{a.points === "1" ? "" : "s"}
+                          {a.descr || a.type_code || "unknown type"} · {a.points}{"\u00a0"}sighting{String(a.points) === "1" ? "" : "s"}
                           {a.last_site ? ` · last near ${a.last_site}` : ""}
                           {/* WHEN. Without a date these read as LIVE aircraft — the user's first
                               reaction on seeing the results was "maybe they are past records".
