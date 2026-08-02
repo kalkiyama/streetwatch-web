@@ -330,7 +330,7 @@ export default function StreetWatch() {
         </div>
         <div className="min-w-0 flex-1">
           <div style={{ fontSize: 13, color: C.text, fontWeight: sel ? 600 : 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
-          <div className="font-mono" style={{ fontSize: 10, color: C.faint }}>{c.city} · {c.country}{c.distKm != null ? ` · ${Math.round(c.distKm).toLocaleString()} km` : ""}</div>
+          <div className="font-mono" style={{ fontSize: 10, color: C.faint }}>{c.city} · {c.country}{c.distKm != null ? ` · ${Math.round(c.distKm * 0.621371).toLocaleString()} miles` : ""}</div>
         </div>
         {["traffic", "webcam", "wildlife"].includes(c.layer) &&
           <ExternalLink size={11} color={C.faint} style={{ flexShrink: 0 }} aria-label="opens external site" />}
@@ -516,7 +516,7 @@ export default function StreetWatch() {
             {nearMe && !geoErr && (
               <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.5 }}>
                 sorted by distance from you · map centred on you · nearest feed opened
-                {selected ? ` (${selected.name}${userLoc ? `, ${Math.round(distKm(userLoc.lat, userLoc.lng, selected.lat, selected.lng))}km` : ""})` : ""}
+                {selected ? ` (${selected.name}${userLoc ? `, ${Math.round(distKm(userLoc.lat, userLoc.lng, selected.lat, selected.lng) * 0.621371)} miles` : ""})` : ""}
                  · layer chips still filter
               </div>
             )}
