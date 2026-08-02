@@ -492,7 +492,12 @@ export default function StreetWatch() {
                 </button>
               ))}
             </div>
+            {/* aria-label because the visible "REGION" heading above is a plain div, not a
+                <label>, so nothing associates it with this control programmatically. A screen
+                reader announced an unlabelled dropdown. Flagged by the Aug 2 accessibility
+                audit — the only failure that was not the C.faint contrast problem. */}
             <select value={country} onChange={(e) => setCountry(e.target.value)}
+              aria-label="Filter feeds by country"
               className="w-full mt-2 px-2.5 rounded font-mono"
               style={{ height: 34, fontSize: 12, color: C.text, background: C.ink, border: `1px solid ${C.line}` }}>
               {countries.map((cn) => <option key={cn} value={cn} style={{ background: C.panel }}>{cn === "All" ? "All countries" : cn}</option>)}
