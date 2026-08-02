@@ -63,7 +63,7 @@ export default function NearbyCams({ lat, lon, name }) {
 
       {open && (
         <div className="mt-2">
-          {loading && <div className="font-mono" style={{ fontSize: 10, color: C.faint }}>looking for public cameras within 50km…</div>}
+          {loading && <div className="font-mono" style={{ fontSize: 10, color: C.faint }}>looking for public cameras within 31 miles…</div>}
 
           {!loading && data && data.configured === false && (
             <div className="font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.5 }}>
@@ -77,7 +77,7 @@ export default function NearbyCams({ lat, lon, name }) {
 
           {!loading && data && data.configured !== false && !data.error && cams.length === 0 && (
             <div className="font-mono" style={{ fontSize: 10, color: C.faint }}>
-              No public webcams listed within 50km of {name || "this feed"}.
+              No public webcams listed within 31 miles of {name || "this feed"}.
             </div>
           )}
 
@@ -128,7 +128,7 @@ export default function NearbyCams({ lat, lon, name }) {
               )}
               <div className="font-mono mt-1" style={{ fontSize: 9, color: C.faint, lineHeight: 1.5 }}>
                 Showing {showAll ? cams.length : Math.min(INITIAL, cams.length)} of {total} public
-                webcams within 50km · opens on windy.com · free tier serves low-resolution
+                webcams within 31 miles · opens on windy.com · free tier serves low-resolution
                 images and links expire after ~10 minutes
               </div>
             </>

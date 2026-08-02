@@ -100,7 +100,7 @@ export default function Intro({ open, onClose, feedCount = null }) {
         </S>
 
         <S icon={Camera} color="#37C46A" title="Cameras & more">
-          Every feed offers <b>NEARBY CAMS</b> — public webcams within 50km. Weather satellites,
+          Every feed offers <b>NEARBY CAMS</b> — public webcams within 31 miles. Weather satellites,
           wildlife cams, city views and the ISS live in their own layers.
         </S>
 

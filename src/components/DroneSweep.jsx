@@ -34,7 +34,7 @@ function PathView({ track, onClose }) {
               <>
                 <TrackNarrative icao={track.contact.icao} />
                 <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.6 }}>
-                  {pts.length} recorded positions · {km.toFixed(0)}km of track
+                  {pts.length} recorded positions · {(km * 0.621371).toFixed(0)} miles of track
                   <span style={{ display: "block" }}>
                     {new Date(pts[0].ts).toLocaleString()} → {new Date(pts[pts.length - 1].ts).toLocaleString()}
                   </span>
