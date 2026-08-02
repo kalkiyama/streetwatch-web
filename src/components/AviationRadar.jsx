@@ -56,9 +56,13 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
   // range the radar actually offers.
   const RANGES = [60, 120, 250];
   const [radius, setRadius] = useState(() => {
+    // SNAP THE DEFAULT TOO. defaultRadius is 100 and RANGES is [60, 120, 250] — 100 is not a
+    // selectable value, so on first load with no ?r= parameter the radar ran at 100 while NO CHIP
+    // HIGHLIGHTED. The user saw a radar with no range selected and had to click one to make the
+    // interface agree with itself. The snap below existed and the default path skipped it.
     const r = Number(initialRadius);
-    if (!Number.isFinite(r) || r <= 0) return defaultRadius;
-    return RANGES.reduce((best, v) => (Math.abs(v - r) < Math.abs(best - r) ? v : best), RANGES[0]);
+    const want = Number.isFinite(r) && r > 0 ? r : defaultRadius;
+    return RANGES.reduce((best, v) => (Math.abs(v - want) < Math.abs(best - want) ? v : best), RANGES[0]);
   });
   useEffect(() => { if (onRadius) onRadius(radius); }, [radius, onRadius]);
   useEffect(() => { if (onSelect) onSelect(sel); }, [sel, onSelect]);
