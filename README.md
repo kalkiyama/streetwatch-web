@@ -8,7 +8,7 @@ ISS. **7,448 feeds**, searchable and filterable by continent, country and layer,
 favourites and "near me". Public feeds only — private cameras of private spaces are excluded
 by design.
 
-Beyond the directory, a server-side sweep watches **1,106 airspaces** for military and UAV
+Beyond the directory, a server-side sweep watches **1,081 airspaces** on a tiered rotation — active sites every ~30 minutes, the global grid every few days — for military and UAV
 activity, archives 90 days of it, and presents that history as an activity map, path replay,
 and multi-stop route analysis.
 
