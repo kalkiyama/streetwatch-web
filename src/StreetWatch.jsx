@@ -227,13 +227,28 @@ export default function StreetWatch() {
     }
   }, [selectedId]);
 
+  // Favourites are read ONCE on mount. The setState here is flagged by React Compiler as a
+  // synchronous set inside an effect, which can cost one extra render — accepted deliberately:
+  // localStorage cannot be read during render, and a lazy useState initialiser would run on the
+  // server-less first paint before the browser API is safe to touch.
   useEffect(() => {
-    try { const v = localStorage.getItem("favorites"); if (v) setFavorites(JSON.parse(v)); } catch {}
+    try {
+      const v = localStorage.getItem("favorites");
+      if (v) setFavorites(JSON.parse(v));
+    } catch {
+      // PRIVATE BROWSING throws on localStorage access, and a corrupt value throws in JSON.parse.
+      // Both mean "no saved favourites", which is a fine state to start in. Swallowed on purpose —
+      // the empty block was flagged by no-empty, and the fix is saying WHY, not adding a log
+      // nobody reads.
+    }
   }, []);
   const isFav = (id) => favorites.includes(id);
   const toggleFav = (id) => setFavorites((f) => {
     const next = f.includes(id) ? f.filter((x) => x !== id) : [...f, id];
-    try { localStorage.setItem("favorites", JSON.stringify(next)); } catch {}
+    try { localStorage.setItem("favorites", JSON.stringify(next)); } catch {
+      // Same as above: private browsing, or the quota is full. The favourite still applies for
+      // this session — it just will not survive a reload. Losing a star is not worth an alert.
+    }
     return next;
   });
   const locateMe = () => {
