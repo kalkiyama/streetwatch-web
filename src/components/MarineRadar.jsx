@@ -74,8 +74,13 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
   // vessel the radar never loads. The map routes taps only within 100nm, so the widest
   // ring guarantees visibility. (This was the bug: default 40nm, vessel at 60nm, nothing
   // ever selected and no hint why.)
+  // The chips are RANGES and the default MUST be one of them. It was 40, and the chips are
+  // [20, 50, 100] — so on first load no chip highlighted and the radar ran at a range the user
+  // could not see selected. Same bug as the aviation radar's 100 against [60, 120, 250].
+  // The list also appeared TWICE, here and in the chip row, with nothing keeping them in step.
+  const RANGES = [20, 50, 100];
   const [radius, setRadius] = useState(
-    initialSel ? 100 : [20, 50, 100].includes(initialRadius) ? initialRadius : 40);
+    initialSel ? 100 : RANGES.includes(initialRadius) ? initialRadius : RANGES[1]);
   const [view, setView] = useState("radar");   // radar | map
   const [only, setOnly] = useState("all");     // all | usv | sub
   useEffect(() => { if (onRadius) onRadius(radius); }, [radius, onRadius]);
@@ -200,7 +205,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
               {label}
             </button>
           ))}
-          {[20, 50, 100].map((r) => (
+          {RANGES.map((r) => (
             <button key={r} onClick={() => setRadius(r)} className="px-1.5 py-0.5 rounded font-mono"
               style={{ fontSize: 10, color: radius === r ? C.ink : C.dim, background: radius === r ? teal : "rgba(20,28,25,0.8)" }}>{r}nm</button>
           ))}

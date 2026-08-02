@@ -55,6 +55,7 @@ function ensureZoomStyle() {
 export default function RadarMap({ center, contacts, radiusNm, sel, onSel, height = 300, mode = "air" }) {
   const box = useRef(null);
   const map = useRef(null);
+  const roRef = useRef(null);   // DEF-035: the ResizeObserver, disconnected on teardown
   const layer = useRef(null);
   const fitted = useRef(false);
   const trailRef = useRef(null);
@@ -75,7 +76,36 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
     layer.current = Leaflet.layerGroup().addTo(map.current);
       guardTouchScroll(map.current);
     setTimeout(() => map.current && map.current.invalidateSize(), 80);
-    return () => { if (map.current) { map.current.remove(); map.current = null; } };
+
+    // DEF-035. Leaflet CACHES the container size. When the pane is resized — dragging the list
+    // divider, rotating a phone, entering fullscreen — it keeps using the OLD dimensions, so its
+    // SVG overlay pane stays clipped to the old viewport and any vector drawn beyond it (the range
+    // rings, the contacts) simply VANISHES. Nothing errors; the shapes are just outside a stale
+    // clip rect.
+    // The setTimeout above fires ONCE at mount and is a guess at a duration. This responds to the
+    // actual resize. Same fix WorldMap has carried for months; HeatMap gained it in the Aug 1
+    // merge. RadarMap was the last surface without it.
+    // Throttled to one call per frame so dragging a divider stays smooth.
+    if (typeof ResizeObserver !== "undefined" && box.current) {
+      let queued = false;
+      const ro = new ResizeObserver(() => {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(() => {
+          queued = false;
+          try { map.current && map.current.invalidateSize(); } catch { /* unmounted */ }
+        });
+      });
+      ro.observe(box.current);
+      roRef.current = ro;
+    }
+
+    return () => {
+      // Disconnect BEFORE removing the map: the observer fires on teardown as the element
+      // collapses, and invalidateSize on a removed map throws.
+      if (roRef.current) { roRef.current.disconnect(); roRef.current = null; }
+      if (map.current) { map.current.remove(); map.current = null; }
+    };
   }, [center.lat, center.lng, mode]);
 
   // range ring + centre, refitted when the radius changes
