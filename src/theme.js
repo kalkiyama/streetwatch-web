@@ -94,3 +94,44 @@ export function addBaseTiles(Leaflet, map) {
   Leaflet.tileLayer(BASE_TILE_URL, { attribution: TILE_ATTR, maxZoom: TILE_MAX_ZOOM }).addTo(map);
   Leaflet.tileLayer(LABEL_TILE_URL, { maxZoom: TILE_MAX_ZOOM, pane: "shadowPane" }).addTo(map);
 }
+
+// TIMESTAMPS — one formatter, one setting, UTC by default.
+// Aviation runs on UTC: flight plans, NOTAMs, METARs and clearances are all Zulu, and the archive
+// stores TIMESTAMPTZ. toLocaleString() silently rendered the VIEWER'S timezone instead, so the
+// same arrival read as afternoon in Florida and night in London with nothing saying which.
+// Module-level rather than a prop because one call site is inside WorldMap's Leaflet popup
+// builder, which runs outside React's tree. See setUtc for the re-render caveat.
+let USE_UTC = true;
+try { USE_UTC = localStorage.getItem("sw-tz") !== "local"; } catch { /* private browsing */ }
+
+export const isUtc = () => USE_UTC;
+
+// Changing this does NOT re-render on its own — a module variable is invisible to React. The
+// caller bumps a state counter to force it. Leaflet popups pick it up on their next draw.
+export const setUtc = (on) => {
+  USE_UTC = !!on;
+  try { localStorage.setItem("sw-tz", on ? "utc" : "local"); } catch { /* private browsing */ }
+};
+
+// date + time. "2026-08-02 20:37Z" or the local equivalent.
+export const fmtTs = (ts) => {
+  if (!ts) return "";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "";
+  return USE_UTC ? `${d.toISOString().slice(0, 16).replace("T", " ")}Z` : d.toLocaleString();
+};
+
+// date only, for rows where the time would be noise.
+export const fmtDate = (ts) => {
+  if (!ts) return "";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "";
+  return USE_UTC ? d.toISOString().slice(0, 10) : d.toLocaleDateString();
+};
+export const fmtHm = (ts) => {
+  if (!ts) return "";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "";
+  return USE_UTC ? d.toISOString().slice(11, 16)
+    : d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+};

@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
-import { LAYERS, heatColor, heatIntensity, addBaseTiles } from "../theme.js";
+import { LAYERS, heatColor, heatIntensity, addBaseTiles, fmtTs } from "../theme.js";
 import { droneIcon, stationIcon } from "../mapIcons.js";
 import { watchUserPan, keepInView } from "../mapFollow.js";
 
@@ -245,7 +245,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
               `${pick.p} report${pick.p === 1 ? "" : "s"} of those ${shown} aircraft` +
               ` &middot; over ${s.span_hours || 0}h`, false));
           if (s.last_seen)
-            rows.push(row("Last seen", new Date(s.last_seen).toLocaleString(), false));
+            rows.push(row("Last seen", fmtTs(s.last_seen), false));
 
           return (
             `<b>${s.site}</b><br><span style="opacity:.7">${s.country || ""}</span>` +

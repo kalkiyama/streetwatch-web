@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
-import { C } from "../theme.js";
+import { C, fmtDate, fmtHm } from "../theme.js";
 import { BACKEND_URL } from "../config.js";
 
 // ROUTES — the same aircraft observed low and close at several airfields in sequence.
@@ -166,8 +166,12 @@ export default function RouteTrace({ days = 7 }) {
                             chronological sequence read as though it ran backwards — 22:56 then
                             13:46 then 09:08 are three visits on three different days, but with no
                             date the reader has no way to know that. */}
-                        {" · "}{new Date(s.firstSeen).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                        {" "}{String(s.firstSeen).slice(11, 16)}&ndash;{String(s.lastSeen).slice(11, 16)}
+                        {" · "}{fmtDate(s.firstSeen)}
+                        {/* fmtHm, not a string slice. slice(11,16) takes characters out of the raw
+                            ISO text, so it was ALWAYS UTC while fmtDate beside it followed the
+                            toggle — the date moved a day and the time stayed put, showing a moment
+                            that never happened. */}
+                        {" "}{fmtHm(s.firstSeen)}&ndash;{fmtHm(s.lastSeen)}
                         {" · "}{s.observedMinutes}min
                         {" · "}{s.points} observation{s.points === 1 ? "" : "s"}
                       </div>
