@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2, HelpCircle, Sparkles } from "lucide-react";
 import Intro from "./components/Intro.jsx";
 // Catalog is fetched at runtime from /catalog.json (5,000+ feeds — too big to bundle).
-import { C, LAYERS, layerKeys, resolveUrl, openLive } from "./theme.js";
+import { C, LAYERS, layerKeys, resolveUrl, openLive, fmtDate, setUtc, isUtc } from "./theme.js";
 import { distKm } from "./geo.js";
 import { AIS_BACKEND_URL, BACKEND_URL } from "./config.js";
 import WorldMap from "./components/WorldMap.jsx";
@@ -74,6 +74,11 @@ export default function StreetWatch() {
     }
   }, [CATALOG]);
   const [query, setQuery] = useState("");
+  // The timezone setting lives in theme.js as a MODULE variable, because one of its call sites is
+  // inside WorldMap's Leaflet popup builder — that runs outside React's tree and a prop cannot
+  // reach it. A module variable is invisible to React, so this counter exists only to force a
+  // re-render when the toggle flips.
+  const [, bumpTz] = useState(0);
   const [browse, setBrowse] = useState(() => {
     try { return localStorage.getItem("sw-browse") === "map" ? "map" : "list"; } catch { return "list"; }
   });
@@ -600,7 +605,7 @@ export default function StreetWatch() {
                               last_seen and the row simply was not showing it. A date makes "past
                               record" obvious without a word of explanation, which is the better
                               version of the honesty this project keeps reaching for. */}
-                          {a.last_seen ? ` · ${new Date(a.last_seen).toLocaleDateString()}` : ""}
+                          {a.last_seen ? ` · ${fmtDate(a.last_seen)}` : ""}
                         </div>
                       </div>
                     </div>
@@ -638,6 +643,20 @@ export default function StreetWatch() {
                     color: browse === m ? C.ink : C.dim,
                     background: browse === m ? C.cyan : C.panel2,
                     border: `1px solid ${browse === m ? C.cyan : C.line}` }}>
+                  {label}
+                </button>
+              ))}
+              {/* BOTH options shown, active one filled — the single chip displayed only the
+                  CURRENT state, so it read as a label rather than a control and gave no hint what
+                  the alternative was. Same shape and colours as the LIST/MAP pair beside it. */}
+              {[[true, "UTC"], [false, "LOCAL"]].map(([v, label]) => (
+                <button key={label} onClick={() => { setUtc(v); bumpTz((n) => n + 1); }}
+                  className="px-2.5 py-1 rounded font-mono"
+                  title="Aviation runs on UTC — flight plans, NOTAMs and clearances are all Zulu."
+                  style={{ fontSize: 10, letterSpacing: 0.5,
+                    color: isUtc() === v ? C.ink : C.dim,
+                    background: isUtc() === v ? C.cyan : C.panel2,
+                    border: `1px solid ${isUtc() === v ? C.cyan : C.line}` }}>
                   {label}
                 </button>
               ))}

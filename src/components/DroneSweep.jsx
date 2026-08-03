@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { RefreshCw, Radio, History, X } from "lucide-react";
-import { C } from "../theme.js";
+import { C, fmtTs, fmtDate } from "../theme.js";
 import { lookupCallsign } from "../callsigns.js";
 import TrackNarrative from "./TrackNarrative.jsx";
 import AiBriefing from "./AiBriefing.jsx";
@@ -36,7 +36,7 @@ function PathView({ track, onClose }) {
                 <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint, lineHeight: 1.6 }}>
                   {pts.length} recorded positions · {(km * 0.621371).toFixed(0)} miles of track
                   <span style={{ display: "block" }}>
-                    {new Date(pts[0].ts).toLocaleString()} → {new Date(pts[pts.length - 1].ts).toLocaleString()}
+                    {fmtTs(pts[0].ts)} → {fmtTs(pts[pts.length - 1].ts)}
                   </span>
                 </div>
               </>
@@ -264,7 +264,7 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
                   {c.last_site} <span style={{ color: C.faint }}>· {c.last_country}</span>
                   <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
                     {c.descr || c.type_code || "unknown type"} · {c.points} point{c.points > 1 ? "s" : ""} over {dur < 60 ? dur + "min" : Math.round(dur / 60) + "h"}
-                    {" · "}{new Date(c.last_seen).toLocaleDateString()}
+                    {" · "}{fmtDate(c.last_seen)}
                   </span>
                 </span>
                 <span className="font-mono flex items-center gap-1" style={{ fontSize: 9, color: isOpen ? "#C084FC" : C.faint, whiteSpace: "nowrap" }}>
