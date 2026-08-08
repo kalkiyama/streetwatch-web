@@ -1,6 +1,6 @@
 // StreetWatch — main shell. Views live in ./components, data in catalog.json.
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2, HelpCircle, Sparkles } from "lucide-react";
+import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2, HelpCircle, Sparkles, Shield } from "lucide-react";
 import Intro from "./components/Intro.jsx";
 // Catalog is fetched at runtime from /catalog.json (5,000+ feeds — too big to bundle).
 import { C, LAYERS, layerKeys, resolveUrl, openLive, fmtDate, setUtc, isUtc } from "./theme.js";
@@ -16,6 +16,7 @@ import MarineRadar from "./components/MarineRadar.jsx";
 import EarthView from "./components/EarthView.jsx";
 import SpaceView from "./components/SpaceView.jsx";
 import DroneSweep from "./components/DroneSweep.jsx";
+import CyberView from "./components/CyberView.jsx";
 
 const timeAgo = (t) => {
   const s = Math.max(0, Math.round((Date.now() - t) / 1000));
@@ -447,7 +448,8 @@ export default function StreetWatch() {
               otherwise cannot tell the world browser from the drone watch. */}
           <div className="flex items-center rounded-lg" style={{ border: `1px solid ${C.line}`, padding: 2, background: C.panel2 }}>
             {[{ k: "world", label: "World", icon: Globe, hint: "all feeds" },
-              { k: "drones", label: "Drones", icon: Plane, hint: "military watch" }].map((t) => (
+              { k: "drones", label: "Drones", icon: Plane, hint: "military watch" },
+              { k: "cyber", label: "Cyber", icon: Shield, hint: "attacks & outages" }].map((t) => (
               <button key={t.k} onClick={() => { setTab(t.k); dismissCoach(); }}
                 aria-pressed={tab === t.k}
                 className="flex items-center gap-1.5 rounded"
@@ -678,6 +680,9 @@ export default function StreetWatch() {
 
           <div style={{ maxHeight: "46vh", overflowY: "auto", display: browse === "map" ? "none" : undefined }} className="lg:max-h-none">
             {tab === "drones" && <DroneSweep onOpen={openSighting} onOpenVessel={openVesselFromList} />}
+            {/* Cyber has no feed catalog behind it — it renders three public sources directly,
+                so it sits alongside the list rather than filtering it. */}
+            {tab === "cyber" && <CyberView />}
             {tab === "drones" && (
               <div className="mx-4 mt-2 mb-1 rounded px-3 py-2" style={{ background: "rgba(192,132,252,0.10)", border: "1px solid rgba(192,132,252,0.35)", fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
                 <b style={{ color: "#C084FC" }}>◇ UAV WATCH</b> — radars over airspaces where category-B6 drones actually fly.
