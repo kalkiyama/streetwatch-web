@@ -697,6 +697,56 @@ export default function StreetWatch() {
             </div>
           )}
 
+        </aside>
+        {/* the divider itself: a grabbable strip, desktop only */}
+        {browsesFeeds && (
+        <div className="hidden lg:block flex-shrink-0" role="separator" aria-orientation="vertical"
+          title="Drag to resize the list"
+          onPointerDown={() => { draggingRef.current = true; document.body.style.userSelect = "none"; }}
+          style={{ width: 7, cursor: "col-resize", background: C.line, opacity: 0.6 }} />
+        )}
+
+        {/* The VIEWER, not the browser. Both sections below are driven by `selected` — a feed from
+            the catalog — so on Cyber they showed a world map and a traffic camera beside panels
+            about attack traffic. Gating the left panel was only half the job.
+            The divider above is hidden too: dragging to resize a pane that is not there is worse
+            than no handle at all. */}
+        {/* CYBER OWNS THE WHOLE RIGHT-HAND AREA. It used to render inside the <aside>, which is a
+            narrow list column — the map came out cramped and unexplorable, while <main> sat hidden
+            and empty beside it. The panels are the page here, not an item in a list. */}
+        {tab === "cyber" && (
+          <main className="flex-1 p-4 md:p-6" style={{ minWidth: 0 }}>
+            <CyberView />
+          </main>
+        )}
+        {browsesFeeds && (
+        <main className="flex-1 p-4 md:p-6 flex flex-col gap-4">
+          {/* THE LARGEST THING ON SCREEN AND IT HAD NO NAME. It changes what it shows depending on
+              which layers are on, the same component also renders inside the left panel in MAP
+              mode, and nothing told a reader either fact — "why do I still see the world map and
+              radar map and traffic feed" was partly this.
+              The count is what this instance actually knows; the layer state lives in MapPanel and
+              does not reach here, so the header says what it can rather than guessing. */}
+          <section ref={viewerRef} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.line}`, flexShrink: 0, scrollMarginTop: 8 }}>
+            <div className="px-3 py-1.5 font-mono flex items-center justify-between"
+              style={{ fontSize: 10, letterSpacing: 1, color: C.faint, background: C.panel,
+                borderBottom: `1px solid ${C.line}` }}>
+              <span>WORLD MAP</span>
+              <span style={{ letterSpacing: 0 }}>
+                {results.length.toLocaleString()} feed{results.length === 1 ? "" : "s"}
+                {tab === "drones" ? " · military & UAV" : ""}
+              </span>
+            </div>
+            <div style={{ height: 300 }}>
+            <WorldMap feeds={results.length > 2000 ? results.filter((c) => c.major || c.tag === "uav" || !["aviation", "marine"].includes(c.layer)) : results} selectedId={selected.id} onSelect={setSelectedId} showIss={tab !== "drones"} />
+            </div>
+          </section>
+
+          {/* STAGE 1 of the layout restructure: the feed list moved OUT of the narrow left column
+              and INTO the main area, above the radar. The aside kept the filters; everything else
+              is unchanged for now — the divider and the two columns still exist.
+              The 46vh cap and the lg:max-h-none that removed it on desktop came with it: on a wide
+              screen the list is no longer competing with the filters for the same column. */}
           <div style={{ maxHeight: "46vh", overflowY: "auto", display: browse === "map" ? "none" : undefined }} className="lg:max-h-none">
             {tab === "drones" && <DroneSweep onOpen={openSighting} onOpenVessel={openVesselFromList} />}
             {tab === "drones" && (
@@ -751,51 +801,6 @@ export default function StreetWatch() {
                 );
               }))}
           </div>
-        </aside>
-        {/* the divider itself: a grabbable strip, desktop only */}
-        {browsesFeeds && (
-        <div className="hidden lg:block flex-shrink-0" role="separator" aria-orientation="vertical"
-          title="Drag to resize the list"
-          onPointerDown={() => { draggingRef.current = true; document.body.style.userSelect = "none"; }}
-          style={{ width: 7, cursor: "col-resize", background: C.line, opacity: 0.6 }} />
-        )}
-
-        {/* The VIEWER, not the browser. Both sections below are driven by `selected` — a feed from
-            the catalog — so on Cyber they showed a world map and a traffic camera beside panels
-            about attack traffic. Gating the left panel was only half the job.
-            The divider above is hidden too: dragging to resize a pane that is not there is worse
-            than no handle at all. */}
-        {/* CYBER OWNS THE WHOLE RIGHT-HAND AREA. It used to render inside the <aside>, which is a
-            narrow list column — the map came out cramped and unexplorable, while <main> sat hidden
-            and empty beside it. The panels are the page here, not an item in a list. */}
-        {tab === "cyber" && (
-          <main className="flex-1 p-4 md:p-6" style={{ minWidth: 0 }}>
-            <CyberView />
-          </main>
-        )}
-        {browsesFeeds && (
-        <main className="flex-1 p-4 md:p-6 flex flex-col gap-4">
-          {/* THE LARGEST THING ON SCREEN AND IT HAD NO NAME. It changes what it shows depending on
-              which layers are on, the same component also renders inside the left panel in MAP
-              mode, and nothing told a reader either fact — "why do I still see the world map and
-              radar map and traffic feed" was partly this.
-              The count is what this instance actually knows; the layer state lives in MapPanel and
-              does not reach here, so the header says what it can rather than guessing. */}
-          <section ref={viewerRef} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.line}`, flexShrink: 0, scrollMarginTop: 8 }}>
-            <div className="px-3 py-1.5 font-mono flex items-center justify-between"
-              style={{ fontSize: 10, letterSpacing: 1, color: C.faint, background: C.panel,
-                borderBottom: `1px solid ${C.line}` }}>
-              <span>WORLD MAP</span>
-              <span style={{ letterSpacing: 0 }}>
-                {results.length.toLocaleString()} feed{results.length === 1 ? "" : "s"}
-                {tab === "drones" ? " · military & UAV" : ""}
-              </span>
-            </div>
-            <div style={{ height: 300 }}>
-            <WorldMap feeds={results.length > 2000 ? results.filter((c) => c.major || c.tag === "uav" || !["aviation", "marine"].includes(c.layer)) : results} selectedId={selected.id} onSelect={setSelectedId} showIss={tab !== "drones"} />
-            </div>
-          </section>
-
           <section className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 min-w-0">
               {selected.layer === "aviation"
