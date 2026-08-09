@@ -5,6 +5,7 @@ import { lookupCallsign } from "../callsigns.js";
 import TrackNarrative from "./TrackNarrative.jsx";
 import AiBriefing from "./AiBriefing.jsx";
 import HeatMap from "./HeatMap.jsx";
+import OperationsPanel from "./OperationsPanel.jsx";
 import RouteTrace from "./RouteTrace.jsx";
 import { BACKEND_URL } from "../config.js";
 
@@ -124,19 +125,33 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
     <div className="mx-4 mt-2 mb-1 rounded" style={{ background: "rgba(192,132,252,0.08)", border: "1px solid rgba(192,132,252,0.35)" }}>
       <div className="px-3 py-2 flex items-center justify-between font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1, flexWrap: "wrap", gap: 6 }}>
         <span className="flex items-center gap-1.5"><Radio size={11} /> GLOBAL SWEEP</span>
-        <span className="flex items-center gap-1">
-          <span className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginRight: 4 }}>VIEW</span>
-          <span className="flex rounded overflow-hidden" style={{ border: "1px solid rgba(192,132,252,0.45)" }}>
-            {[["live", "LIVE"], ["archive", "ARCHIVE"], ["heat", "ACTIVITY"], ["routes", "ROUTES"]].map(([m, label]) => (
-              <button key={m} onClick={() => { setMode(m); setTrack(null); }}
-                title={m === "live" ? "Contacts detected right now" : m === "archive" ? "Everything recorded over the last 90 days" : m === "heat" ? "Where activity concentrates, measured from the archive" : "One aircraft across several airfields — the trace a multi-leg run leaves"}
-                style={{ fontSize: 9, padding: "2px 7px", border: "none",
-                  background: mode === m ? "#C084FC" : "transparent", color: mode === m ? "#0A0E14" : "#C084FC" }}>
-                {label}
-              </button>
-            ))}
-          </span>
-        </span>
+      </div>
+
+      {/* ITS OWN ROW, CENTRED, WRAPPING TO TWO LINES. Five options in a joined segmented control on
+          the right of a justify-between header pushed OPERATIONS off the edge of a narrow panel,
+          and a control that scrolls with no sign it scrolls has a last option that does not exist
+          as far as the reader is concerned.
+          Each button carries its own border now rather than sharing one strip, because a single
+          border cannot survive a wrap. */}
+      <div className="px-3 pb-2 flex flex-wrap items-center justify-center gap-1">
+        {[["live", "LIVE"], ["archive", "ARCHIVE"], ["heat", "ACTIVITY"], ["routes", "ROUTES"], ["ops", "OPERATIONS"]].map(([m, label]) => (
+          <button key={m} onClick={() => { setMode(m); setTrack(null); }}
+            title={m === "live" ? "Contacts detected right now"
+              : m === "archive" ? "Everything recorded over the last 90 days"
+              : m === "heat" ? "Where activity concentrates, measured from the archive"
+              : m === "ops" ? "Aircraft that arrived from or departed to somewhere else — inferred from where tracks end and begin"
+              : "One aircraft across several airfields — the trace a multi-leg run leaves"}
+            className="font-mono rounded"
+            style={{ fontSize: 9, letterSpacing: 0.5, padding: "3px 9px",
+              border: `1px solid ${mode === m ? "#C084FC" : "rgba(192,132,252,0.35)"}`,
+              background: mode === m ? "#C084FC" : "transparent",
+              color: mode === m ? "#0A0E14" : "#C084FC" }}>
+            {label}
+          </button>
+        ))}
+        {/* A FADE ON THE RIGHT EDGE. Even at OPS the five options overflow on a narrow window, and
+            a control that scrolls with no sign it scrolls is a control whose last option does not
+            exist as far as the reader is concerned. The gradient is the smallest honest hint. */}
       </div>
 
       <div className="px-3 pb-1.5" style={{ fontSize: 12, color: C.text, fontWeight: 600 }}>
@@ -148,7 +163,12 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
               ? `Where activity concentrates over ${days} day${days > 1 ? "s" : ""} — tap a circle for detail`
               : mode === "routes"
                 ? `One aircraft across several airfields over ${days} day${days > 1 ? "s" : ""} — tap to see each stop`
-                : `${(hist && hist.count) || 0} recorded · archive keeps 90 days`}
+                : mode === "ops"
+                  // NOT "movements". Aircraft that stay inside the radius never end a track here,
+                  // so this counts traffic BETWEEN places — a busy training field shows a small
+                  // number, and saying "movements" would read as a broken tool.
+                  ? "Aircraft arriving from and departing to elsewhere — tap a site for each one"
+                  : `${(hist && hist.count) || 0} recorded · archive keeps 90 days`}
         </span>
       </div>
 
@@ -232,6 +252,7 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
         </div>
       )}
       {mode === "heat" && <HeatMap days={days} />}
+      {mode === "ops" && <OperationsPanel days={days} />}
 
       {mode === "routes" && <RouteTrace days={days} />}
 
