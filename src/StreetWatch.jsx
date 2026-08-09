@@ -689,13 +689,6 @@ export default function StreetWatch() {
             {geoErr && geoErr !== "locating" && <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: "#F0553B" }}>{geoErr}</div>}
           </div>
 
-          {browse === "map" && browsesFeeds && (
-            <div className="mx-4 mb-3">
-              <MapPanel feeds={results} selectedId={selected ? selected.id : null}
-                userLoc={nearMe ? userLoc : null} tab={tab}
-                onSelect={setSelectedId} onOpenSighting={openSighting} onOpenVessel={openVessel} />
-            </div>
-          )}
 
         </aside>
         {/* the divider itself: a grabbable strip, desktop only */}
@@ -741,6 +734,16 @@ export default function StreetWatch() {
             <WorldMap feeds={results.length > 2000 ? results.filter((c) => c.major || c.tag === "uav" || !["aviation", "marine"].includes(c.layer)) : results} selectedId={selected.id} onSelect={setSelectedId} showIss={tab !== "drones"} />
             </div>
           </section>
+
+          {/* The MAP PANEL is the LIST's alternative — the LIST/MAP toggle picks one or the other —
+              so it belongs next to it, not back in the filter column. Moved with stage 1's list. */}
+          {browse === "map" && browsesFeeds && (
+            <div className="mb-3">
+              <MapPanel feeds={results} selectedId={selected ? selected.id : null}
+                userLoc={nearMe ? userLoc : null} tab={tab}
+                onSelect={setSelectedId} onOpenSighting={openSighting} onOpenVessel={openVessel} />
+            </div>
+          )}
 
           {/* STAGE 1 of the layout restructure: the feed list moved OUT of the narrow left column
               and INTO the main area, above the radar. The aside kept the filters; everything else
