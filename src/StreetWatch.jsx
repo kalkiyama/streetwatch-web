@@ -659,16 +659,6 @@ export default function StreetWatch() {
               </div>
             )}
             <div className="flex items-center gap-1 mt-2">
-              {[["list", "LIST"], ["map", "MAP"]].map(([m, label]) => (
-                <button key={m} onClick={() => setBrowseMode(m)}
-                  className="px-2.5 py-1 rounded font-mono"
-                  style={{ fontSize: 10, letterSpacing: 0.5,
-                    color: browse === m ? C.ink : C.dim,
-                    background: browse === m ? C.cyan : C.panel2,
-                    border: `1px solid ${browse === m ? C.cyan : C.line}` }}>
-                  {label}
-                </button>
-              ))}
               {/* BOTH options shown, active one filled — the single chip displayed only the
                   CURRENT state, so it read as a label rather than a control and gave no hint what
                   the alternative was. Same shape and colours as the LIST/MAP pair beside it. */}
@@ -684,7 +674,7 @@ export default function StreetWatch() {
                 </button>
               ))}
               <span style={{ fontSize: 10, color: C.faint, marginLeft: 4 }}>
-                {browse === "map" ? "tap a cluster to zoom in" : `${results.length.toLocaleString()} feeds`}
+                {`${results.length.toLocaleString()} feeds`}
               </span>
             </div>
             </>)}
@@ -711,32 +701,21 @@ export default function StreetWatch() {
         )}
         {browsesFeeds && (
         <main className="flex-1 p-4 md:p-6 flex flex-col gap-4">
-          {/* THE LARGEST THING ON SCREEN AND IT HAD NO NAME. It changes what it shows depending on
-              which layers are on, the same component also renders inside the left panel in MAP
-              mode, and nothing told a reader either fact — "why do I still see the world map and
-              radar map and traffic feed" was partly this.
-              The count is what this instance actually knows; the layer state lives in MapPanel and
-              does not reach here, so the header says what it can rather than guessing. */}
-          <section ref={viewerRef} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.line}`, flexShrink: 0, scrollMarginTop: 8 }}>
-            <div className="px-3 py-1.5 font-mono flex items-center justify-between"
-              style={{ fontSize: 10, letterSpacing: 1, color: C.faint, background: C.panel,
-                borderBottom: `1px solid ${C.line}` }}>
-              <span>WORLD MAP</span>
-              <span style={{ letterSpacing: 0 }}>
-                {results.length.toLocaleString()} feed{results.length === 1 ? "" : "s"}
-                {tab === "drones" ? " · military & UAV" : ""}
-              </span>
-            </div>
-            <div style={{ height: 300 }}>
-            <WorldMap feeds={results.length > 2000 ? results.filter((c) => c.major || c.tag === "uav" || !["aviation", "marine"].includes(c.layer)) : results} selectedId={selected.id} onSelect={setSelectedId} showIss={tab !== "drones"} />
-            </div>
-          </section>
 
           {/* The MAP PANEL is the LIST's alternative — the LIST/MAP toggle picks one or the other —
               so it belongs next to it, not back in the filter column. Moved with stage 1's list. */}
-          {browse === "map" && browsesFeeds && (
+          {/* ONE MAP. There were TWO — a bare WorldMap in the viewer and this below it in MAP
+              mode — the same component twice, disguised by two columns and obvious in one.
+              MapPanel is the survivor: it carries six layer toggles, five fetches (live, heat,
+              USV, sub, advisories), the live and activity windows, and the radius chips. The bare
+              one had four props.
+              THE FEED THINNING COMES ACROSS. Above 2,000 feeds the viewer drew only major, UAV and
+              non-aviation/marine markers; MapPanel took `results` whole. 7,448 markers is slow and
+              mobile performance is already the weak number.
+              LIST/MAP is meaningless now — the map is always here and the list sits beneath it. */}
+          {browsesFeeds && (
             <div className="mb-3">
-              <MapPanel feeds={results} selectedId={selected ? selected.id : null}
+              <MapPanel feeds={results.length > 2000 ? results.filter((c) => c.major || c.tag === "uav" || !["aviation", "marine"].includes(c.layer)) : results} selectedId={selected ? selected.id : null}
                 userLoc={nearMe ? userLoc : null} tab={tab}
                 onSelect={setSelectedId} onOpenSighting={openSighting} onOpenVessel={openVessel} />
             </div>
@@ -747,7 +726,7 @@ export default function StreetWatch() {
               is unchanged for now — the divider and the two columns still exist.
               The 46vh cap and the lg:max-h-none that removed it on desktop came with it: on a wide
               screen the list is no longer competing with the filters for the same column. */}
-          <div style={{ maxHeight: "46vh", overflowY: "auto", display: browse === "map" ? "none" : undefined }} className="lg:max-h-none">
+          <div style={{ maxHeight: "46vh", overflowY: "auto" }} className="lg:max-h-none">
             {tab === "drones" && <DroneSweep onOpen={openSighting} onOpenVessel={openVesselFromList} />}
             {tab === "drones" && (
               <div className="mx-4 mt-2 mb-1 rounded px-3 py-2" style={{ background: "rgba(192,132,252,0.10)", border: "1px solid rgba(192,132,252,0.35)", fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
