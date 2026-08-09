@@ -157,7 +157,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
       <div className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginBottom: 3 }}>
         LAYERS — stack any combination
       </div>
-      <div className="flex items-center gap-1.5 flex-wrap" style={{ marginBottom: 5 }}>
+      <div className="flex items-center justify-center gap-1.5 flex-wrap" style={{ marginBottom: 5 }}>
         <Layers size={11} color={C.faint} />
         {chip(showFeeds, "FEEDS", () => setShowFeeds(!showFeeds), C.cyan)}
         {chip(showLive, "LIVE", () => setShowLive(!showLive), "#C084FC")}

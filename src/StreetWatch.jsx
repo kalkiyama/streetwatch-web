@@ -592,16 +592,6 @@ export default function StreetWatch() {
                 <X size={11} /> clear region
               </button>
             )}
-            <div className="flex gap-1.5 mt-3">
-              <button onClick={() => setFavOnly((v) => !v)} className="flex items-center gap-1 px-2.5 py-1 rounded font-mono"
-                style={{ fontSize: 11, color: favOnly ? C.ink : C.dim, background: favOnly ? C.amber : C.panel2, border: `1px solid ${favOnly ? C.amber : C.line}` }}>
-                <Star size={12} fill={favOnly ? C.ink : "none"} /> Favorites
-              </button>
-              <button onClick={() => (nearMe ? setNearMe(false) : locateMe())} className="flex items-center gap-1 px-2.5 py-1 rounded font-mono"
-                style={{ fontSize: 11, color: nearMe ? C.ink : C.dim, background: nearMe ? C.cyan : C.panel2, border: `1px solid ${nearMe ? C.cyan : C.line}` }}>
-                <Navigation size={12} /> Near me
-              </button>
-            </div>
               {/* AIRCRAFT — archive matches, shown ABOVE the places. A callsign is a more specific
                   query than a place name, so if someone typed one they almost certainly meant it. */}
               {acHits !== null && (
@@ -680,7 +670,15 @@ export default function StreetWatch() {
                   the alternative was. Same shape and colours as the LIST/MAP pair beside it. */}
               {/* A LABEL. Two buttons reading UTC and LOCAL with nothing beside them do not say
                   they are about time — the tab row next to this has VIEW, and this had nothing. */}
-              <span className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginRight: 4 }}>TIMES</span>
+              <button onClick={() => setFavOnly((v) => !v)} className="flex items-center gap-1 px-2.5 py-1 rounded font-mono"
+                style={{ fontSize: 10, color: favOnly ? C.ink : C.dim, background: favOnly ? C.amber : C.panel2, border: `1px solid ${favOnly ? C.amber : C.line}` }}>
+                <Star size={11} fill={favOnly ? C.ink : "none"} /> Favorites
+              </button>
+              <button onClick={() => (nearMe ? setNearMe(false) : locateMe())} className="flex items-center gap-1 px-2.5 py-1 rounded font-mono"
+                style={{ fontSize: 10, color: nearMe ? C.ink : C.dim, background: nearMe ? C.cyan : C.panel2, border: `1px solid ${nearMe ? C.cyan : C.line}` }}>
+                <Navigation size={11} /> Near me
+              </button>
+              <span className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginLeft: 8, marginRight: 4 }}>TIMES</span>
               {[[true, "UTC"], [false, "LOCAL"]].map(([v, label]) => (
                 <button key={label} onClick={() => { setUtc(v); bumpTz((n) => n + 1); }}
                   className="px-2.5 py-1 rounded font-mono"
