@@ -124,7 +124,11 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
   return (
     <div className="mx-4 mt-2 mb-1 rounded" style={{ background: "rgba(192,132,252,0.08)", border: "1px solid rgba(192,132,252,0.35)" }}>
       <div className="px-3 py-2 flex items-center justify-between font-mono" style={{ fontSize: 10, color: "#C084FC", letterSpacing: 1, flexWrap: "wrap", gap: 6 }}>
-        <span className="flex items-center gap-1.5"><Radio size={11} /> GLOBAL SWEEP</span>
+        <span className="flex items-center gap-2">
+          <span style={{ width: 3, height: 14, background: "#C084FC", borderRadius: 2, flexShrink: 0 }} />
+          <Radio size={12} color="#C084FC" />
+          <span style={{ fontSize: 14, fontWeight: 700, color: C.text, letterSpacing: 0.2 }}>Global sweep</span>
+        </span>
       </div>
 
       {/* ITS OWN ROW, CENTRED, WRAPPING TO TWO LINES. Five options in a joined segmented control on
