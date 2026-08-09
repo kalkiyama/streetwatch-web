@@ -169,6 +169,13 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
   const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   return (
+    <div>
+    <div className="flex items-center gap-2 px-1" style={{ marginBottom: 6 }}>
+      <span style={{ width: 3, height: 14, background: C.cyan, borderRadius: 2, flexShrink: 0 }} />
+      <span style={{ fontSize: 14, fontWeight: 700, color: C.text, letterSpacing: 0.2 }}>Aircraft Radar</span>
+      <span className="font-mono" style={{ fontSize: 9, color: C.faint }}>live positions broadcast by aircraft</span>
+      <span style={{ flex: 1, height: 1, background: C.line }} />
+    </div>
     <div className="relative w-full overflow-hidden rounded-lg" style={{ border: `1px solid ${C.line}`, background: "#0A0E14" }}>
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2" style={{ zIndex: 1200, background: "linear-gradient(180deg, rgba(10,14,20,0.9), rgba(10,14,20,0))" }}>
         {/* IT SAYS WHAT IT IS. The radar carried a status badge and filter chips and never named
@@ -176,9 +183,6 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
             The FORMAT NAME belongs in the subtitle, not the title: ADS-B and AIS are provenance,
             and anyone who already knows those acronyms is using tar1090. */
         }
-        <span className="font-mono" style={{ fontSize: 10, letterSpacing: 1, color: C.dim, marginRight: 8 }}>
-          AIRCRAFT RADAR<span style={{ display: "block", fontSize: 8.5, letterSpacing: 0, color: C.faint }}>live positions broadcast by aircraft</span>
-        </span>
         <span className="flex items-center gap-1.5 px-2 py-0.5 rounded font-mono"
           style={{ fontSize: 11, letterSpacing: 1, background: status === "live" ? "rgba(55,196,106,0.16)" : status === "error" ? "rgba(240,85,59,0.16)" : "rgba(246,168,33,0.16)",
             color: status === "live" ? "#37C46A" : status === "error" ? "#F0553B" : C.amber }}>
@@ -345,6 +349,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
         ) : (<span style={{ color: C.faint }}>Tap an aircraft · {shown.length}{only !== "all" ? ` of ${plotted.length}` : ""} in range{(() => { const d = plotted.filter((a) => a.isDrone).length; return d ? ` · ${d} UAV` : ""; })()}</span>)}
         <span style={{ color: C.dim }}>{center.name.split("·").pop().trim() || center.city}</span>
       </div>
+    </div>
     </div>
   );
 }
