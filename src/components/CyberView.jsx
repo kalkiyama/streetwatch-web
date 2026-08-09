@@ -127,6 +127,18 @@ function FlowMap({ flows, selected, onSelect, onReady }) {
     };
   }, []);
 
+  // FRAME THE FLOW THAT WAS CLICKED. Isolating the arc dimmed the others but left the view
+  // wherever it was — often panned to an outage country from an earlier click, so the highlighted
+  // arc could be off-screen entirely. Selecting something and not showing it is the same defect as
+  // a click that does nothing.
+  useEffect(() => {
+    if (!map.current || selected == null) return;
+    const f = flows[selected];
+    if (!f || !f.from) return;
+    if (f.domestic || !f.to) map.current.setView(f.from, 3);
+    else map.current.fitBounds([f.from, f.to], { padding: [40, 40], maxZoom: 4 });
+  }, [selected, flows]);
+
   useEffect(() => {
     if (!map.current || !layer.current) return;
     layer.current.clearLayers();
@@ -253,10 +265,18 @@ export default function CyberView() {
 
       <Panel icon={Shield} title="ATTACK FLOWS"
         note={flows?.computedAt ? `last 24h · computed ${fmtTs(flows.computedAt)}` : "loading…"}>
-        <FlowMap flows={mapped} selected={sel} onSelect={setSel} onReady={(m) => { mapRef.current = m; }} />
+        <FlowMap flows={mapped} selected={sel} onSelect={setSel}
+          onReady={(m) => { mapRef.current = m; }} />
         <div style={{ borderTop: `1px solid ${C.line}` }}>
+          {/* CLEAR THE OUTAGE MARKER IN THE CLICK HANDLER, not in the map effect. That effect
+              returns early when `selected` is null, so toggling a flow OFF left the outage circle
+              on the map with the view somewhere else entirely. Every click passes through here. */}
           {mapped.map((f, i) => (
-            <button key={i} onClick={() => setSel(sel === i ? null : i)}
+            <button key={i} onClick={() => {
+                if (markRef.current) { markRef.current.remove(); markRef.current = null; }
+                setNoPos(null);
+                setSel(sel === i ? null : i);
+              }}
               className="w-full text-left px-3 py-1.5 font-mono flex items-center gap-2"
               style={{ fontSize: 11, color: C.text, borderBottom: `1px solid ${C.line}`,
                 background: sel === i ? C.panel2 : "transparent",

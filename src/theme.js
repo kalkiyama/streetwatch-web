@@ -18,6 +18,13 @@ export const LAYERS = {
 };
 export const layerKeys = Object.keys(LAYERS);
 
+// WHICH LAYERS A TAB CAN ACTUALLY USE. The Drones tab filters feeds to tag === "uav", and only
+// AVIATION and MARINE feeds ever carry that tag — so the Wildlife, Webcams, Earth, Traffic and
+// Space chips were offering to filter a set that is always empty there. A control that cannot
+// change anything is worse than no control: it implies the tab covers something it does not.
+// Declared here rather than as a list in StreetWatch.jsx because it is a property OF THE LAYER.
+export const DRONE_LAYERS = ["aviation", "marine"];
+
 // Route app-pushy sources to web-first viewers that render in the browser.
 export const resolveUrl = (cam) =>
   cam.layer === "aviation"
