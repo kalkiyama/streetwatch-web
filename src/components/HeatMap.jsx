@@ -15,8 +15,15 @@ export default function HeatMap({ days: initialDays = 7 }) {
   useEffect(() => { setDays(initialDays); }, [initialDays]);   // external selector (when visible) still wins
   const [data, setData] = useState(null);
   const [ageH, setAgeH] = useState(null);
-  const [scaleMax, setScaleMax] = useState(null);
-  const scaleMaxRef = useRef(null);
+  // DERIVED, not stored. scaleMax was state that nothing ever set and scaleMaxRef was a ref
+  // nothing ever read — so the legend below, gated on `scaleMax != null`, HAS NEVER RENDERED.
+  // The text explaining that colour is relative to the busiest site on a log scale, with worked
+  // examples, was written and invisible on the one view where colour carries all the meaning.
+  // Both values are already here: maxByRadius comes with the response and radius is state on this
+  // component. The max differs by an order of magnitude across radii — 36 at the field against 463
+  // at 250nm — so it has to follow the selected chip, which is presumably why it was left as
+  // something to wire up later.
+  const scaleMax = data && data.maxByRadius ? data.maxByRadius[String(radius)] ?? null : null;
   // Which radius the circles represent. 25nm ≈ the airfield and its immediate approaches;
   // 100nm ≈ its working airspace; 250nm ≈ the whole region the sweep polls.
   const [radius, setRadius] = useState(250);
