@@ -69,8 +69,9 @@ export default function OperationsPanel({ days = 7 }) {
     return (
       <div className="px-3 pb-3">
         <button onClick={() => { setSite(null); setDetail(null); }}
-          className="flex items-center gap-1 font-mono mb-2"
-          style={{ fontSize: 10, color: C.dim, background: "none", border: "none", padding: "4px 0" }}>
+          className="flex items-center gap-1 font-mono mb-2 rounded"
+          style={{ fontSize: 10, color: "#C084FC", background: "rgba(192,132,252,0.12)",
+            border: "1px solid rgba(192,132,252,0.45)", padding: "5px 10px", letterSpacing: 0.5 }}>
           <ChevronLeft size={12} />ALL SITES
         </button>
         <div style={{ fontSize: 13.5, color: C.text, marginBottom: 2 }}>{site}</div>
