@@ -726,8 +726,13 @@ export default function StreetWatch() {
               is unchanged for now — the divider and the two columns still exist.
               The 46vh cap and the lg:max-h-none that removed it on desktop came with it: on a wide
               screen the list is no longer competing with the filters for the same column. */}
+          {/* THE SWEEP IS THE DRONES TAB, so it goes ABOVE the feed list and OUTSIDE its
+              container. It was rendering INSIDE a box capped at 46vh with its own scroll — so the
+              tab's main feature was squeezed into a scrolling panel, narrower than the map beside
+              it, and below a 240-row feed list. Nothing told a reader it was there at all. */}
+          {tab === "drones" && <DroneSweep onOpen={openSighting} onOpenVessel={openVesselFromList} />}
+
           <div style={{ maxHeight: "46vh", overflowY: "auto" }} className="lg:max-h-none">
-            {tab === "drones" && <DroneSweep onOpen={openSighting} onOpenVessel={openVesselFromList} />}
             {tab === "drones" && (
               <div className="mx-4 mt-2 mb-1 rounded px-3 py-2" style={{ background: "rgba(192,132,252,0.10)", border: "1px solid rgba(192,132,252,0.35)", fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
                 <b style={{ color: "#C084FC" }}>◇ UAV WATCH</b> — radars over airspaces where category-B6 drones actually fly.
