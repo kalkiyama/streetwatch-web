@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import { C, HEAT_RAMP } from "../theme.js";
 import WorldMap from "./WorldMap.jsx";
@@ -15,8 +15,6 @@ export default function HeatMap({ days: initialDays = 7 }) {
   useEffect(() => { setDays(initialDays); }, [initialDays]);   // external selector (when visible) still wins
   const [data, setData] = useState(null);
   const [ageH, setAgeH] = useState(null);
-  const [scaleMax, setScaleMax] = useState(null);
-  const scaleMaxRef = useRef(null);
   // Which radius the circles represent. 25nm ≈ the airfield and its immediate approaches;
   // 100nm ≈ its working airspace; 250nm ≈ the whole region the sweep polls.
   const [radius, setRadius] = useState(250);
@@ -58,6 +56,11 @@ export default function HeatMap({ days: initialDays = 7 }) {
   // Leaflet maps whose panes and controls run z 400-1000, and our own radar overlay bars sit at
   // 1200 — so a fullscreen shell at 1000 let the radar map beneath punch through as a floating
   // rectangle in the middle of the activity view. 5000 clears every layer the app uses.
+  // Derived, not stored: the busiest count for the current radius, feeding the legend.
+  const scaleMax = data
+    ? ((data.maxByRadius && data.maxByRadius[radius]) || data.maxContacts || null)
+    : null;
+
   const shell = full
     ? { position: "fixed", inset: 0, zIndex: 5000, background: "#0A0D12", padding: 10,
         display: "flex", flexDirection: "column", gap: 6 }
