@@ -171,6 +171,14 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
   return (
     <div className="relative w-full overflow-hidden rounded-lg" style={{ border: `1px solid ${C.line}`, background: "#0A0E14" }}>
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2" style={{ zIndex: 1200, background: "linear-gradient(180deg, rgba(10,14,20,0.9), rgba(10,14,20,0))" }}>
+        {/* IT SAYS WHAT IT IS. The radar carried a status badge and filter chips and never named
+            itself — a reader arriving from a shared link saw rings and dots with no heading.
+            The FORMAT NAME belongs in the subtitle, not the title: ADS-B and AIS are provenance,
+            and anyone who already knows those acronyms is using tar1090. */
+        }
+        <span className="font-mono" style={{ fontSize: 10, letterSpacing: 1, color: C.dim, marginRight: 8 }}>
+          AIRCRAFT RADAR<span style={{ display: "block", fontSize: 8.5, letterSpacing: 0, color: C.faint }}>live positions broadcast by aircraft</span>
+        </span>
         <span className="flex items-center gap-1.5 px-2 py-0.5 rounded font-mono"
           style={{ fontSize: 11, letterSpacing: 1, background: status === "live" ? "rgba(55,196,106,0.16)" : status === "error" ? "rgba(240,85,59,0.16)" : "rgba(246,168,33,0.16)",
             color: status === "live" ? "#37C46A" : status === "error" ? "#F0553B" : C.amber }}>

@@ -775,8 +775,25 @@ export default function StreetWatch() {
         )}
         {browsesFeeds && (
         <main className="flex-1 p-4 md:p-6 flex flex-col gap-4">
-          <section ref={viewerRef} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.line}`, height: 300, flexShrink: 0, scrollMarginTop: 8 }}>
+          {/* THE LARGEST THING ON SCREEN AND IT HAD NO NAME. It changes what it shows depending on
+              which layers are on, the same component also renders inside the left panel in MAP
+              mode, and nothing told a reader either fact — "why do I still see the world map and
+              radar map and traffic feed" was partly this.
+              The count is what this instance actually knows; the layer state lives in MapPanel and
+              does not reach here, so the header says what it can rather than guessing. */}
+          <section ref={viewerRef} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.line}`, flexShrink: 0, scrollMarginTop: 8 }}>
+            <div className="px-3 py-1.5 font-mono flex items-center justify-between"
+              style={{ fontSize: 10, letterSpacing: 1, color: C.faint, background: C.panel,
+                borderBottom: `1px solid ${C.line}` }}>
+              <span>WORLD MAP</span>
+              <span style={{ letterSpacing: 0 }}>
+                {results.length.toLocaleString()} feed{results.length === 1 ? "" : "s"}
+                {tab === "drones" ? " · military & UAV" : ""}
+              </span>
+            </div>
+            <div style={{ height: 300 }}>
             <WorldMap feeds={results.length > 2000 ? results.filter((c) => c.major || c.tag === "uav" || !["aviation", "marine"].includes(c.layer)) : results} selectedId={selected.id} onSelect={setSelectedId} showIss={tab !== "drones"} />
+            </div>
           </section>
 
           <section className="flex flex-col md:flex-row gap-4">
