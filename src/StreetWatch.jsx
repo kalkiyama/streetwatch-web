@@ -6,7 +6,6 @@ import Intro from "./components/Intro.jsx";
 import { C, LAYERS, layerKeys, DRONE_LAYERS, resolveUrl, openLive, fmtDate, setUtc, isUtc } from "./theme.js";
 import { distKm } from "./geo.js";
 import { AIS_BACKEND_URL, BACKEND_URL } from "./config.js";
-import WorldMap from "./components/WorldMap.jsx";
 import MapPanel from "./components/MapPanel.jsx";
 import NearbyCams from "./components/NearbyCams.jsx";
 import { useClock, LiveViewport, DataPreview } from "./components/FeedViewer.jsx";
@@ -27,30 +26,6 @@ const timeAgo = (t) => {
 };
 
 export default function StreetWatch() {
-  // User-adjustable list width (desktop). A visible drag divider replaces the earlier native
-  // CSS resize handle, which was a near-invisible corner nub nobody could find.
-  const [listW, setListW] = useState(320);
-  const [isDesktop, setIsDesktop] = useState(false);
-  const draggingRef = React.useRef(false);
-  useEffect(() => {
-    const mq = window.matchMedia ? window.matchMedia("(min-width: 1024px)") : null;
-    const apply = () => setIsDesktop(!!(mq && mq.matches));
-    apply();
-    if (mq && mq.addEventListener) { mq.addEventListener("change", apply); }
-    const move = (e) => {
-      if (!draggingRef.current) return;
-      const max = Math.round(window.innerWidth * 0.48);
-      setListW(Math.min(Math.max(e.clientX, 280), max));
-    };
-    const up = () => { draggingRef.current = false; document.body.style.userSelect = ""; };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-    return () => {
-      if (mq && mq.removeEventListener) mq.removeEventListener("change", apply);
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-    };
-  }, []);
   const now = useClock();
   // Default landing is the DRONE WATCH — the differentiator — rather than the generic world
   // browser. Deep links (?feed=...) below still route to whichever tab their feed lives in.
@@ -83,7 +58,7 @@ export default function StreetWatch() {
   // THE TRADE: if the proxy is unreachable these are absent rather than stale. The sweep data they
   // describe is already backend-dependent, so a list that outlived its backend would be naming
   // airfields nobody is currently watching.
-  const [sweepSites, setSweepSites] = useState([]);
+  const [, setSweepSites] = useState([]);
   useEffect(() => {
     let alive = true;
     fetch(`${BACKEND_URL}/api/drones/sites`)
@@ -117,10 +92,6 @@ export default function StreetWatch() {
   // reach it. A module variable is invisible to React, so this counter exists only to force a
   // re-render when the toggle flips.
   const [, bumpTz] = useState(0);
-  const [browse, setBrowse] = useState(() => {
-    try { return localStorage.getItem("sw-browse") === "map" ? "map" : "list"; } catch { return "list"; }
-  });
-  const setBrowseMode = (m) => { setBrowse(m); try { localStorage.setItem("sw-browse", m); } catch { /* private mode */ } };
   const [active, setActive] = useState([...layerKeys]);
   const [continent, setContinent] = useState("All");
   const [country, setCountry] = useState("All");
