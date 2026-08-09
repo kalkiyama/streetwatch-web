@@ -88,20 +88,30 @@ export default function OperationsPanel({ days = 7 }) {
             confirmed after the site has been polled again.
           </div>
         )}
+        {/* TWO LINES PER EVENT, not one. A single flex row with fixed minWidths for callsign,
+            hex, description and a UTC timestamp does not fit the drone panel's width and the
+            columns collided. Identity on the first line, aircraft type on the second. */}
         {ops.map((o, i) => (
-          <div key={`${o.icao}-${o.ev}-${o.ts}-${i}`} className="py-1.5 flex items-baseline gap-2"
+          <div key={`${o.icao}-${o.ev}-${o.ts}-${i}`} className="py-1.5"
             style={{ borderBottom: `1px solid ${C.line}` }}>
-            {o.ev === "arrival"
-              ? <PlaneLanding size={12} color="#37C46A" style={{ flexShrink: 0 }} />
-              : <PlaneTakeoff size={12} color={C.amber} style={{ flexShrink: 0 }} />}
-            <span className="font-mono" style={{ fontSize: 11, color: C.text, minWidth: 68 }}>
-              {o.callsign || "—"}
-            </span>
-            <span className="font-mono" style={{ fontSize: 10, color: C.dim, minWidth: 54 }}>{o.icao}</span>
-            <span style={{ fontSize: 11, color: C.dim, flex: 1, minWidth: 0 }}>
+            <div className="flex items-center gap-1.5">
+              {o.ev === "arrival"
+                ? <PlaneLanding size={12} color="#37C46A" style={{ flexShrink: 0 }} />
+                : <PlaneTakeoff size={12} color={C.amber} style={{ flexShrink: 0 }} />}
+              {/* Explicit margins rather than the flex gap class — the gap was not applying and
+                  the callsign, hex and timestamp ran together as one string. */}
+              <span className="font-mono" style={{ fontSize: 11.5, color: C.text, marginLeft: 4 }}>
+                {o.callsign || "—"}
+              </span>
+              <span className="font-mono" style={{ fontSize: 10, color: C.dim, marginLeft: 8 }}>{o.icao}</span>
+              <span className="font-mono ml-auto" style={{ fontSize: 9.5, color: C.faint, flexShrink: 0, marginLeft: "auto", paddingLeft: 10 }}>
+                {fmtTs(o.ts)}
+              </span>
+            </div>
+            <div style={{ fontSize: 10.5, color: C.dim, lineHeight: 1.4, marginLeft: 18,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {o.descr || o.type_code || "unknown type"}
-            </span>
-            <span className="font-mono" style={{ fontSize: 9.5, color: C.faint }}>{fmtTs(o.ts)}</span>
+            </div>
           </div>
         ))}
         <Scope through={through} since={since} />
