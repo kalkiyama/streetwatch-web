@@ -11,8 +11,14 @@ import { BACKEND_URL } from "../config.js";
 export default function HeatMap({ days: initialDays = 7 }) {
   // The look-back selector must live INSIDE this component: in fullscreen the HeatMap div is
   // the only thing above the overlay, so any controls rendered by the parent are buried.
-  const [days, setDays] = useState(initialDays);
-  useEffect(() => { setDays(initialDays); }, [initialDays]);   // external selector (when visible) still wins
+  // The parent's selector wins until the fullscreen chips override it, and a fresh parent
+  // value clears that override — same behaviour as the old mirror-prop-into-state effect,
+  // without a synchronous setState in an effect body.
+  const [override, setOverride] = useState(null);
+  const [seen, setSeen] = useState(initialDays);
+  if (seen !== initialDays) { setSeen(initialDays); setOverride(null); }   // render-phase reset, not an effect
+  const days = override != null ? override : initialDays;
+  const setDays = setOverride;
   const [data, setData] = useState(null);
   const [ageH, setAgeH] = useState(null);
   // Which radius the circles represent. 25nm ≈ the airfield and its immediate approaches;
@@ -23,7 +29,10 @@ export default function HeatMap({ days: initialDays = 7 }) {
 
   useEffect(() => {
     let alive = true;
-    setState("loading");
+    // No setState in the effect body: "loading" is the initial state, and every later
+    // days-change goes through the same fetch, which resolves to "ok"/"off"/"error".
+    // The stale rows stay visible while the new window loads, which reads better than
+    // blanking the map on every chip click.
     fetch(`${BACKEND_URL}/api/drones/heat?days=${days}`)
       .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
       .then((j) => { if (alive) { setData(j);
