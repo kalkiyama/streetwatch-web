@@ -135,6 +135,13 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
 
   return (
     <div>
+      {/* THE NAME. This is now the only map in the app — the bare WorldMap in the viewer was the
+          same component without any of these controls, and one column made the duplication
+          obvious. It had a WORLD MAP header; that comes across with it. */}
+      <div className="font-mono flex items-baseline justify-between" style={{ fontSize: 10, letterSpacing: 1, color: C.faint, marginBottom: 4 }}>
+        <span>WORLD MAP</span>
+        <span style={{ fontSize: 9, letterSpacing: 0 }}>{(feeds || []).length.toLocaleString()} feeds</span>
+      </div>
       <div className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginBottom: 3 }}>
         LAYERS — stack any combination
       </div>

@@ -487,13 +487,15 @@ export default function StreetWatch() {
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row" style={{ minHeight: "calc(100vh - 58px)" }}>
+      {/* ONE COLUMN. The two-column layout gave the filters a tall narrow sidebar and squeezed
+          the map, list, radar and briefing into what was left. The filters are now a bar across
+          the top and everything else runs full width beneath. */}
+      <div className="flex flex-col" style={{ minHeight: "calc(100vh - 58px)" }}>
         {/* resize: horizontal gives desktop users a native drag handle (bottom-right corner
             of the panel) to widen or narrow the list — no JS, no library, remembered nowhere
             on purpose (refresh restores the default). Phones keep the stacked layout. */}
-        <aside className="w-full flex-shrink-0"
-          style={{ background: C.panel, width: isDesktop ? listW : undefined }}>
-          <div className="p-4" style={{ borderBottom: `1px solid ${C.line}` }}>
+        <aside className="w-full flex-shrink-0" style={{ background: C.panel }}>
+          <div className="p-3 flex flex-wrap items-center gap-x-4 gap-y-2" style={{ borderBottom: `1px solid ${C.line}` }}>
             {/* The search box filters the FEED CATALOG. On Cyber there is no catalog, so typing
                 did nothing at all — a control that cannot act is worse than no control. */}
             {browsesFeeds && (
@@ -531,7 +533,7 @@ export default function StreetWatch() {
                 feed browsing. On Cyber there is no catalog to filter, so these would offer to
                 narrow a list that does not exist. */}
             {browsesFeeds && (<>
-            <div className="font-mono mt-3 mb-1.5" style={{ fontSize: 10, color: C.faint, letterSpacing: 1 }}>PUBLIC LAYERS</div>
+            <div className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1 }}>PUBLIC LAYERS</div>
             <div className="flex flex-wrap gap-1.5">
               {tabLayers.map((k) => {
                 const L = LAYERS[k]; const on = active.includes(k); const Icon = L.icon;
@@ -544,7 +546,7 @@ export default function StreetWatch() {
                 );
               })}
             </div>
-            <div className="font-mono mt-3 mb-1.5" style={{ fontSize: 10, color: C.faint, letterSpacing: 1 }}>REGION</div>
+            <div className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1 }}>REGION</div>
             <div className="flex flex-wrap gap-1.5 pb-1">
               {continents.map((ct) => (
                 <button key={ct} onClick={() => { setContinent(ct); setCountry("All"); }}
@@ -563,8 +565,9 @@ export default function StreetWatch() {
                 audit — the only failure that was not the C.faint contrast problem. */}
             <select value={country} onChange={(e) => setCountry(e.target.value)}
               aria-label="Filter feeds by country"
-              className="w-full mt-2 px-2.5 rounded font-mono"
-              style={{ height: 34, fontSize: 12, color: C.text, background: C.ink, border: `1px solid ${C.line}` }}>
+              className="px-2.5 rounded font-mono"
+              style={{ height: 30, fontSize: 12, color: C.text, background: C.ink,
+                border: `1px solid ${C.line}`, minWidth: 150, maxWidth: 200 }}>
               {countries.map((cn) => <option key={cn} value={cn} style={{ background: C.panel }}>{cn === "All" ? "All countries" : cn}</option>)}
             </select>
             {(continent !== "All" || country !== "All") && (
@@ -691,13 +694,7 @@ export default function StreetWatch() {
 
 
         </aside>
-        {/* the divider itself: a grabbable strip, desktop only */}
-        {browsesFeeds && (
-        <div className="hidden lg:block flex-shrink-0" role="separator" aria-orientation="vertical"
-          title="Drag to resize the list"
-          onPointerDown={() => { draggingRef.current = true; document.body.style.userSelect = "none"; }}
-          style={{ width: 7, cursor: "col-resize", background: C.line, opacity: 0.6 }} />
-        )}
+        {/* THE DIVIDER IS GONE. It resized two columns; there is one now. */}
 
         {/* The VIEWER, not the browser. Both sections below are driven by `selected` — a feed from
             the catalog — so on Cyber they showed a world map and a traffic camera beside panels
