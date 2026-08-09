@@ -692,6 +692,9 @@ export default function StreetWatch() {
               {/* BOTH options shown, active one filled — the single chip displayed only the
                   CURRENT state, so it read as a label rather than a control and gave no hint what
                   the alternative was. Same shape and colours as the LIST/MAP pair beside it. */}
+              {/* A LABEL. Two buttons reading UTC and LOCAL with nothing beside them do not say
+                  they are about time — the tab row next to this has VIEW, and this had nothing. */}
+              <span className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginRight: 4 }}>TIMES</span>
               {[[true, "UTC"], [false, "LOCAL"]].map(([v, label]) => (
                 <button key={label} onClick={() => { setUtc(v); bumpTz((n) => n + 1); }}
                   className="px-2.5 py-1 rounded font-mono"
@@ -725,12 +728,12 @@ export default function StreetWatch() {
             narrow list column — the map came out cramped and unexplorable, while <main> sat hidden
             and empty beside it. The panels are the page here, not an item in a list. */}
         {tab === "cyber" && (
-          <main className="flex-1 p-4 md:p-6" style={{ minWidth: 0 }}>
+          <main className="flex-1 px-4 py-4 md:px-10 md:py-6 lg:px-16" style={{ minWidth: 0 }}>
             <CyberView />
           </main>
         )}
         {browsesFeeds && (
-        <main className="flex-1 p-4 md:p-6 flex flex-col gap-4">
+        <main className="flex-1 px-4 py-4 md:px-10 md:py-6 lg:px-16 flex flex-col gap-4">
 
           {/* The MAP PANEL is the LIST's alternative — the LIST/MAP toggle picks one or the other —
               so it belongs next to it, not back in the filter column. Moved with stage 1's list. */}

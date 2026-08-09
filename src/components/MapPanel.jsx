@@ -14,6 +14,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   height = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(pointer: coarse)").matches
     ? "min(44vh, 420px)" : "min(60vh, 560px)" }) {
   const isDrones = tab === "drones";
+  const [whyLive, setWhyLive] = useState(false);
   const [showFeeds, setShowFeeds] = useState(!isDrones);   // world leads with feeds; drones does not
   const [showLive, setShowLive] = useState(isDrones);      // drones leads with live contacts
   const [showHeat, setShowHeat] = useState(false);
@@ -138,9 +139,20 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
       {/* THE NAME. This is now the only map in the app — the bare WorldMap in the viewer was the
           same component without any of these controls, and one column made the duplication
           obvious. It had a WORLD MAP header; that comes across with it. */}
-      <div className="font-mono flex items-baseline justify-between" style={{ fontSize: 10, letterSpacing: 1, color: C.faint, marginBottom: 4 }}>
-        <span>WORLD MAP</span>
-        <span style={{ fontSize: 9, letterSpacing: 0 }}>{(feeds || []).length.toLocaleString()} feeds</span>
+      {/* A TITLE THAT LOOKS LIKE ONE. Everything in this panel was 9-10px monospace in C.faint —
+          the heading, the layer label, the chips and a sixty-word paragraph all at the same weight,
+          so nothing read as a heading and nothing read as prose. */}
+      {/* NO FEED COUNT HERE. The filter bar already states it, and the map is showing exactly
+          those feeds — saying 308 twice on one screen invites a reader to wonder whether the two
+          numbers mean different things. */}
+      {/* A RULE AND A MARKER, not just a larger font. Bold text one size up from its neighbours
+          still reads as text — a heading needs something that is not a word. The cyan bar is the
+          same accent the active layer chips use, so it belongs to this panel rather than looking
+          imported. */}
+      <div className="flex items-center gap-2" style={{ marginBottom: 8 }}>
+        <span style={{ width: 3, height: 14, background: C.cyan, borderRadius: 2, flexShrink: 0 }} />
+        <span style={{ fontSize: 14, fontWeight: 700, color: C.text, letterSpacing: 0.2 }}>World map</span>
+        <span style={{ flex: 1, height: 1, background: C.line }} />
       </div>
       <div className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginBottom: 3 }}>
         LAYERS — stack any combination
@@ -155,12 +167,26 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
         {chip(showSub, "SUB", () => setShowSub(!showSub), "#F0553B")}
       </div>
 
+      {/* SIXTY WORDS, PERMANENTLY ON SCREEN, in the same styling as the controls above it. The
+          distinction it draws is real and worth stating — a contact here may not be on the radar
+          below — but most readers never wonder, and prose in a control panel reads as noise. One
+          line in front, the rest one tap away. */}
       {showLive && (
         <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginBottom: 5, lineHeight: 1.5 }}>
-          LIVE plots the <b>worldwide</b> sweep — every watched airspace, anything seen in the
-          selected window. A radar below plots only what is broadcasting <b>near that one site, right
-          now</b>. So contacts can appear here and not there: they are elsewhere on the planet, or were
-          seen earlier in the window.
+          LIVE shows the whole sweep — a radar below shows one site, right now.{" "}
+          <button onClick={() => setWhyLive((v) => !v)}
+            style={{ color: C.dim, background: "none", border: "none", padding: 0,
+              textDecoration: "underline", cursor: "pointer", font: "inherit" }}>
+            {whyLive ? "less" : "why?"}
+          </button>
+          {whyLive && (
+            <span style={{ display: "block", marginTop: 3 }}>
+              LIVE plots the <b>worldwide</b> sweep — every watched airspace, anything seen in the
+              selected window. A radar below plots only what is broadcasting <b>near that one site,
+              right now</b>. So contacts can appear here and not there: they are elsewhere on the
+              planet, or were seen earlier in the window.
+            </span>
+          )}
         </div>
       )}
 
@@ -187,6 +213,12 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
 
       <div style={{ height }} className="rounded overflow-hidden">
         <WorldMap
+          // WHEEL-ZOOM OFF. WorldMap defaults it ON, and its own comment says why that is wrong
+          // in a scrolling panel: the wheel hijacks the page. HeatMap passes false; this did not,
+          // and after the layout change this is the largest thing on the page — so scrolling down
+          // stopped dead the moment the cursor crossed the map. Two-finger pan still works, and
+          // the zoom control is there for zooming.
+          scrollWheelZoom={false}
           feeds={feeds}
           showFeeds={showFeeds}
           selectedId={selectedId}
