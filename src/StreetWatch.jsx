@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2, HelpCircle, Sparkles, Shield } from "lucide-react";
 import Intro from "./components/Intro.jsx";
 // Catalog is fetched at runtime from /catalog.json (5,000+ feeds — too big to bundle).
-import { C, LAYERS, layerKeys, resolveUrl, openLive, fmtDate, setUtc, isUtc } from "./theme.js";
+import { C, LAYERS, layerKeys, DRONE_LAYERS, resolveUrl, openLive, fmtDate, setUtc, isUtc } from "./theme.js";
 import { distKm } from "./geo.js";
 import { AIS_BACKEND_URL, BACKEND_URL } from "./config.js";
 import WorldMap from "./components/WorldMap.jsx";
@@ -75,6 +75,16 @@ export default function StreetWatch() {
     }
   }, [CATALOG]);
   const [query, setQuery] = useState("");
+  // ONE CONCEPT, NOT A CONDITION PER ELEMENT. Cyber renders three public sources directly and has
+  // no feed catalog behind it, so the search box, region filters, layer chips, LIST/MAP toggle and
+  // the "0 FEEDS · 0 REGIONS" counters are not merely irrelevant — they IMPLY A LIST THAT IS NOT
+  // THERE, and "0 feeds" reads as a broken search rather than a different kind of page.
+  // The root was line ~301: `tab === "drones" ? uav : not-uav` has no third case, so Cyber fell
+  // through to the World branch and inherited the whole browser.
+  const browsesFeeds = tab !== "cyber";
+  // Only the layers this tab can actually show. See DRONE_LAYERS in theme.js.
+  const tabLayers = tab === "drones" ? DRONE_LAYERS : layerKeys;
+
   // The timezone setting lives in theme.js as a MODULE variable, because one of its call sites is
   // inside WorldMap's Leaflet popup builder — that runs outside React's tree and a prop cannot
   // reach it. A module variable is invisible to React, so this counter exists only to force a
@@ -484,6 +494,9 @@ export default function StreetWatch() {
         <aside className="w-full flex-shrink-0"
           style={{ background: C.panel, width: isDesktop ? listW : undefined }}>
           <div className="p-4" style={{ borderBottom: `1px solid ${C.line}` }}>
+            {/* The search box filters the FEED CATALOG. On Cyber there is no catalog, so typing
+                did nothing at all — a control that cannot act is worse than no control. */}
+            {browsesFeeds && (
             <div className="flex items-center gap-2 px-3 rounded" style={{ background: C.ink, border: `1px solid ${C.line}`, height: 40 }}>
               <Search size={16} color={C.faint} />
               <input value={query} onChange={(e) => setQuery(e.target.value)} className="sw-input bg-transparent w-full"
@@ -498,6 +511,7 @@ export default function StreetWatch() {
                 </button>
               )}
             </div>
+            )}
             {aiQuery && (
               <div className="font-mono mt-1.5 rounded" style={{ fontSize: 9.5, lineHeight: 1.6,
                 color: C.dim, background: C.panel2, border: `1px solid ${C.line}`, padding: "6px 8px" }}>
@@ -513,9 +527,13 @@ export default function StreetWatch() {
                 )}
               </div>
             )}
+            {/* The whole filter apparatus — layer chips, region, country, LIST/MAP — belongs to
+                feed browsing. On Cyber there is no catalog to filter, so these would offer to
+                narrow a list that does not exist. */}
+            {browsesFeeds && (<>
             <div className="font-mono mt-3 mb-1.5" style={{ fontSize: 10, color: C.faint, letterSpacing: 1 }}>PUBLIC LAYERS</div>
             <div className="flex flex-wrap gap-1.5">
-              {layerKeys.map((k) => {
+              {tabLayers.map((k) => {
                 const L = LAYERS[k]; const on = active.includes(k); const Icon = L.icon;
                 return (
                   <button key={k} onClick={() => toggle(k)} className="flex items-center gap-1 px-2 py-1 rounded"
@@ -666,11 +684,12 @@ export default function StreetWatch() {
                 {browse === "map" ? "tap a cluster to zoom in" : `${results.length.toLocaleString()} feeds`}
               </span>
             </div>
+            </>)}
             {geoErr === "locating" && <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: C.faint }}>locating…</div>}
             {geoErr && geoErr !== "locating" && <div className="mt-1.5 font-mono" style={{ fontSize: 10, color: "#F0553B" }}>{geoErr}</div>}
           </div>
 
-          {browse === "map" && (
+          {browse === "map" && browsesFeeds && (
             <div className="mx-4 mb-3">
               <MapPanel feeds={results} selectedId={selected ? selected.id : null}
                 userLoc={nearMe ? userLoc : null} tab={tab}
@@ -680,24 +699,23 @@ export default function StreetWatch() {
 
           <div style={{ maxHeight: "46vh", overflowY: "auto", display: browse === "map" ? "none" : undefined }} className="lg:max-h-none">
             {tab === "drones" && <DroneSweep onOpen={openSighting} onOpenVessel={openVesselFromList} />}
-            {/* Cyber has no feed catalog behind it — it renders three public sources directly,
-                so it sits alongside the list rather than filtering it. */}
-            {tab === "cyber" && <CyberView />}
             {tab === "drones" && (
               <div className="mx-4 mt-2 mb-1 rounded px-3 py-2" style={{ background: "rgba(192,132,252,0.10)", border: "1px solid rgba(192,132,252,0.35)", fontSize: 11, color: C.dim, lineHeight: 1.5 }}>
                 <b style={{ color: "#C084FC" }}>◇ UAV WATCH</b> — radars over airspaces where category-B6 drones actually fly.
                 Sightings are sporadic; an empty radar is honest. Use 250nm range.
               </div>
             )}
+            {browsesFeeds && (
             <div className="px-4 py-2 font-mono flex items-center justify-between" style={{ fontSize: 10, color: C.faint, letterSpacing: 1 }}>
               <span>{results.length} FEEDS</span><span>{nearList ? "NEAREST FIRST" : grouped.length + " REGIONS"}</span>
             </div>
-            {results.length === 0 && (
+            )}
+            {browsesFeeds && results.length === 0 && (
               <div className="px-4 py-8 text-center" style={{ color: C.dim, fontSize: 13 }}>
                 {favOnly ? "No favorites yet — tap the ☆ on any feed to save it." : "No feeds match. Try “Asia”, “Tokyo”, or enable more layers."}
               </div>
             )}
-            {nearList
+            {browsesFeeds && (nearList
               ? [
                   <button key="ME-AV" onClick={() => setSelectedId("ME-AV")} className="w-full text-left px-4 py-2.5 flex items-center gap-3"
                     style={{ background: selectedId === "ME-AV" ? C.panel2 : "rgba(34,211,238,0.06)", borderLeft: `2px solid ${C.cyan}`, borderBottom: `1px solid ${C.line}` }}>
@@ -731,15 +749,31 @@ export default function StreetWatch() {
                     )}
                   </div>
                 );
-              })}
+              }))}
           </div>
         </aside>
         {/* the divider itself: a grabbable strip, desktop only */}
+        {browsesFeeds && (
         <div className="hidden lg:block flex-shrink-0" role="separator" aria-orientation="vertical"
           title="Drag to resize the list"
           onPointerDown={() => { draggingRef.current = true; document.body.style.userSelect = "none"; }}
           style={{ width: 7, cursor: "col-resize", background: C.line, opacity: 0.6 }} />
+        )}
 
+        {/* The VIEWER, not the browser. Both sections below are driven by `selected` — a feed from
+            the catalog — so on Cyber they showed a world map and a traffic camera beside panels
+            about attack traffic. Gating the left panel was only half the job.
+            The divider above is hidden too: dragging to resize a pane that is not there is worse
+            than no handle at all. */}
+        {/* CYBER OWNS THE WHOLE RIGHT-HAND AREA. It used to render inside the <aside>, which is a
+            narrow list column — the map came out cramped and unexplorable, while <main> sat hidden
+            and empty beside it. The panels are the page here, not an item in a list. */}
+        {tab === "cyber" && (
+          <main className="flex-1 p-4 md:p-6" style={{ minWidth: 0 }}>
+            <CyberView />
+          </main>
+        )}
+        {browsesFeeds && (
         <main className="flex-1 p-4 md:p-6 flex flex-col gap-4">
           <section ref={viewerRef} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.line}`, height: 300, flexShrink: 0, scrollMarginTop: 8 }}>
             <WorldMap feeds={results.length > 2000 ? results.filter((c) => c.major || c.tag === "uav" || !["aviation", "marine"].includes(c.layer)) : results} selectedId={selected.id} onSelect={setSelectedId} showIss={tab !== "drones"} />
@@ -838,6 +872,7 @@ export default function StreetWatch() {
             </p>
           </section>
         </main>
+        )}
       </div>
       <footer className="px-4 md:px-6 py-2.5 font-mono flex flex-wrap items-center justify-between gap-x-4 gap-y-1"
         style={{ borderTop: `1px solid ${C.line}`, fontSize: 9.5, color: C.faint, letterSpacing: 0.4 }}>
