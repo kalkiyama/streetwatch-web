@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import { C, HEAT_RAMP } from "../theme.js";
 import WorldMap from "./WorldMap.jsx";
