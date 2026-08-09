@@ -3,7 +3,7 @@ import { Car, Plane, Ship, CloudSun, Camera, PawPrint, Satellite } from "lucide-
 
 export const C = {
   ink: "#0E1116", panel: "#161A21", panel2: "#1C212B", line: "#2A303C",
-  text: "#E8EAED", dim: "#8A94A3", faint: "#5A6473", amber: "#F6A821", cyan: "#5AC8FA",
+  text: "#E8EAED", dim: "#8A94A3", faint: "#828C9B", amber: "#F6A821", cyan: "#5AC8FA",
 };
 
 // Public layers — every source is published for public viewing.
