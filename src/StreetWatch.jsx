@@ -238,7 +238,10 @@ export default function StreetWatch() {
 
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
-    if (typeof window !== "undefined" && window.innerWidth < 1024 && viewerRef.current) {
+    // NO WIDTH GATE. This was mobile-only because desktop had the radar in a second column,
+    // visible without scrolling. One column means a click in the list updates something BELOW THE
+    // FOLD on every screen — so the response looks like nothing happened.
+    if (viewerRef.current) {
       viewerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [selectedId]);
@@ -785,7 +788,11 @@ export default function StreetWatch() {
                 );
               }))}
           </div>
-          <section className="flex flex-col md:flex-row gap-4">
+          {/* viewerRef LIVES HERE NOW. It was attached to the bare WorldMap section, which was
+              deleted with the duplicate map — so viewerRef.current was null and the scroll-to-view
+              silently did nothing. The radar is the right target anyway: it is what CHANGES when a
+              contact is clicked. */}
+          <section ref={viewerRef} className="flex flex-col md:flex-row gap-4" style={{ scrollMarginTop: 8 }}>
             <div className="flex-1 min-w-0">
               {selected.layer === "aviation"
                 ? <AviationRadar key={`${selected.id}:${pendingSel || ""}`}
