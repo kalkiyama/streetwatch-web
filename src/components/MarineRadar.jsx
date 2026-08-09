@@ -189,14 +189,18 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
   const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   return (
+    <div>
+    <div className="flex items-center gap-2 px-1" style={{ marginBottom: 6 }}>
+      <span style={{ width: 3, height: 14, background: "#2563EB", borderRadius: 2, flexShrink: 0 }} />
+      <span style={{ fontSize: 14, fontWeight: 700, color: C.text, letterSpacing: 0.2 }}>Ship Radar</span>
+      <span className="font-mono" style={{ fontSize: 9, color: C.faint }}>live positions broadcast by vessels</span>
+      <span style={{ flex: 1, height: 1, background: C.line }} />
+    </div>
     <div className="relative w-full overflow-hidden rounded-lg" style={{ border: `1px solid ${C.line}`, background: "#08130F" }}>
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2"
         style={{ zIndex: 1200, background: "linear-gradient(180deg, rgba(8,19,15,0.9), rgba(8,19,15,0))" }}>
         {/* IT SAYS WHAT IT IS. AIS belongs in the subtitle as provenance, not in the title —
             anyone who already knows the acronym is not learning anything from it. */}
-        <span className="font-mono" style={{ fontSize: 10, letterSpacing: 1, color: C.dim, marginRight: 8 }}>
-          SHIP RADAR<span style={{ display: "block", fontSize: 8.5, letterSpacing: 0, color: C.faint }}>live positions broadcast by vessels</span>
-        </span>
         <span className="flex items-center gap-1.5 px-2 py-0.5 rounded font-mono"
           style={{ fontSize: 11, letterSpacing: 1, background: status === "live" ? "rgba(55,196,106,0.16)" : status === "error" ? "rgba(240,85,59,0.16)" : "rgba(246,168,33,0.16)",
             color: status === "live" ? "#37C46A" : status === "error" ? "#F0553B" : C.amber }}>
@@ -347,6 +351,7 @@ export default function MarineRadar({ center, initialRadius, onRadius, initialSe
         Surface vessels only — submarines and submersibles cannot be tracked by AIS anywhere
         in the world: VHF radio does not travel through seawater.
       </div>
+    </div>
     </div>
   );
 }
