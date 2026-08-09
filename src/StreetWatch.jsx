@@ -74,6 +74,33 @@ export default function StreetWatch() {
       setTab(f && f.tag === "uav" ? "drones" : "world");
     }
   }, [CATALOG]);
+  // THE WATCHED AIRFIELDS COME FROM THE SWEEP, NOT FROM catalog.json. The catalog carried 240
+  // hand-maintained "uav" rows against the sweep's 308 — 68 airfields watched and unlisted, so a
+  // reader searching for Whiting Field or Keesler concluded they were not covered. They were.
+  // Every site added since the catalog was last edited by hand went into drone-sweep.js and
+  // nowhere else. A fact stated in two places diverges; this one diverged by 68 entries.
+  // Fetched at runtime so it CANNOT drift again: adding a site to SITES is the whole operation.
+  // THE TRADE: if the proxy is unreachable these are absent rather than stale. The sweep data they
+  // describe is already backend-dependent, so a list that outlived its backend would be naming
+  // airfields nobody is currently watching.
+  const [sweepSites, setSweepSites] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    fetch(`${BACKEND_URL}/api/drones/sites`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!alive || !j || !Array.isArray(j.sites)) return;
+        setSweepSites(j.sites);
+        // MERGED INTO CATALOG, so every existing consumer — search, filters, the map, deep links,
+        // the region grouping — works on them without knowing they came from a different source.
+        // Replaces rather than appends on a refetch: filter out any uav rows first, so this stays
+        // idempotent if it ever runs twice.
+        setCatalog((c) => [...c.filter((x) => x.tag !== "uav"), ...j.sites]);
+      })
+      .catch(() => { /* the rest of the catalog still works */ });
+    return () => { alive = false; };
+  }, []);
+
   const [query, setQuery] = useState("");
   // ONE CONCEPT, NOT A CONDITION PER ELEMENT. Cyber renders three public sources directly and has
   // no feed catalog behind it, so the search box, region filters, layer chips, LIST/MAP toggle and
