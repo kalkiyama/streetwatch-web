@@ -448,7 +448,7 @@ export default function StreetWatch() {
       `}</style>
 
       <Intro open={introOpen} onClose={closeIntro} feedCount={CATALOG.length} />
-      <header className="flex items-center justify-between px-4 md:px-6 py-3" style={{ borderBottom: `1px solid ${C.line}` }}>
+      <header className="flex flex-wrap items-center justify-between gap-y-2 px-4 md:px-6 py-3" style={{ borderBottom: `1px solid ${C.line}` }}>
         <div className="flex items-center gap-2.5">
           <svg width="30" height="30" viewBox="0 0 64 64" aria-label="StreetWatch">
             <rect width="64" height="64" rx="14" fill={C.amber} />
@@ -461,7 +461,7 @@ export default function StreetWatch() {
             <div className="font-mono" style={{ fontSize: 10, color: C.faint, letterSpacing: 1 }}>LIVE PLANET CONSOLE</div>
           </div>
         </div>
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center justify-center gap-1 w-full sm:w-auto order-3 sm:order-none">
           <button onClick={() => setIntroOpen(true)} aria-label="What is StreetWatch? Open the guide"
             title="What is this? How do I use it?"
             className="flex items-center justify-center rounded"
