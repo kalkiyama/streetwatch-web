@@ -39,9 +39,16 @@ export default function StreetWatch() {
   const deepLinked = React.useRef(false);
   useEffect(() => {
     if (deepLinked.current || !CATALOG.length || typeof window === "undefined") return;
-    deepLinked.current = true;
     const want = new URLSearchParams(window.location.search).get("feed");
+    // THE GUARD BURNS ON A SUCCESSFUL MATCH, NOT ON THE FIRST ATTEMPT. CATALOG now arrives in TWO
+    // stages — 7,208 rows from catalog.json, then the 308 watched sites merged in from
+    // /api/drones/sites. This effect used to set deepLinked.current = true before looking, so the
+    // first pass missed every UAV id and the second pass never ran. Every UAV share link opened on
+    // the default feed instead. Introduced by today's sites change.
+    // If the id is absent from BOTH stages the guard is never set and the effect simply re-runs on
+    // the next CATALOG change, which is what should happen.
     if (want && CATALOG.some((c) => c.id === want)) {
+      deepLinked.current = true;
       setSelectedId(want);
       const f = CATALOG.find((c) => c.id === want);
       // route to the tab this feed belongs to — a shared webcam link must not strand the
