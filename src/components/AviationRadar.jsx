@@ -293,7 +293,15 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
           minHeight: 46, alignItems: "flex-end",
           // proportional digits change width as values tick, which made the whole line shuffle
           fontVariantNumeric: "tabular-nums" }}>
-        {selMissing && !chosen ? (
+        {waitingForSel ? (
+          <span style={{ color: C.dim, lineHeight: 1.5 }}>
+            Looking for {initialSelLabel || wantSel.current} on this radar…
+            <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
+              A shared link names one aircraft. It appears here only if it is broadcasting in range
+              right now.
+            </span>
+          </span>
+        ) : selMissing && !chosen ? (
           <span style={{ color: C.amber, lineHeight: 1.5 }}>
             {initialSelLabel || selMissing} is not airborne in this area now
             <span style={{ display: "block", color: C.faint, fontSize: 10 }}>
