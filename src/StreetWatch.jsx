@@ -37,9 +37,16 @@ export default function StreetWatch() {
       .then(setCatalog).catch(() => setCatalogErr(true));
   }, []);
   const deepLinked = React.useRef(false);
+  // CAPTURED ONCE, AT MOUNT. Line ~176 WRITES ?feed= into the URL as you browse, so reading
+  // window.location on every CATALOG change reads back what the app itself just wrote — and since
+  // CATALOG now arrives in two stages, the second pass found a feed that was never shared with
+  // anyone and routed the tab to match it. The app opened on Drones and switched to World on its
+  // own, before the welcome screen had even appeared.
+  const urlFeed = React.useRef(typeof window === "undefined" ? null
+    : new URLSearchParams(window.location.search).get("feed"));
   useEffect(() => {
     if (deepLinked.current || !CATALOG.length || typeof window === "undefined") return;
-    const want = new URLSearchParams(window.location.search).get("feed");
+    const want = urlFeed.current;
     // THE GUARD BURNS ON A SUCCESSFUL MATCH, NOT ON THE FIRST ATTEMPT. CATALOG now arrives in TWO
     // stages — 7,208 rows from catalog.json, then the 308 watched sites merged in from
     // /api/drones/sites. This effect used to set deepLinked.current = true before looking, so the
@@ -464,9 +471,10 @@ export default function StreetWatch() {
           {/* Primary mode switch. Grouped in one pill with a shared border so it reads as a
               two-way toggle — the single most important control for a first-time visitor, who
               otherwise cannot tell the world browser from the drone watch. */}
-          <div className="flex items-center rounded-lg" style={{ border: `1px solid ${C.line}`, padding: 2, background: C.panel2 }}>
-            {[{ k: "world", label: "World", icon: Globe, hint: "all feeds" },
-              { k: "drones", label: "Drones", icon: Plane, hint: "military watch" },
+          <div className="flex items-center rounded-lg" style={{ border: `1px solid ${C.line}`, padding: 2, background: C.panel2,
+            minWidth: 0, overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" }}>
+            {[{ k: "drones", label: "Drones", icon: Plane, hint: "military watch" },
+              { k: "world", label: "World", icon: Globe, hint: "all feeds" },
               { k: "cyber", label: "Cyber", icon: Shield, hint: "attacks & outages" }].map((t) => (
               <button key={t.k} onClick={() => { setTab(t.k); dismissCoach(); }}
                 aria-pressed={tab === t.k}
