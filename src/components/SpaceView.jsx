@@ -1,7 +1,11 @@
-import { useState, useEffect, useRef } from "react";
-import { Satellite } from "lucide-react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { Satellite, Globe as GlobeIcon, Map as MapIcon } from "lucide-react";
 import * as sat from "satellite.js";
 import { C } from "../theme.js";
+
+// three.js is ~150kB gzipped and only the globe needs it, so it is loaded on demand rather than
+// riding in the main bundle for everyone who never opens this tab.
+const SpaceGlobe = lazy(() => import("./SpaceGlobe.jsx"));
 
 // Colours are per GROUP, not per object: with eight toggles a single colour makes the layer
 // meaningless the moment two are on. The chips carry the same colour, so the chips ARE the legend.
@@ -22,6 +26,48 @@ const GROUP_COLOR = {
 const API = import.meta.env.DEV ? "https://streetwatch.earth" : "";
 
 const ISS_NORAD = 25544;
+const W = 720, H = 360;
+const TRAIL_S = [-45, -90, -135];   // seconds behind — three points make a tail that shows heading
+
+// Two basemaps, because they answer different questions.
+//
+//   BLUE MARBLE is a cloud-free composite: coastlines and terrain are crisp, so you can actually
+//   tell which country a satellite is over. That is the point of the globe, so it is the default.
+//   LIVE is yesterday's VIIRS true colour — the real sky, clouds and all. Honest and pretty, but
+//   half the planet is white, and country outlines vanish underneath.
+//
+// Yesterday, not today, because GIBS publishes on a lag and an empty tile is worse than a day-old
+// one. Resolved at MODULE level: reading the clock during render makes the component non-idempotent.
+const BG_DATE = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+const gibs = (layer, time, w) =>
+  `https://wvs.earthdata.nasa.gov/api/v1/snapshot?REQUEST=GetSnapshot&TIME=${time}`
+  + `&BBOX=-90,-180,90,180&CRS=EPSG:4326&LAYERS=${layer}`
+  + `&FORMAT=image/jpeg&WIDTH=${w}&HEIGHT=${w / 2}`;
+
+// The globe gets a far larger texture than the flat map ever needed: 720px stretched over a sphere
+// is soft and blocky at any useful zoom.
+const BASEMAPS = {
+  marble: { label: "Terrain", flat: gibs("BlueMarble_ShadedRelief_Bathymetry", "2024-01-01", 1024),
+            globe: gibs("BlueMarble_ShadedRelief_Bathymetry", "2024-01-01", 2048) },
+  live:   { label: "Today", flat: gibs("VIIRS_SNPP_CorrectedReflectance_TrueColor", BG_DATE, 1024),
+            globe: gibs("VIIRS_SNPP_CorrectedReflectance_TrueColor", BG_DATE, 2048) },
+};
+
+const px = (lon) => ((lon + 180) / 360) * W;
+const py = (lat) => ((90 - lat) / 180) * H;
+
+// Solar declination and the subsolar longitude, good to a fraction of a degree — far finer than a
+// 720px-wide map can show. Drives both the terminator and the sun marker.
+function solar(date) {
+  const n = (date - Date.UTC(date.getUTCFullYear(), 0, 1)) / 86400000;
+  const g = ((357.528 + 0.9856003 * n) * Math.PI) / 180;
+  const L = ((280.46 + 0.9856474 * n) * Math.PI) / 180;
+  const lambda = L + ((1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * Math.PI) / 180;
+  const eps = (23.439 * Math.PI) / 180;
+  const decl = Math.asin(Math.sin(eps) * Math.sin(lambda));
+  const utcH = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+  return { decl, subLon: -15 * (utcH - 12), subLat: (decl * 180) / Math.PI };
+}
 
 export default function SpaceView() {
   const [pos, setPos] = useState(null);
@@ -30,9 +76,10 @@ export default function SpaceView() {
   const liveRef = useRef(false); const everRef = useRef(false);
   const simRef = useRef({ phase: 0, lon: -30 });
   const pink = "#F472B6";
-  // The track is DRAWN, so it is state rather than a ref. A null entry is a deliberate break in the
-  // polyline where the ground track wraps the antimeridian — without it the line whips across the
-  // whole map. Kept to 140 points so the tail fades rather than encircling the globe.
+
+  // The ISS track is DRAWN, so it is state rather than a ref. A null entry is a deliberate break in
+  // the polyline where the ground track wraps the antimeridian — without it the line whips across
+  // the whole map. Kept to 140 points so the tail fades rather than encircling the globe.
   const [track, setTrack] = useState([]);
   const push = (lat, lon) => setTrack((t) => {
     const p = t[t.length - 1];
@@ -41,15 +88,26 @@ export default function SpaceView() {
   });
 
   // ── satellite layer ────────────────────────────────────────────────────────
-  // Element sets are FETCHED (rarely — they change a few times a day); positions are COMPUTED here
-  // every tick by SGP4. That is why the satrecs live in a ref and never in state: they are an
-  // input to a computation, not something the UI renders directly.
   const [groups, setGroups] = useState([]);
   const [on, setOn] = useState({ stations: true });
   const [meta, setMeta] = useState({});        // group -> { total, served, capped, oldestEpochHours }
   const [loading, setLoading] = useState({});  // group -> true while its elements are in flight
+  const [count, setCount] = useState(0);       // how many are actually on screen, for the footer
+  const [view, setView] = useState("globe");   // globe reads better for orbits; map for whole ground tracks
+  // An orbital period is ~92 minutes, which on this scale is a fraction of a pixel per second:
+  // technically live and visually inert. The multiplier is what makes an orbit legible, and the
+  // badge says plainly when the view has left the present moment.
+  const [speed, setSpeed] = useState(60);
+  const [base, setBase] = useState("marble");
   const satsRef = useRef({});                  // group -> [{ id, name, satrec }] — never rendered
-  const [draw, setDraw] = useState([]);        // [{ x, y, color }] recomputed each tick — rendered
+  const canvasRef = useRef(null);
+
+  // Positions live in a ref and are painted to CANVAS, not returned as React elements. 940 SVG
+  // circles reconciled once a second made the dots JUMP rather than move; canvas skips React
+  // entirely, so the same objects can be redrawn every animation frame for the cost of a fill.
+  // Each entry holds the position now (a) and one second ahead (b); the frame loop interpolates
+  // between them, which is what turns a 1Hz propagation into 60fps motion.
+  const frameRef = useRef({ at: 0, items: [] });
 
   useEffect(() => {
     let alive = true;
@@ -84,6 +142,128 @@ export default function SpaceView() {
     return () => { alive = false; };
   }, [on]);
 
+  // Propagation tick — once a second, deliberately. SGP4 is the expensive part; the smoothness
+  // comes from interpolation in the frame loop below, not from solving more often.
+  useEffect(() => {
+    const geo = (satrec, when, gmst) => {
+      const pv = sat.propagate(satrec, when);
+      if (!pv || !pv.position) return null;
+      const gd = sat.eciToGeodetic(pv.position, gmst);
+      const lat = sat.degreesLat(gd.latitude), lon = sat.degreesLong(gd.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+      return [px(lon), py(lat)];
+    };
+    const solve = () => {
+      const now = new Date();
+      const ahead = new Date(now.getTime() + 1000);
+      const g0 = sat.gstime(now), g1 = sat.gstime(ahead);
+      const items = [];
+      Object.keys(satsRef.current).forEach((g) => {
+        if (!on[g]) return;
+        const color = GROUP_COLOR[g] || "#8A94A3";
+        satsRef.current[g].forEach((s) => {
+          try {
+            const a = geo(s.satrec, now, g0); if (!a) return;
+            const b = geo(s.satrec, ahead, g1) || a;
+            // A trail that wraps the antimeridian would draw a line straight across the map, so any
+            // segment jumping more than a third of the width is dropped rather than drawn wrong.
+            const tail = [];
+            for (const dt of TRAIL_S) {
+              const when = new Date(now.getTime() + dt * 1000);
+              const p = geo(s.satrec, when, sat.gstime(when));
+              if (!p) break;
+              const prev = tail.length ? tail[tail.length - 1] : a;
+              if (Math.abs(p[0] - prev[0]) > W / 3) break;
+              tail.push(p);
+            }
+            items.push({ a, b, tail, color });
+          } catch { /* one bad element set must not stop the sweep */ }
+        });
+      });
+      frameRef.current = { at: performance.now(), items };
+      setCount(items.length);
+    };
+    solve();
+    const id = setInterval(solve, 1000);
+    return () => clearInterval(id);
+  }, [on]);
+
+  // Frame loop — interpolates between the last two solved positions and repaints. This is the only
+  // thing that runs at display rate; nothing here allocates or touches React state.
+  useEffect(() => {
+    let raf = 0;
+    const draw = () => {
+      raf = requestAnimationFrame(draw);
+      const cv = canvasRef.current; if (!cv) return;
+      const ctx = cv.getContext("2d"); if (!ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      if (cv.width !== W * dpr || cv.height !== H * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+
+      // ── night side ──────────────────────────────────────────────────────────
+      // The terminator is the locus where the sun sits exactly on the horizon: for each longitude,
+      // lat = atan(-cos(hourAngle) / tan(declination)). Whichever pole is tilted away is the dark
+      // one, so the shading fills toward it. It creeps west all day, which is the point.
+      const { decl, subLon, subLat } = solar(new Date());
+      if (Math.abs(decl) > 0.001) {
+        const northDark = decl < 0;
+        ctx.beginPath();
+        for (let x = 0; x <= W; x += 4) {
+          const lon = (x / W) * 360 - 180;
+          const Hh = ((lon - subLon) * Math.PI) / 180;
+          const lat = (Math.atan(-Math.cos(Hh) / Math.tan(decl)) * 180) / Math.PI;
+          const y = py(lat);
+          if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.lineTo(W, northDark ? 0 : H);
+        ctx.lineTo(0, northDark ? 0 : H);
+        ctx.closePath();
+        ctx.fillStyle = "rgba(4,10,20,0.55)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(251,191,36,0.28)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // subsolar point — the spot with the sun directly overhead
+      const sx = px(((subLon + 540) % 360) - 180), sy = py(subLat);
+      const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, 26);
+      glow.addColorStop(0, "rgba(251,191,36,0.30)");
+      glow.addColorStop(1, "rgba(251,191,36,0)");
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(sx, sy, 26, 0, 6.284); ctx.fill();
+      ctx.fillStyle = "rgba(253,224,71,0.9)"; ctx.beginPath(); ctx.arc(sx, sy, 2.6, 0, 6.284); ctx.fill();
+
+      // ── satellites ──────────────────────────────────────────────────────────
+      const { at, items } = frameRef.current;
+      // Clamped so a backgrounded tab (which throttles timers) resumes cleanly instead of
+      // extrapolating a wild distance past the last solved position.
+      const f = Math.max(0, Math.min(1, (performance.now() - at) / 1000));
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        const x = it.a[0] + (it.b[0] - it.a[0]) * (Math.abs(it.b[0] - it.a[0]) > W / 3 ? 0 : f);
+        const y = it.a[1] + (it.b[1] - it.a[1]) * f;
+        if (it.tail.length) {
+          ctx.strokeStyle = it.color; ctx.lineWidth = 0.9;
+          ctx.globalAlpha = 0.45;
+          ctx.beginPath(); ctx.moveTo(x, y);
+          for (const t of it.tail) ctx.lineTo(t[0], t[1]);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        // A dark halo under every dot. Live true-colour imagery is mostly white cloud, and an
+        // unhaloed dot disappeared over anything bright — the layer read as empty over half the
+        // globe. The ring costs one extra fill and makes the colour legible on any background.
+        ctx.fillStyle = "rgba(2,8,16,0.85)";
+        ctx.beginPath(); ctx.arc(x, y, 2.9, 0, 6.284); ctx.fill();
+        ctx.fillStyle = it.color;
+        ctx.beginPath(); ctx.arc(x, y, 1.7, 0, 6.284); ctx.fill();
+      }
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   useEffect(() => {
     let alive = true;
     async function pull() {
@@ -104,41 +284,14 @@ export default function SpaceView() {
         st.phase += (2 * Math.PI) / (92.9 * 60) * 4;      // accelerated for visibility
         st.lon = ((st.lon + 0.9 + 540) % 360) - 180;
         const lat = 51.6 * Math.sin(st.phase);
-        const p = { lat, lon: st.lon, altKm: 420, velKmh: 27600 };
-        setPos(p); push(lat, st.lon); setStatus("sim");
+        setPos({ lat, lon: st.lon, altKm: 420, velKmh: 27600 }); push(lat, st.lon); setStatus("sim");
       }
-      // Propagate every enabled group to the current instant. Worst case is ~940 SGP4 solves at 1Hz,
-      // a few milliseconds — cheap enough that no throttling or web worker is warranted yet.
-      const now = new Date();
-      const gmst = sat.gstime(now);
-      const out = [];
-      Object.keys(satsRef.current).forEach((g) => {
-        if (!on[g]) return;
-        const color = GROUP_COLOR[g] || C.faint;
-        satsRef.current[g].forEach((s) => {
-          try {
-            const pv = sat.propagate(s.satrec, now);
-            if (!pv || !pv.position) return;                       // decayed or unpropagatable
-            const gd = sat.eciToGeodetic(pv.position, gmst);
-            const lat = sat.degreesLat(gd.latitude), lon = sat.degreesLong(gd.longitude);
-            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-            out.push({ x: ((lon + 180) / 360) * 720, y: ((90 - lat) / 180) * 360, color });
-          } catch { /* one bad element set must not stop the sweep */ }
-        });
-      });
-      setDraw(out);
     }, 1000);
     return () => { alive = false; clearInterval(pollId); clearInterval(tickId); };
-  }, [on]);
+  }, []);
 
-  const W = 720, H = 360;
-  const px = (lon) => ((lon + 180) / 360) * W;
-  const py = (lat) => ((90 - lat) / 180) * H;
-  const bg = `https://wvs.earthdata.nasa.gov/api/v1/snapshot?REQUEST=GetSnapshot&TIME=2024-01-01&BBOX=-90,-180,90,180&CRS=EPSG:4326&LAYERS=BlueMarble_ShadedRelief_Bathymetry&FORMAT=image/jpeg&WIDTH=720&HEIGHT=360`;
 
   const shownGroups = Object.keys(on).filter((g) => on[g] && meta[g]);
-  const shownCount = draw.length;
-  // The oldest epoch across everything on screen, because the honest number is the worst one.
   const oldestEpoch = shownGroups.reduce((a, g) => Math.max(a, meta[g].oldestEpochHours || 0), 0);
   const capNotes = shownGroups.filter((g) => meta[g].capped)
     .map((g) => `${(groups.find((x) => x.group === g) || {}).label || g} ${meta[g].served} of ${meta[g].total.toLocaleString()}`);
@@ -152,6 +305,36 @@ export default function SpaceView() {
       {groups.length > 0 && (
         <div className="flex items-center gap-1 px-3 py-2" style={{ flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
           <span className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginRight: 4 }}>SHOW</span>
+          <span style={{ flex: 1 }} />
+          {[["globe", GlobeIcon, "3D globe — orbits look like orbits, and the terminator is real lighting"],
+            ["map", MapIcon, "Flat map — better for seeing a whole ground track at once"]].map(([k, Icon, tip]) => (
+            <button key={k} onClick={() => setView(k)} className="rounded" title={tip}
+              style={{ padding: "3px 5px", color: view === k ? "#04121F" : C.dim,
+                background: view === k ? C.dim : "transparent", border: `1px solid ${C.line}` }}>
+              <Icon size={11} />
+            </button>
+          ))}
+          {Object.entries(BASEMAPS).map(([k, b]) => (
+            <button key={k} onClick={() => setBase(k)} className="rounded font-mono"
+              title={k === "marble" ? "Cloud-free composite — coastlines stay visible" : `Real imagery from ${BG_DATE}, clouds and all`}
+              style={{ fontSize: 8.5, padding: "3px 6px", color: base === k ? "#04121F" : C.dim,
+                background: base === k ? C.dim : "transparent", border: `1px solid ${C.line}` }}>
+              {b.label}
+            </button>
+          ))}
+          {view === "globe" && [1, 60, 600].map((x) => (
+            <button key={x} onClick={() => setSpeed(x)} className="rounded font-mono"
+              title={x === 1 ? "Real time — honest, but an orbit takes 92 minutes" : `${x}x — a full low orbit sweeps past in ${Math.round(92 * 60 / x)}s`}
+              style={{ fontSize: 8.5, padding: "3px 6px", color: speed === x ? "#04121F" : C.amber,
+                background: speed === x ? C.amber : "transparent", border: `1px solid ${C.amber}66` }}>
+              {x === 1 ? "LIVE" : `${x}\u00d7`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {groups.length > 0 && (
+        <div className="flex items-center gap-1 px-3 pb-2" style={{ flexWrap: "wrap" }}>
           {groups.map((g) => {
             const c = GROUP_COLOR[g.group] || C.faint;
             const active = !!on[g.group];
@@ -170,16 +353,21 @@ export default function SpaceView() {
       )}
 
       <div className="relative w-full" style={{ aspectRatio: "2 / 1" }}>
-        {!bgErr && <img src={bg} alt="" onError={() => setBgErr(true)} className="absolute inset-0 w-full h-full" style={{ objectFit: "cover", opacity: 0.85 }} />}
+        {view === "globe" ? (
+          <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center font-mono"
+            style={{ fontSize: 10, color: C.faint }}>loading globe…</div>}>
+            <SpaceGlobe on={on} satsRef={satsRef} colors={GROUP_COLOR} iss={pos}
+              textureUrl={BASEMAPS[base].globe} speed={speed} onCount={setCount} />
+          </Suspense>
+        ) : (<>
+        {!bgErr && <img src={BASEMAPS[base].flat} alt="" onError={() => setBgErr(true)} className="absolute inset-0 w-full h-full" style={{ objectFit: "cover", opacity: 0.5 }} />}
+        {/* Canvas carries everything that moves every frame — night shading, sun, satellites and
+            their trails. The SVG above it keeps only the handful of elements React should own. */}
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ pointerEvents: "none" }} />
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ display: "block", position: "relative" }}>
           {bgErr && <rect x="0" y="0" width={W} height={H} fill="#08131F" />}
           {[-60, -30, 0, 30, 60].map((la) => <line key={la} x1="0" y1={py(la)} x2={W} y2={py(la)} stroke="rgba(138,148,163,0.18)" strokeWidth="1" />)}
           {[-120, -60, 0, 60, 120].map((lo) => <line key={lo} x1={px(lo)} y1="0" x2={px(lo)} y2={H} stroke="rgba(138,148,163,0.18)" strokeWidth="1" />)}
-          {/* Satellites are drawn BENEATH the ISS track and marker: many small dots must not compete
-              with the one object whose position is actually observed rather than computed. */}
-          {draw.map((d, i) => (
-            <circle key={i} cx={d.x} cy={d.y} r="1.5" fill={d.color} opacity="0.85" />
-          ))}
           {track.map((p, i) => p && track[i - 1] ? (
             <line key={i} x1={px(track[i - 1][1])} y1={py(track[i - 1][0])} x2={px(p[1])} y2={py(p[0])} stroke={pink} strokeWidth="1.4" opacity="0.5" />
           ) : null)}
@@ -191,13 +379,16 @@ export default function SpaceView() {
             </g>
           )}
         </svg>
+        </>)}
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2" style={{ background: "linear-gradient(180deg, rgba(4,18,31,0.85), rgba(4,18,31,0))" }}>
           <span className="flex items-center gap-1.5 px-2 py-0.5 rounded font-mono" style={{ fontSize: 11, letterSpacing: 1, background: status === "live" ? "rgba(55,196,106,0.16)" : "rgba(246,168,33,0.16)", color: status === "live" ? "#37C46A" : C.amber }}>
-            <Satellite size={12} />{status === "live" ? "LIVE · ISS" : status === "connecting" ? "CONNECTING" : "SIM · ISS"}
+            <Satellite size={12} />{view === "globe" && speed > 1
+              ? `TIME ×${speed} · PROJECTED`
+              : status === "live" ? "LIVE · ISS" : status === "connecting" ? "CONNECTING" : "SIM · ISS"}
           </span>
-          <span className="font-mono" style={{ fontSize: 10, color: C.faint }}>wheretheiss.at</span>
+          <span className="font-mono" style={{ fontSize: 10, color: C.faint }}>wheretheiss.at · NASA GIBS</span>
         </div>
-        {pos && (
+        {pos && !(view === "globe" && speed > 1) && (
           <div className="absolute bottom-0 left-0 right-0 grid grid-cols-4 gap-2 px-3 py-2 font-mono" style={{ background: "linear-gradient(0deg, rgba(4,18,31,0.92), rgba(4,18,31,0))", fontSize: 11 }}>
             {[["LAT", pos.lat.toFixed(2) + "°"], ["LON", pos.lon.toFixed(2) + "°"], ["ALT", Math.round(pos.altKm) + " km"], ["VEL", Math.round(pos.velKmh).toLocaleString() + " km/h"]].map(([k, v]) => (
               <div key={k}><div style={{ color: C.faint, fontSize: 9 }}>{k}</div><div style={{ color: pink }}>{v}</div></div>
@@ -209,12 +400,15 @@ export default function SpaceView() {
       <div className="px-3 py-1.5 font-mono" style={{ fontSize: 9, color: C.faint, lineHeight: 1.5, background: "rgba(4,18,31,0.6)" }}>
         ISS position from public NORAD orbital elements via wheretheiss.at (a third-party service,
         not verified by StreetWatch). The orbit is inclined ~51.6° to the equator, so the ground
-        track sweeps between about 51.6°N and 51.6°S — it does not follow the equator.
-        {shownCount > 0 && (
+        track sweeps between about 51.6°N and 51.6°S — it does not follow the equator. Basemap is
+        NASA {BASEMAPS[base].label} imagery; the shaded half is night, and the line across it is
+        the day/night terminator at this moment.
+        {count > 0 && (
           <>
-            {" "}The {shownCount.toLocaleString()} coloured dots are COMPUTED, not observed: their
+            {" "}The {count.toLocaleString()} coloured dots are COMPUTED, not observed: their
             positions are propagated from CelesTrak orbital elements rather than broadcast by the
-            satellites themselves, unlike the aircraft and vessels elsewhere in this app.
+            satellites themselves, unlike the aircraft and vessels elsewhere in this app. Trails
+            show roughly two minutes of travel.
             {oldestEpoch > 0 && ` Oldest element set on screen is ${Math.round(oldestEpoch)}h old — accuracy degrades as that number grows.`}
             {capNotes.length > 0 && ` Showing a capped subset: ${capNotes.join("; ")}.`}
           </>
