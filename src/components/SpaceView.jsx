@@ -99,7 +99,22 @@ export default function SpaceView() {
   // badge says plainly when the view has left the present moment.
   const [speed, setSpeed] = useState(60);
   const [base, setBase] = useState("marble");
+  // Both control rows and the provenance footer collapse by default. Eight labelled category
+  // chips, three speed chips, two basemaps and two view buttons stacked into a block TALLER than
+  // the map itself on a phone, and the footer added a second wall of text under it — the subject
+  // of the page was the smallest thing on screen. The disclosures are the point of this app, so
+  // they are hidden behind a toggle rather than cut.
+  const [showLayers, setShowLayers] = useState(false);
+  const [showWhy, setShowWhy] = useState(false);
   const satsRef = useRef({});                  // group -> [{ id, name, satrec }] — never rendered
+  // Which groups have a request IN FLIGHT. This has to be a ref, not the `loading` state: the old
+  // guard tested satsRef, which stays empty until the fetch resolves, so every re-render that the
+  // effect itself caused re-entered and fired the same request again. Starlink lost that race most
+  // often because it is the largest payload.
+  const inflightRef = useRef({});
+  // Bumped when a group's elements land. satsRef is a ref, so nothing else tells the view that new
+  // data exists — which is why groups only appeared after toggling speed or switching views.
+  const [gen, setGen] = useState(0);
   const canvasRef = useRef(null);
 
   // Positions live in a ref and are painted to CANVAS, not returned as React elements. 940 SVG
@@ -120,9 +135,10 @@ export default function SpaceView() {
 
   useEffect(() => {
     let alive = true;
-    const wanted = Object.keys(on).filter((g) => on[g] && !satsRef.current[g]);
+    const wanted = Object.keys(on).filter((g) => on[g] && !satsRef.current[g] && !inflightRef.current[g]);
     if (!wanted.length) return;
     wanted.forEach((g) => {
+      inflightRef.current[g] = true;
       setLoading((s) => ({ ...s, [g]: true }));
       fetch(`${API}/api/space?group=${encodeURIComponent(g)}`)
         .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
@@ -135,9 +151,11 @@ export default function SpaceView() {
             .map((s) => { try { return { id: s.id, name: s.name, satrec: sat.twoline2satrec(s.l1, s.l2) }; } catch { return null; } })
             .filter(Boolean);
           setMeta((m) => ({ ...m, [g]: { total: j.total, served: j.served, capped: j.capped, oldestEpochHours: j.oldestEpochHours } }));
+          inflightRef.current[g] = false;
           setLoading((s) => ({ ...s, [g]: false }));
+          setGen((n) => n + 1);
         })
-        .catch(() => { if (alive) { satsRef.current[g] = []; setLoading((s) => ({ ...s, [g]: false })); } });
+        .catch(() => { inflightRef.current[g] = false; if (alive) { satsRef.current[g] = []; setLoading((s) => ({ ...s, [g]: false })); setGen((n) => n + 1); } });
     });
     return () => { alive = false; };
   }, [on]);
@@ -186,7 +204,7 @@ export default function SpaceView() {
     solve();
     const id = setInterval(solve, 1000);
     return () => clearInterval(id);
-  }, [on]);
+  }, [on, gen]);
 
   // Frame loop — interpolates between the last two solved positions and repaints. This is the only
   // thing that runs at display rate; nothing here allocates or touches React state.
@@ -305,6 +323,12 @@ export default function SpaceView() {
       {groups.length > 0 && (
         <div className="flex items-center gap-1 px-3 py-2" style={{ flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
           <span className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginRight: 4 }}>SHOW</span>
+          <button onClick={() => setShowLayers((v) => !v)} className="rounded font-mono"
+            title="Choose which satellite groups to plot"
+            style={{ fontSize: 8.5, padding: "3px 6px", color: showLayers ? "#04121F" : C.dim,
+              background: showLayers ? C.dim : "transparent", border: `1px solid ${C.line}` }}>
+            Layers {Object.keys(on).filter((k) => on[k]).length}{showLayers ? " \u25b4" : " \u25be"}
+          </button>
           <span style={{ flex: 1 }} />
           {[["globe", GlobeIcon, "3D globe — orbits look like orbits, and the terminator is real lighting"],
             ["map", MapIcon, "Flat map — better for seeing a whole ground track at once"]].map(([k, Icon, tip]) => (
@@ -333,7 +357,7 @@ export default function SpaceView() {
         </div>
       )}
 
-      {groups.length > 0 && (
+      {groups.length > 0 && showLayers && (
         <div className="flex items-center gap-1 px-3 pb-2" style={{ flexWrap: "wrap" }}>
           {groups.map((g) => {
             const c = GROUP_COLOR[g.group] || C.faint;
@@ -352,7 +376,7 @@ export default function SpaceView() {
         </div>
       )}
 
-      <div className="relative w-full" style={{ aspectRatio: "2 / 1" }}>
+      <div className="spacemedia relative w-full" style={{ aspectRatio: "2 / 1" }}>
         {view === "globe" ? (
           <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center font-mono"
             style={{ fontSize: 10, color: C.faint }}>loading globe…</div>}>
@@ -398,6 +422,20 @@ export default function SpaceView() {
       </div>
 
       <div className="px-3 py-1.5 font-mono" style={{ fontSize: 9, color: C.faint, lineHeight: 1.5, background: "rgba(4,18,31,0.6)" }}>
+        <div className="flex items-center justify-between gap-2">
+          <span>
+            {count > 0
+              ? `${count.toLocaleString()} satellites \u00b7 computed from orbital elements, not observed`
+              : "ISS tracked live \u00b7 other objects computed from orbital elements"}
+            {oldestEpoch > 0 ? ` \u00b7 elements up to ${Math.round(oldestEpoch)}h old` : ""}
+          </span>
+          <button onClick={() => setShowWhy((v) => !v)} className="rounded"
+            style={{ fontSize: 9, padding: "1px 5px", color: C.dim, border: `1px solid ${C.line}`, whiteSpace: "nowrap" }}>
+            {showWhy ? "Less" : "Why?"}
+          </button>
+        </div>
+        {showWhy && (
+        <div style={{ marginTop: 6 }}>
         ISS position from public NORAD orbital elements via wheretheiss.at (a third-party service,
         not verified by StreetWatch). The orbit is inclined ~51.6° to the equator, so the ground
         track sweeps between about 51.6°N and 51.6°S — it does not follow the equator. Basemap is
@@ -415,6 +453,8 @@ to scale, and the ISS model is indicative rather than a true likeness."}
             {oldestEpoch > 0 && ` Oldest element set on screen is ${Math.round(oldestEpoch)}h old — accuracy degrades as that number grows.`}
             {capNotes.length > 0 && ` Showing a capped subset: ${capNotes.join("; ")}.`}
           </>
+        )}
+        </div>
         )}
       </div>
     </div>

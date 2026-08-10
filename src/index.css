@@ -35,3 +35,12 @@ button:disabled {
   .tabpill { flex-wrap: wrap; }
   .tabpill > button { flex: 1 0 calc(50% - 4px); justify-content: center; }
 }
+
+/* --- Space view on small screens --------------------------------------------------------
+   A 2:1 box is right for a flat world map and wrong for a globe: on a phone it left the sphere
+   a small square with control rows above and provenance text below, both taller than the thing
+   they described. Below 640px the media box goes nearly square so the map or globe actually
+   gets the screen. */
+@media (max-width: 640px) {
+  .spacemedia { aspect-ratio: 1 / 1 !important; }
+}
