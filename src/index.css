@@ -24,3 +24,14 @@ button:disabled {
 /* Leaflet's own interactive markers/paths already use pointer; this covers our custom
    SVG hit targets that opted in via role or class. */
 .sw-clickable { cursor: pointer; }
+
+/* --- Tab pill on small screens ----------------------------------------------------------
+   Four tabs do not fit a phone's width, and the pill's overflow-x turned them into a
+   cramped strip with a scrollbar underneath — a horizontal scroller is a poor home for the
+   app's primary navigation, because the tabs past the fold are invisible rather than merely
+   small. Below 640px they wrap to a centred 2x2 grid instead. Wrapped content has nothing
+   left to scroll, so the scrollbar goes away on its own. */
+@media (max-width: 640px) {
+  .tabpill { flex-wrap: wrap; }
+  .tabpill > button { flex: 1 0 calc(50% - 4px); justify-content: center; }
+}
