@@ -327,7 +327,7 @@ export default function SpaceView() {
             title="Choose which satellite groups to plot"
             style={{ fontSize: 8.5, padding: "3px 6px", color: showLayers ? "#04121F" : C.dim,
               background: showLayers ? C.dim : "transparent", border: `1px solid ${C.line}` }}>
-            Layers {Object.keys(on).filter((k) => on[k]).length}{showLayers ? " \u25b4" : " \u25be"}
+            Groups {Object.keys(on).filter((k) => on[k]).length}{showLayers ? " \u25b4" : " \u25be"}
           </button>
           <span style={{ flex: 1 }} />
           {[["globe", GlobeIcon, "3D globe — orbits look like orbits, and the terminator is real lighting"],
