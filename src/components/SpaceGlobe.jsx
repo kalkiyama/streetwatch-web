@@ -164,10 +164,38 @@ export default function SpaceGlobe({ on, satsRef, colors, textureUrl, speed, onC
     }));
     scene.add(satPts);
 
-    const issGeo = new THREE.SphereGeometry(0.022, 16, 12);
-    const iss = new THREE.Mesh(issGeo, new THREE.MeshBasicMaterial({ color: 0xf472b6 }));
+    // A recognisable ISS rather than a dot — truss, modules, arrays, radiators. Built from
+    // primitives instead of loading a NASA model: no multi-megabyte download, no CORS dependency,
+    // no licence question, and a silhouette is all that reads at this size anyway.
+    //
+    // GROSSLY out of scale, and deliberately so. The real station is 109m against a 12,742km
+    // planet — at true scale it is a fraction of a pixel. The footer says the model is indicative.
+    const iss = new THREE.Group();
+    {
+      const metal = new THREE.MeshPhongMaterial({ color: 0xd8dee8, shininess: 18 });
+      const gold  = new THREE.MeshPhongMaterial({ color: 0xc9a227, shininess: 30 });
+      const panel = new THREE.MeshPhongMaterial({ color: 0x1b2a55, shininess: 60, emissive: 0x0a1230 });
+      const truss = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.005, 0.005), metal);
+      iss.add(truss);
+      const hab = new THREE.Mesh(new THREE.CylinderGeometry(0.0062, 0.0062, 0.048, 10), gold);
+      hab.rotation.x = Math.PI / 2; iss.add(hab);
+      const node = new THREE.Mesh(new THREE.CylinderGeometry(0.0058, 0.0058, 0.019, 10), metal);
+      node.rotation.z = Math.PI / 2; iss.add(node);
+      [-0.048, -0.030, 0.030, 0.048].forEach((x, i) => {
+        [-1, 1].forEach((sd) => {
+          const a = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.0008, 0.039), panel);
+          a.position.set(x, 0, sd * 0.027); iss.add(a);
+        });
+        if (i === 1 || i === 2) {
+          const rad = new THREE.Mesh(new THREE.BoxGeometry(0.011, 0.0006, 0.023), metal);
+          rad.position.set(x, 0.009, 0); iss.add(rad);
+        }
+      });
+    }
     iss.visible = false;
     scene.add(iss);
+    const issPrev = new THREE.Vector3();
+    const issUp = new THREE.Vector3();
 
     const size = () => {
       const w = host.clientWidth || 600, h = host.clientHeight || 400;
@@ -228,7 +256,24 @@ export default function SpaceGlobe({ on, satsRef, colors, textureUrl, speed, onC
         // it here keeps that distinction: one observed object, everything else derived.
         // At an accelerated multiplier the live fix no longer describes the moment on screen, so
         // the marker hides rather than sit somewhere it is not.
-        if (issPos && spd === 1) { toVec(issPos.lat, issPos.lon, issPos.altKm, v); iss.position.copy(v); iss.visible = true; }
+        if (issPos && spd === 1) {
+          toVec(issPos.lat, issPos.lon, issPos.altKm, v);
+          iss.position.copy(v);
+          // Fly along the track rather than sit at a fixed angle: nadir points at Earth's centre
+          // and the long axis follows the direction of travel, which is roughly how it actually
+          // flies. Falls back to the previous frame's heading when the station is stationary.
+          issUp.copy(v).normalize();
+          if (issPrev.lengthSq() > 0 && !issPrev.equals(v)) {
+            const fwd = issPrev.clone().sub(v).normalize().multiplyScalar(-1);
+            const m = new THREE.Matrix4();
+            const right = new THREE.Vector3().crossVectors(issUp, fwd).normalize();
+            const trueFwd = new THREE.Vector3().crossVectors(right, issUp).normalize();
+            m.makeBasis(trueFwd, issUp, right);
+            iss.quaternion.setFromRotationMatrix(m);
+          }
+          issPrev.copy(v);
+          iss.visible = true;
+        }
         else iss.visible = false;
         satGeo.setDrawRange(0, n);
         satGeo.attributes.position.needsUpdate = true;
