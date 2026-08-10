@@ -409,6 +409,9 @@ export default function SpaceView() {
             positions are propagated from CelesTrak orbital elements rather than broadcast by the
             satellites themselves, unlike the aircraft and vessels elsewhere in this app. Trails
             show roughly two minutes of travel.
+            {view === "globe" && " On the globe, orbit heights are compressed so that low orbits and \
+geostationary satellites 35,786km up fit the same view — higher is still higher, but the spacing is not \
+to scale, and the ISS model is indicative rather than a true likeness."}
             {oldestEpoch > 0 && ` Oldest element set on screen is ${Math.round(oldestEpoch)}h old — accuracy degrades as that number grows.`}
             {capNotes.length > 0 && ` Showing a capped subset: ${capNotes.join("; ")}.`}
           </>
