@@ -471,7 +471,7 @@ export default function StreetWatch() {
           {/* Primary mode switch. Grouped in one pill with a shared border so it reads as a
               two-way toggle — the single most important control for a first-time visitor, who
               otherwise cannot tell the world browser from the drone watch. */}
-          <div className="flex items-center rounded-lg" style={{ border: `1px solid ${C.line}`, padding: 2, background: C.panel2,
+          <div className="tabpill flex items-center rounded-lg" style={{ border: `1px solid ${C.line}`, padding: 2, background: C.panel2,
             minWidth: 0, overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" }}>
             {[{ k: "drones", label: "Drones", icon: Plane, hint: "military watch" },
               { k: "world", label: "World", icon: Globe, hint: "all feeds" },
