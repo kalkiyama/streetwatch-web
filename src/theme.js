@@ -16,7 +16,12 @@ export const LAYERS = {
   wildlife: { label: "Wildlife", icon: PawPrint,  color: "#A3E635", camera: true,  desc: "Public conservation & nature livestreams." },
   space:    { label: "Space",    icon: Satellite, color: "#F472B6", camera: false, desc: "Live orbital feeds & tracking." },
 };
-export const layerKeys = Object.keys(LAYERS);
+// Space GRADUATED to its own tab (Aug 10). A layer with exactly one entry was never a layer —
+// it was a page wearing a layer's clothes, and burying the orbital view three clicks deep
+// (layer -> ISS feed -> radar panel) hid the category toggles entirely. LAYERS keeps the
+// entry for the tab's icon and colour; layerKeys is what the FEED BROWSER offers, and space
+// is no longer in it, so the lone ISS feed leaves the World list.
+export const layerKeys = Object.keys(LAYERS).filter((k) => k !== "space");
 
 // WHICH LAYERS A TAB CAN ACTUALLY USE. The Drones tab filters feeds to tag === "uav", and only
 // AVIATION and MARINE feeds ever carry that tag — so the Wildlife, Webcams, Earth, Traffic and

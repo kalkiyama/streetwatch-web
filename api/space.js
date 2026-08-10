@@ -46,6 +46,9 @@ function epochAgeHours(l1) {
 }
 
 export default async function handler(req, res) {
+  // `vite dev` does not run Vercel functions, so the dev client calls this deployed function
+  // cross-origin. Public data, no credentials, no cookies — a wildcard origin is the whole story.
+  res.setHeader("Access-Control-Allow-Origin", "*");
   const u = new URL(req.url, "https://streetwatch.earth");
 
   if (u.searchParams.get("groups") !== null) {
