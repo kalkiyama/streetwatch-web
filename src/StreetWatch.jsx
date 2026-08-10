@@ -1,6 +1,6 @@
 // StreetWatch — main shell. Views live in ./components, data in catalog.json.
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2, HelpCircle, Sparkles, Shield } from "lucide-react";
+import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2, HelpCircle, Sparkles, Shield, Satellite } from "lucide-react";
 import Intro from "./components/Intro.jsx";
 // Catalog is fetched at runtime from /catalog.json (5,000+ feeds — too big to bundle).
 import { C, LAYERS, layerKeys, DRONE_LAYERS, resolveUrl, openLive, fmtDate, setUtc, isUtc } from "./theme.js";
@@ -97,7 +97,7 @@ export default function StreetWatch() {
   // THERE, and "0 feeds" reads as a broken search rather than a different kind of page.
   // The root was line ~301: `tab === "drones" ? uav : not-uav` has no third case, so Cyber fell
   // through to the World branch and inherited the whole browser.
-  const browsesFeeds = tab !== "cyber";
+  const browsesFeeds = tab !== "cyber" && tab !== "space";
   // Only the layers this tab can actually show. See DRONE_LAYERS in theme.js.
   const tabLayers = tab === "drones" ? DRONE_LAYERS : layerKeys;
 
@@ -475,7 +475,8 @@ export default function StreetWatch() {
             minWidth: 0, overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" }}>
             {[{ k: "drones", label: "Drones", icon: Plane, hint: "military watch" },
               { k: "world", label: "World", icon: Globe, hint: "all feeds" },
-              { k: "cyber", label: "Cyber", icon: Shield, hint: "attacks & outages" }].map((t) => (
+              { k: "cyber", label: "Cyber", icon: Shield, hint: "attacks & outages" },
+              { k: "space", label: "Space", icon: Satellite, hint: "orbital tracking" }].map((t) => (
               <button key={t.k} onClick={() => { setTab(t.k); dismissCoach(); }}
                 aria-pressed={tab === t.k}
                 className="flex items-center gap-1.5 rounded"
@@ -714,6 +715,15 @@ export default function StreetWatch() {
         {tab === "cyber" && (
           <main className="flex-1 px-4 py-4 md:px-10 md:py-6 lg:px-16" style={{ minWidth: 0 }}>
             <CyberView />
+          </main>
+        )}
+        {/* SPACE OWNS THE WHOLE AREA, for the same reason CYBER does: one global view with no
+            site to pick. It used to be a layer whose single ISS feed had to be selected before the
+            orbital map appeared inside the narrow radar panel — so the category toggles were three
+            clicks deep and effectively invisible. */}
+        {tab === "space" && (
+          <main className="flex-1 px-4 py-4 md:px-10 md:py-6 lg:px-16" style={{ minWidth: 0 }}>
+            <SpaceView />
           </main>
         )}
         {browsesFeeds && (
