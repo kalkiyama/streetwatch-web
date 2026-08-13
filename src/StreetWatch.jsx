@@ -1,6 +1,6 @@
 // StreetWatch — main shell. Views live in ./components, data in catalog.json.
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2, HelpCircle, Sparkles, Shield, Satellite } from "lucide-react";
+import { Search, MapPin, X, Globe, ExternalLink, SignalHigh, Star, Navigation, Plane, Share2, HelpCircle, Sparkles, Shield, Satellite, Flag } from "lucide-react";
 import Intro from "./components/Intro.jsx";
 // Catalog is fetched at runtime from /catalog.json (5,000+ feeds — too big to bundle).
 import { C, LAYERS, layerKeys, DRONE_LAYERS, resolveUrl, openLive, fmtDate, setUtc, isUtc } from "./theme.js";
@@ -162,6 +162,23 @@ export default function StreetWatch() {
     try { return !!localStorage.getItem("sw-coach-seen"); } catch { return true; }
   });
   const dismissCoach = () => { setCoachSeen(true); try { localStorage.setItem("sw-coach-seen", "1"); } catch { /* */ } };
+
+  // Feedback banner for the CLOSED TEST. A link buried among ten attribution links in the footer
+  // is not a feedback mechanism — testers never saw it. Dismissal persists so it asks once rather
+  // than nagging, and the footer link remains afterwards as the permanent path.
+  // Remove this banner (not the footer link) when the app leaves closed testing.
+  // Dismissal lasts a WEEK, not for ever: over a 14-day closed test that prompts each tester
+  // twice, which is a reminder rather than a nag. The header flag is the permanent path.
+  const [feedbackHidden, setFeedbackHidden] = useState(() => {
+    try {
+      const t = Number(localStorage.getItem("sw-feedback-seen"));
+      return Number.isFinite(t) && t > 0 && Date.now() - t < 7 * 86400000;
+    } catch { return true; }
+  });
+  const dismissFeedback = () => {
+    setFeedbackHidden(true);
+    try { localStorage.setItem("sw-feedback-seen", String(Date.now())); } catch { /* private mode */ }
+  };
   const urlRadius = React.useRef(
     typeof window !== "undefined" ? Number(new URLSearchParams(window.location.search).get("r")) || null : null
   );
@@ -462,6 +479,15 @@ export default function StreetWatch() {
           </div>
         </div>
         <nav className="flex items-center justify-center gap-1 w-full sm:w-auto order-3 sm:order-none">
+          {/* Permanent path to the feedback form. The banner below asks once and then steps aside;
+              without this, a tester who dismissed it had nowhere to go but a footer link sitting
+              among ten attributions. */}
+          <a href="https://docs.google.com/forms/d/e/1FAIpQLSeg3Xj8j48amg8CAB1k14Wgkd88MRe6oWvNK6p6mVzQfmXMEg/viewform" target="_blank" rel="noreferrer"
+            aria-label="Report a problem" title="Report a problem"
+            className="flex items-center justify-center rounded"
+            style={{ width: 30, height: 30, color: C.amber, background: "transparent", border: `1px solid ${C.amber}55` }}>
+            <Flag size={14} />
+          </a>
           <button onClick={() => setIntroOpen(true)} aria-label="What is StreetWatch? Open the guide"
             title="What is this? How do I use it?"
             className="flex items-center justify-center rounded"
@@ -471,6 +497,18 @@ export default function StreetWatch() {
           {/* Primary mode switch. Grouped in one pill with a shared border so it reads as a
               two-way toggle — the single most important control for a first-time visitor, who
               otherwise cannot tell the world browser from the drone watch. */}
+          {!feedbackHidden && (
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2 mb-2 font-mono"
+              style={{ border: `1px solid ${C.amber}55`, background: "rgba(246,168,33,0.09)", fontSize: 11 }}>
+              <span style={{ color: C.amber, flex: 1 }}>
+                Help us test — tell us anything that looks wrong.{" "}
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLSeg3Xj8j48amg8CAB1k14Wgkd88MRe6oWvNK6p6mVzQfmXMEg/viewform" target="_blank" rel="noreferrer" onClick={dismissFeedback}
+                  style={{ color: C.amber, textDecoration: "underline" }}>Report a problem</a>
+              </span>
+              <button onClick={dismissFeedback} aria-label="Dismiss"
+                style={{ color: C.dim, padding: "0 4px", lineHeight: 1 }}>×</button>
+            </div>
+          )}
           <div className="tabpill flex items-center rounded-lg" style={{ border: `1px solid ${C.line}`, padding: 2, background: C.panel2,
             minWidth: 0, overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" }}>
             {[{ k: "drones", label: "Drones", icon: Plane, hint: "military watch" },
@@ -919,6 +957,12 @@ export default function StreetWatch() {
           <a href="https://aisstream.io" target="_blank" rel="noreferrer" style={{ color: C.dim }}>aisstream.io</a> ·{" "}
           <a href="https://www.digitraffic.fi" target="_blank" rel="noreferrer" style={{ color: C.dim }}>Fintraffic</a> ·{" "}
           <a href="https://worldview.earthdata.nasa.gov" target="_blank" rel="noreferrer" style={{ color: C.dim }}>NASA</a> ·{" "}
+          {/* Tester feedback during the closed test. Deliberately a hosted form rather than a field
+              on this page: free text typed into our own site is user-generated content, which brings
+              moderation duties and a privacy-policy change we do not need mid-review. The form asks
+              for no name, no email and no account. */}
+          <a href="https://docs.google.com/forms/d/e/1FAIpQLSeg3Xj8j48amg8CAB1k14Wgkd88MRe6oWvNK6p6mVzQfmXMEg/viewform"
+             target="_blank" rel="noreferrer" style={{ color: C.amber }}>Report a problem</a> ·{" "}
           <a href="https://wheretheiss.at" target="_blank" rel="noreferrer" style={{ color: C.dim }}>wheretheiss.at</a> ·{" "}
           <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" style={{ color: C.dim }}>© OpenStreetMap</a> ·{" "}
           <a href="https://www.esri.com/en-us/legal/terms/data-attributions" target="_blank" rel="noreferrer" style={{ color: C.dim }}>Esri</a> ·{" "}
