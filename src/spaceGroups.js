@@ -113,3 +113,13 @@ export function isConstrainedDevice() {
   const coarse = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
   return coarse || cores <= 4;
 }
+
+// Orbit bands. The boundaries are the real ones: low Earth orbit runs to about 2,000km, medium
+// orbit holds the navigation constellations around 20,000km, and geostationary sits at 35,786km.
+// Colouring by band turns an undifferentiated grey catalogue into a picture of where things fly.
+export function altColor(km) {
+  if (km < 2000) return "#38BDF8";        // LEO — imaging, broadband, stations
+  if (km < 30000) return "#A78BFA";       // MEO — navigation
+  return "#FB923C";                       // GEO and above — comms, weather
+}
+
