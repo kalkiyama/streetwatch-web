@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Satellite, Globe as GlobeIcon, Map as MapIcon } from "lucide-react";
 import { C } from "../theme.js";
-import { GROUP_COLOR, GROUP_INFO, EXCLUSIVE } from "../spaceGroups.js";
+import { GROUP_COLOR, GROUP_INFO, EXCLUSIVE, altColor } from "../spaceGroups.js";
 import { createDensityController, LADDER, densityNote } from "../spaceDensity.js";
 
 // three.js is ~150kB gzipped and only the globe needs it, so it is loaded on demand rather than
@@ -143,6 +143,8 @@ export default function SpaceView() {
   const workerRef = useRef(null);
   const framesRef = useRef({ at: 0, n: 0, a: null, b: null, grp: null });
   const colorsRef = useRef([]);      // group index -> colour, matching the worker's grp byte
+  // When true the views colour by altitude band rather than by group.
+  const byAltRef = useRef(false);
 
 
   useEffect(() => {
@@ -159,7 +161,11 @@ export default function SpaceView() {
       if (m.type === "positions") {
         framesRef.current = {
           at: performance.now(), n: m.n,
-          a: new Float32Array(m.a), b: new Float32Array(m.b), grp: new Uint8Array(m.grp),
+          a: new Float32Array(m.a), b: new Float32Array(m.b),
+          // Altitude was being dropped here, so the globe fell back to a fixed 550km for every
+          // object — GPS and geostationary satellites rendered down at Starlink height and the
+          // orbit shells collapsed into one. It is also what the density colouring reads.
+          alt: new Float32Array(m.alt), grp: new Uint8Array(m.grp),
         };
         setCount(m.n);
       } else if (m.type === "loaded") {
@@ -225,6 +231,10 @@ export default function SpaceView() {
       const total = enabled.reduce((a, g) => a + satsRef.current[g], 0);
       setAvailable(total);
       colorsRef.current = enabled.map((g) => GROUP_COLOR[g] || "#94A3B8");
+      // "Everything" is a single CelesTrak group, so every one of its 16,000 objects shares one
+      // colour — a tester reported the whole sky turning grey. Colouring by ORBIT instead says
+      // something true and useful: low, medium and geostationary become visible bands.
+      byAltRef.current = enabled.length === 1 && enabled[0] === EXCLUSIVE;
       w.postMessage({
         type: "tick", at: Date.now(), ahead: 1000,
         groups: enabled.map((g, i) => ({
@@ -296,6 +306,7 @@ export default function SpaceView() {
         // extrapolating a wild distance past the last solved position.
         const f = Math.max(0, Math.min(1, (performance.now() - fr.at) / 1000));
         const cols = colorsRef.current;
+        const byAlt = byAltRef.current;
         // Dots SHRINK as the count rises. At 16,000 objects a 1.7px dot with a 2.9px halo covers
         // roughly one pixel in sixteen — a tester reported the map vanishing entirely underneath.
         // A dense constellation should read as a haze over the surface, not a sheet on top of it,
@@ -319,7 +330,7 @@ export default function SpaceView() {
             ctx.fillStyle = "rgba(2,8,16,0.85)";
             ctx.beginPath(); ctx.arc(x, y, 2.9, 0, 6.284); ctx.fill();
           }
-          ctx.fillStyle = cols[fr.grp[i]] || "#94A3B8";
+          ctx.fillStyle = byAlt ? altColor(fr.alt ? fr.alt[i] : 0) : (cols[fr.grp[i]] || "#94A3B8");
           ctx.beginPath(); ctx.arc(x, y, r, 0, 6.284); ctx.fill();
         }
         ctx.globalAlpha = 1;
@@ -368,15 +379,9 @@ export default function SpaceView() {
           Each chip wears its group's colour so the chips double as the legend — a separate key
           would be one more thing that can drift out of step with the map. */}
       {groups.length > 0 && (
-        <div className="flex items-center gap-1 px-3 py-2" style={{ flexWrap: "wrap", borderBottom: `1px solid ${C.line}` }}>
-          <span className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginRight: 4 }}>SHOW</span>
-          <button onClick={() => setShowLayers((v) => !v)} className="rounded font-mono"
-            title="Choose which satellite groups to plot"
-            style={{ fontSize: 8.5, padding: "3px 6px", color: showLayers ? "#04121F" : C.dim,
-              background: showLayers ? C.dim : "transparent", border: `1px solid ${C.line}` }}>
-            Groups {Object.keys(on).filter((k) => on[k]).length}{showLayers ? " \u25b4" : " \u25be"}
-          </button>
-          <span style={{ flex: 1 }} />
+        <div style={{ borderBottom: `1px solid ${C.line}`, paddingTop: 8, paddingBottom: 8 }}>
+          {/* Line 1 — what you are looking at: the view and the imagery under it. */}
+        <div className="flex items-center justify-center gap-1 px-3" style={{ flexWrap: "wrap" }}>
           {[["globe", GlobeIcon, "3D globe — orbits look like orbits, and the terminator is real lighting"],
             ["map", MapIcon, "Flat map — better for seeing a whole ground track at once"]].map(([k, Icon, tip]) => (
             <button key={k} onClick={() => setView(k)} className="rounded" title={tip}
@@ -393,6 +398,12 @@ export default function SpaceView() {
               {b.label}
             </button>
           ))}
+          </div>
+
+          {/* Line 2 — how much and how fast. Centred and on their own line so they read
+              as settings rather than as more of the same row. */}
+        <div className="flex items-center justify-center gap-1 px-3" style={{ flexWrap: "wrap" }}>
+            <span className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginRight: 2 }}>PLOT</span>
           {/* AUTO is the default and stays honest about what it picked; the fixed levels are for
               someone who would rather decide than be decided for. */}
           <button onClick={() => ctlRef.current && ctlRef.current.setAuto()} className="rounded font-mono"
@@ -419,11 +430,22 @@ export default function SpaceView() {
               {x === 1 ? "LIVE" : `${x}\u00d7`}
             </button>
           ))}
+          </div>
+
+          {/* Line 3 — the group picker, which opens the chip list below. */}
+        <div className="flex items-center justify-center gap-1 px-3" style={{ flexWrap: "wrap" }}>
+            <button onClick={() => setShowLayers((v) => !v)} className="rounded font-mono"
+              title="Choose which satellite groups to plot"
+              style={{ fontSize: 9, padding: "4px 10px", color: showLayers ? "#04121F" : C.dim,
+                background: showLayers ? C.dim : "transparent", border: `1px solid ${C.line}` }}>
+              Groups {Object.keys(on).filter((k) => on[k]).length} {showLayers ? "\u25b4" : "\u25be"}
+            </button>
+          </div>
         </div>
       )}
 
       {groups.length > 0 && showLayers && (
-        <div className="flex items-center gap-1 px-3 pb-2" style={{ flexWrap: "wrap" }}>
+        <div className="flex items-center justify-center gap-1 px-3 pb-2" style={{ flexWrap: "wrap" }}>
           {groups.map((g) => {
             const c = GROUP_COLOR[g.group] || C.faint;
             const active = !!on[g.group];
@@ -456,7 +478,7 @@ export default function SpaceView() {
         {view === "globe" ? (
           <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center font-mono"
             style={{ fontSize: 10, color: C.faint }}>loading globe…</div>}>
-            <SpaceGlobe framesRef={framesRef} colorsRef={colorsRef} iss={pos}
+            <SpaceGlobe framesRef={framesRef} colorsRef={colorsRef} byAltRef={byAltRef} iss={pos}
               textureUrl={BASEMAPS[base].globe} speed={speed} />
           </Suspense>
         ) : (<>

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { altColor } from "../spaceGroups.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A real sphere, not a projection. Two things come free here that the flat map had to fake:
@@ -56,7 +57,7 @@ function solar(date) {
   return { lat: declDeg, lon: -15 * (utcH - 12) };
 }
 
-export default function SpaceGlobe({ framesRef, colorsRef, textureUrl, speed, iss }) {
+export default function SpaceGlobe({ framesRef, colorsRef, byAltRef, textureUrl, speed, iss }) {
   const hostRef = useRef(null);
   const labelRef = useRef(null);
   const zoomRef = useRef(null);
@@ -337,9 +338,16 @@ export default function SpaceGlobe({ framesRef, colorsRef, textureUrl, speed, is
           const lon = wrap ? lo0 : lo0 + (lo1 - lo0) * f;
           toVec(lat, lon, fr.alt ? fr.alt[i] : 550, v);
           satPos[n * 3] = v.x; satPos[n * 3 + 1] = v.y; satPos[n * 3 + 2] = v.z;
-          const gi = fr.grp[i];
-          let c = cache[gi];
-          if (!c) { c = cache[gi] = new THREE.Color(cols[gi] || "#94A3B8"); }
+          // "Everything" is one CelesTrak group wearing one colour, which turned the whole sky
+          // grey. Colouring by orbit band instead says something true: low, medium and
+          // geostationary separate into visible shells, which is the globe's whole advantage.
+          const byAlt = byAltRef && byAltRef.current;
+          const key = byAlt ? (fr.alt[i] < 2000 ? 200 : fr.alt[i] < 30000 ? 201 : 202) : fr.grp[i];
+          let c = cache[key];
+          if (!c) {
+            c = cache[key] = new THREE.Color(
+              byAlt ? altColor(fr.alt[i]) : (cols[fr.grp[i]] || "#94A3B8"));
+          }
           satCol[n * 3] = c.r; satCol[n * 3 + 1] = c.g; satCol[n * 3 + 2] = c.b;
           n++;
         }
