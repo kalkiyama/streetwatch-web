@@ -15,17 +15,22 @@ import * as sat from "satellite.js";
 // Loaded lazily by SpaceView so three.js never enters the main bundle.
 // ─────────────────────────────────────────────────────────────────────────────
 
+let spin = 0;                      // Earth rotation angle, radians, shared by every placement
 const R = 1;                       // Earth radius in scene units
 
 // Geodetic to scene coordinates. Y is up, and longitude is offset so the texture's prime meridian
 // lands where it should — an equirectangular image starts at -180.
 function toVec(latDeg, lonDeg, altKm, out) {
   const lat = (latDeg * Math.PI) / 180;
+  // SPIN is added to every longitude, not applied to the Earth mesh alone. Satellites, the ISS and
+  // the sun are all placed in Earth-fixed coordinates, so turning only the planet would leave them
+  // hanging over the wrong continents. Folding the angle into the shared transform keeps the whole
+  // scene consistent, and avoids reparenting — which would break the ISS label's screen projection.
   // +180 because three.js SphereGeometry begins its texture wrap at phi = 0, which on an
   // equirectangular image is longitude -180, not Greenwich. Without the offset every object —
   // satellites, the ISS, and the sun that lights the terminator — sits exactly half a world
   // away from where it belongs, consistently enough to look deliberate.
-  const lon = ((lonDeg + 180) * Math.PI) / 180;
+  const lon = ((lonDeg + 180) * Math.PI) / 180 + spin;
   // Altitude is COMPRESSED, not linear. Geostationary sits at 35,786km — 5.6 Earth radii — so a
   // true-to-scale globe puts GPS and GEO far outside the frame while LEO hugs the surface, and
   // three of the eight groups appear to be missing entirely. A log curve keeps the ordering
@@ -55,6 +60,7 @@ function solar(date) {
 export default function SpaceGlobe({ on, satsRef, colors, textureUrl, speed, onCount, iss }) {
   const hostRef = useRef(null);
   const labelRef = useRef(null);
+  const zoomRef = useRef(null);
   // Everything mutable that the animation loop touches lives here, so prop changes never tear
   // down the scene — rebuilding a WebGL context on every toggle would stutter badly.
   const liveRef = useRef({ on, speed, satsRef, colors, iss });
@@ -89,33 +95,110 @@ export default function SpaceGlobe({ on, satsRef, colors, textureUrl, speed, onC
     controls.minDistance = 1.35;
     controls.maxDistance = 8;
     controls.enablePan = false;
+    // Decorative drift only at LIVE, where the true rotation is too slow to see. Once time is
+    // accelerated the planet turns for real and a second, unrelated spin would fight it.
     controls.autoRotate = true;
     controls.autoRotateSpeed = 0.25;
     // Any touch of the globe stops the idle spin; it resumes after a pause so the view never
     // feels like it is fighting the person using it.
-    let idle;
+    let idle, userActive = false;
     const wake = () => {
+      userActive = true;
       controls.autoRotate = false;
       clearTimeout(idle);
-      idle = setTimeout(() => { controls.autoRotate = true; }, 6000);
+      idle = setTimeout(() => { userActive = false; }, 6000);
     };
     controls.addEventListener("start", wake);
 
+    // Pinch and scroll already zoom, but neither is discoverable — there is nothing on screen
+    // saying the globe can be zoomed at all. Buttons make it obvious to someone who has never
+    // manipulated a 3D view, which on a public site is most people.
+    zoomRef.current = (factor) => {
+      const d = camera.position.length();
+      const next = Math.min(controls.maxDistance, Math.max(controls.minDistance, d * factor));
+      camera.position.setLength(next);
+      wake();
+      controls.update();
+    };
+
     // ── Earth ────────────────────────────────────────────────────────────────
-    const earth = new THREE.Mesh(
-      new THREE.SphereGeometry(R, 96, 64),
-      new THREE.MeshPhongMaterial({ color: 0x2b4a6b, shininess: 3 })
-    );
+    // Day and night are blended in a SHADER rather than lit by the scene light, because the night
+    // side needs to show something other than darkness: NASA's Black Marble city-lights layer,
+    // which is the clearest picture of where people actually live that exists. A standard material
+    // can only darken the far side; this one swaps in a different image there.
+    //
+    // The blend follows the same sun direction that positions the light, so the terminator stays
+    // physically correct — city lights appear exactly where the sun has set.
+    const earthMat = new THREE.ShaderMaterial({
+      uniforms: {
+        dayMap:   { value: null },
+        nightMap: { value: null },
+        sunDir:   { value: new THREE.Vector3(1, 0, 0) },
+        hasNight: { value: 0 },
+      },
+      vertexShader: `
+        varying vec2 vUv; varying vec3 vN;
+        void main() {
+          vUv = uv;
+          vN = normalize(mat3(modelMatrix) * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: `
+        uniform sampler2D dayMap; uniform sampler2D nightMap;
+        uniform vec3 sunDir; uniform float hasNight;
+        varying vec2 vUv; varying vec3 vN;
+        void main() {
+          vec3 day = texture2D(dayMap, vUv).rgb;
+          float l = dot(normalize(vN), normalize(sunDir));
+          // A soft band rather than a hard edge: the real terminator is a gradient tens of
+          // kilometres wide, and a razor line looks like a rendering artefact.
+          float t = smoothstep(-0.12, 0.18, l);
+          // Blue Marble is shaded relief with no atmosphere or cloud, so it is far darker than
+          // VIIRS true colour to begin with; multiplying it down again left the sunlit half
+          // looking like dusk. A gain above 1 on the day side restores the contrast between the
+          // two halves without touching where the terminator falls.
+          vec3 lit = day * (0.12 + 1.45 * t);
+          if (hasNight > 0.5) {
+            vec3 night = texture2D(nightMap, vUv).rgb;
+            // Added, not mixed: lights sit ON the dark surface instead of replacing it.
+            lit += night * (1.0 - t) * 1.35;
+          }
+          gl_FragColor = vec4(lit, 1.0);
+        }`,
+    });
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(R, 96, 64), earthMat);
     scene.add(earth);
 
     const loader = new THREE.TextureLoader();
     loader.setCrossOrigin("anonymous");
     loader.load(textureUrl, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
-      earth.material.map = tex;
-      earth.material.color.set(0xffffff);
-      earth.material.needsUpdate = true;
-    }, undefined, () => { /* keep the plain blue sphere if imagery fails */ });
+      earthMat.uniforms.dayMap.value = tex;
+    }, undefined, () => {
+      // A failed basemap left dayMap null, which samples as pure black — the globe looked like
+      // permanent night with city lights everywhere, which is a wrong claim rather than a missing
+      // image. A plain blue fallback is honestly "no imagery" instead.
+      const c = document.createElement("canvas"); c.width = c.height = 2;
+      const cx = c.getContext("2d"); cx.fillStyle = "#2b4a6b"; cx.fillRect(0, 0, 2, 2);
+      const fb = new THREE.CanvasTexture(c); fb.colorSpace = THREE.SRGBColorSpace;
+      earthMat.uniforms.dayMap.value = fb;
+    });
+
+    // NASA Black Marble: city lights from VIIRS night-time imagery. A fixed 2016 composite because
+    // NASA publishes it as an annual product, not a daily one — the lights do not move, and saying
+    // so in the footer is cheaper than pretending to a currency the source does not have.
+    loader.load(
+      "https://wvs.earthdata.nasa.gov/api/v1/snapshot?REQUEST=GetSnapshot&TIME=2016-01-01"
+      + "&BBOX=-90,-180,90,180&CRS=EPSG:4326&LAYERS=VIIRS_CityLights_2012"
+      + "&FORMAT=image/jpeg&WIDTH=2048&HEIGHT=1024",
+      (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        earthMat.uniforms.nightMap.value = tex;
+        earthMat.uniforms.hasNight.value = 1;
+      },
+      undefined,
+      () => { /* no lights: the night side simply stays dark, which is also true */ }
+    );
 
     // A faint shell that glows at grazing angles — reads as atmosphere and softens the horizon.
     const halo = new THREE.Mesh(
@@ -222,9 +305,20 @@ export default function SpaceGlobe({ on, satsRef, colors, textureUrl, speed, onC
       const nowMs = t0 + (performance.now() - start) * spd;
       const when = new Date(nowMs);
 
+      // One sidereal turn per simulated day. At LIVE this is 15 degrees an hour — imperceptible,
+      // which is why the decorative auto-rotate stays on there. At 60x a day passes in 24 minutes
+      // and at 600x in under three, with the terminator sweeping across real continents because
+      // the sun is placed in the same rotating frame.
+      spin = ((nowMs / 86400000) % 1) * Math.PI * 2;
+      earth.rotation.y = spin;
+      halo.rotation.y = spin;
+
       const s = solar(when);
       toVec(s.lat, s.lon, 26000, sunV);
       sun.position.copy(sunV);
+      // The shader needs the same direction the light uses, or the city lights would drift out of
+      // step with the terminator — two different night sides on one globe.
+      earthMat.uniforms.sunDir.value.copy(sunV).normalize();
 
       // SGP4 is the expensive part, so it runs at ~10Hz of WALL time regardless of multiplier —
       // the camera and damping still animate every frame, which is what the eye reads as smooth.
@@ -298,6 +392,7 @@ export default function SpaceGlobe({ on, satsRef, colors, textureUrl, speed, onC
         } else lb.style.opacity = "0";
       }
 
+      controls.autoRotate = spd === 1 && !userActive;
       controls.update();
       renderer.render(scene, camera);
     };
@@ -331,6 +426,19 @@ export default function SpaceGlobe({ on, satsRef, colors, textureUrl, speed, onC
           fontSize: 11, color: "#F472B6", textShadow: "0 0 4px rgba(4,18,31,0.95)",
           transition: "opacity 160ms linear", willChange: "transform" }}>
         ISS
+      </div>
+      <div style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+        display: "flex", flexDirection: "column", gap: 4 }}>
+        {[["+", 1 / 1.35, "Zoom in"], ["\u2212", 1.35, "Zoom out"]].map(([sym, f, label]) => (
+          <button key={label} aria-label={label} title={label}
+            onClick={() => zoomRef.current && zoomRef.current(f)}
+            className="rounded font-mono"
+            style={{ width: 26, height: 26, fontSize: 15, lineHeight: 1,
+              color: "#C9D3E0", background: "rgba(4,18,31,0.72)",
+              border: "1px solid rgba(138,148,163,0.35)" }}>
+            {sym}
+          </button>
+        ))}
       </div>
     </div>
   );

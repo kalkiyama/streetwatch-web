@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Satellite, Globe as GlobeIcon, Map as MapIcon } from "lucide-react";
 import * as sat from "satellite.js";
 import { C } from "../theme.js";
+import { GROUP_COLOR, GROUP_INFO, EXCLUSIVE, DENSITIES, MOBILE_LIMIT, isConstrainedDevice } from "../spaceGroups.js";
 
 // three.js is ~150kB gzipped and only the globe needs it, so it is loaded on demand rather than
 // riding in the main bundle for everyone who never opens this tab.
@@ -10,16 +11,6 @@ const SpaceGlobe = lazy(() => import("./SpaceGlobe.jsx"));
 // Colours are per GROUP, not per object: with eight toggles a single colour makes the layer
 // meaningless the moment two are on. The chips carry the same colour, so the chips ARE the legend.
 // None of them is the ISS pink — the one live-tracked object stays visually unique.
-const GROUP_COLOR = {
-  stations: "#A78BFA",
-  "last-30-days": "#FBBF24",
-  "gps-ops": "#38BDF8",
-  galileo: "#818CF8",
-  weather: "#34D399",
-  resource: "#22D3EE",
-  geo: "#FB923C",
-  starlink: "#94A3B8",
-};
 
 // Vercel functions do not run under `vite dev`, so in development the client talks to the deployed
 // function instead. The function sends Access-Control-Allow-Origin for exactly this reason.
@@ -38,7 +29,11 @@ const TRAIL_S = [-45, -90, -135];   // seconds behind — three points make a ta
 //
 // Yesterday, not today, because GIBS publishes on a lag and an empty tile is worse than a day-old
 // one. Resolved at MODULE level: reading the clock during render makes the component non-idempotent.
-const BG_DATE = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+// TWO days back, not one. VIIRS true colour is assembled from a polar orbiter that images each
+// strip of Earth once daily, so the most recent date always has swaths it has not reached yet —
+// they arrive as black wedges running pole to pole, which read as a broken globe rather than as
+// missing data. A second day is enough for the passes to close.
+const BG_DATE = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
 const gibs = (layer, time, w) =>
   `https://wvs.earthdata.nasa.gov/api/v1/snapshot?REQUEST=GetSnapshot&TIME=${time}`
   + `&BBOX=-90,-180,90,180&CRS=EPSG:4326&LAYERS=${layer}`
@@ -47,8 +42,8 @@ const gibs = (layer, time, w) =>
 // The globe gets a far larger texture than the flat map ever needed: 720px stretched over a sphere
 // is soft and blocky at any useful zoom.
 const BASEMAPS = {
-  marble: { label: "Terrain", flat: gibs("BlueMarble_ShadedRelief_Bathymetry", "2024-01-01", 1024),
-            globe: gibs("BlueMarble_ShadedRelief_Bathymetry", "2024-01-01", 2048) },
+  marble: { label: "Terrain", flat: gibs("BlueMarble_ShadedRelief_Bathymetry", "2004-01-01", 1024),
+            globe: gibs("BlueMarble_ShadedRelief_Bathymetry", "2004-01-01", 2048) },
   live:   { label: "Today", flat: gibs("VIIRS_SNPP_CorrectedReflectance_TrueColor", BG_DATE, 1024),
             globe: gibs("VIIRS_SNPP_CorrectedReflectance_TrueColor", BG_DATE, 2048) },
 };
@@ -106,6 +101,17 @@ export default function SpaceView() {
   // they are hidden behind a toggle rather than cut.
   const [showLayers, setShowLayers] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
+  // A phone cannot propagate 16,000 orbits even off the main thread, and a reviewer meeting a
+  // frozen tab is worse than a sampled constellation — so constrained devices get a fixed honest
+  // subset and a line saying so, while desktop chooses.
+  const constrained = useState(() => isConstrainedDevice())[0];
+  const [density, setDensity] = useState(constrained ? MOBILE_LIMIT : 2000);
+  // Which chip was touched last, so the description line has one subject instead of four stacked.
+  const [lastTouched, setLastTouched] = useState("stations");
+  // The note describes the last chip TOUCHED, but touching a chip can mean turning it off — in
+  // which case it must fall back to a group that is still on, or the note disappears while dots
+  // are still on screen and the only way back is to toggle something twice.
+  const described = on[lastTouched] ? lastTouched : Object.keys(on).find((k) => on[k]);
   const satsRef = useRef({});                  // group -> [{ id, name, satrec }] — never rendered
   // Which groups have a request IN FLIGHT. This has to be a ref, not the `loading` state: the old
   // guard tested satsRef, which stays empty until the fetch resolves, so every re-render that the
@@ -346,6 +352,14 @@ export default function SpaceView() {
               {b.label}
             </button>
           ))}
+          {!constrained && DENSITIES.map((d) => (
+            <button key={d.key} onClick={() => setDensity(d.key)} className="rounded font-mono"
+              title={d.key === 0 ? "Plot every object in the selected groups" : `Plot an even sample of ${d.label} objects`}
+              style={{ fontSize: 8.5, padding: "3px 6px", color: density === d.key ? "#04121F" : C.dim,
+                background: density === d.key ? C.dim : "transparent", border: `1px solid ${C.line}` }}>
+              {d.label}
+            </button>
+          ))}
           {view === "globe" && [1, 60, 600].map((x) => (
             <button key={x} onClick={() => setSpeed(x)} className="rounded font-mono"
               title={x === 1 ? "Real time — honest, but an orbit takes 92 minutes" : `${x}x — a full low orbit sweeps past in ${Math.round(92 * 60 / x)}s`}
@@ -363,7 +377,18 @@ export default function SpaceView() {
             const c = GROUP_COLOR[g.group] || C.faint;
             const active = !!on[g.group];
             return (
-              <button key={g.group} onClick={() => setOn((s) => ({ ...s, [g.group]: !s[g.group] }))}
+              <button key={g.group} onClick={() => {
+                  setLastTouched(g.group);
+                  setOn((s) => {
+                    // "Everything" CONTAINS every other group, so plotting it alongside them draws
+                    // the same satellites twice at identical positions. Selecting it clears the
+                    // rest and selecting anything else clears it — they are not siblings.
+                    if (g.group === EXCLUSIVE) return s[EXCLUSIVE] ? {} : { [EXCLUSIVE]: true };
+                    const next = { ...s, [g.group]: !s[g.group] };
+                    delete next[EXCLUSIVE];
+                    return next;
+                  });
+                }}
                 className="rounded font-mono"
                 title={meta[g.group] ? `${meta[g.group].served} shown of ${meta[g.group].total.toLocaleString()} in catalogue` : `Up to ${g.cap} objects`}
                 style={{ fontSize: 8.5, padding: "3px 6px", color: active ? "#04121F" : c,
@@ -420,6 +445,21 @@ export default function SpaceView() {
           </div>
         )}
       </div>
+
+      {/* What the selected group actually IS. A chip reading "Spire" or "GNSS" means nothing to
+          someone who has not worked with this data, and a map of unexplained dots is decoration
+          rather than information. Shows the LAST group touched, because four stacked descriptions
+          would recreate the wall of text this layout already had to fix once. */}
+      {described && GROUP_INFO[described] && (
+        <div className="px-3 py-2" style={{ borderTop: `1px solid ${C.line}`, background: "rgba(4,18,31,0.45)" }}>
+          <div className="font-mono" style={{ fontSize: 10, color: GROUP_COLOR[described] || C.dim, letterSpacing: 0.4 }}>
+            {GROUP_INFO[described].what}
+          </div>
+          <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.45, marginTop: 2 }}>
+            {GROUP_INFO[described].text}
+          </div>
+        </div>
+      )}
 
       <div className="px-3 py-1.5 font-mono" style={{ fontSize: 9, color: C.faint, lineHeight: 1.5, background: "rgba(4,18,31,0.6)" }}>
         <div className="flex items-center justify-between gap-2">

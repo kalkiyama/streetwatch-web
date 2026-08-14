@@ -10,18 +10,30 @@
 
 const CT = "https://celestrak.org/NORAD/elements/gp.php";
 
-// `cap` is the HARD render limit. Starlink alone is 10,761 objects; the full catalogue is ~28,000.
-// Rendering them kills the map — the exact culling problem WorldMap was built to avoid. When a
-// group is capped the payload says so, and the UI must say so too ("showing 200 of 10,761").
+// Groups are organised by WHAT THE OBJECT DOES, which is what CelesTrak's catalogue actually
+// records. There is no reliable military/civilian flag in this data, so the app does not invent
+// one: `military` below is CelesTrak's own curated list of ~24 reconnaissance satellites, labelled
+// as exactly that rather than as "all military satellites". Starlink stays under communications
+// because it is a consumer ISP; its defence variant (Starshield) CelesTrak does not publish, so
+// there is no honest way to separate it.
+//
+// `cap` bounds the SERVER payload. How many of those get plotted is a separate CLIENT decision
+// (the density chips), and both numbers are reported so neither can hide behind the other.
 const GROUPS = {
-  stations:       { label: "Space stations",    cap: 30 },
-  "last-30-days": { label: "Recent launches",   cap: 250 },
-  "gps-ops":      { label: "GPS",               cap: 40 },
-  galileo:        { label: "Galileo",           cap: 40 },
-  weather:        { label: "Weather",           cap: 80 },
-  resource:       { label: "Earth observation", cap: 120 },
-  geo:            { label: "Geostationary",     cap: 200 },
-  starlink:       { label: "Starlink",          cap: 200 },
+  stations:       { label: "Stations",          cat: "Crewed",      cap: 30 },
+  gnss:           { label: "Navigation",        cat: "Navigation",  cap: 200 },
+  weather:        { label: "Weather",           cat: "Observation", cap: 100 },
+  resource:       { label: "Earth imaging",     cat: "Observation", cap: 150 },
+  planet:         { label: "Planet",            cat: "Observation", cap: 150 },
+  spire:          { label: "Spire",             cat: "Observation", cap: 100 },
+  starlink:       { label: "Starlink",          cat: "Comms",       cap: 12000 },
+  oneweb:         { label: "OneWeb",            cat: "Comms",       cap: 800 },
+  "iridium-NEXT": { label: "Iridium",           cat: "Comms",       cap: 100 },
+  geo:            { label: "Geostationary",     cat: "Comms",       cap: 700 },
+  military:       { label: "Military (listed)", cat: "Other",       cap: 60 },
+  science:        { label: "Science",           cat: "Other",       cap: 80 },
+  "last-30-days": { label: "New launches",      cat: "Other",       cap: 400 },
+  active:         { label: "Everything",        cat: "Other",       cap: 20000 },
 };
 
 function parseTle(text) {
@@ -54,7 +66,7 @@ export default async function handler(req, res) {
   if (u.searchParams.get("groups") !== null) {
     res.setHeader("Cache-Control", "public, s-maxage=86400");
     return res.status(200).json({
-      groups: Object.entries(GROUPS).map(([k, v]) => ({ group: k, label: v.label, cap: v.cap })),
+      groups: Object.entries(GROUPS).map(([k, v]) => ({ group: k, label: v.label, cat: v.cat, cap: v.cap })),
     });
   }
 
