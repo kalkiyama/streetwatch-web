@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Satellite, Globe as GlobeIcon, Map as MapIcon } from "lucide-react";
-import * as sat from "satellite.js";
 import { C } from "../theme.js";
-import { GROUP_COLOR, GROUP_INFO, EXCLUSIVE, DENSITIES, MOBILE_LIMIT, isConstrainedDevice } from "../spaceGroups.js";
+import { GROUP_COLOR, GROUP_INFO, EXCLUSIVE } from "../spaceGroups.js";
+import { createDensityController, LADDER, densityNote } from "../spaceDensity.js";
 
 // three.js is ~150kB gzipped and only the globe needs it, so it is loaded on demand rather than
 // riding in the main bundle for everyone who never opens this tab.
@@ -18,7 +18,6 @@ const API = import.meta.env.DEV ? "https://streetwatch.earth" : "";
 
 const ISS_NORAD = 25544;
 const W = 720, H = 360;
-const TRAIL_S = [-45, -90, -135];   // seconds behind — three points make a tail that shows heading
 
 // Two basemaps, because they answer different questions.
 //
@@ -101,11 +100,28 @@ export default function SpaceView() {
   // they are hidden behind a toggle rather than cut.
   const [showLayers, setShowLayers] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
-  // A phone cannot propagate 16,000 orbits even off the main thread, and a reviewer meeting a
-  // frozen tab is worse than a sampled constellation — so constrained devices get a fixed honest
-  // subset and a line saying so, while desktop chooses.
-  const constrained = useState(() => isConstrainedDevice())[0];
-  const [density, setDensity] = useState(constrained ? MOBILE_LIMIT : 2000);
+  // How many objects to plot is MEASURED, not guessed. A budget Android and a flagship are both
+  // "mobile", and the gap between them is wider than the gap between the flagship and a laptop —
+  // a tester on a cheap phone watched Starlink crawl while the same build ran clean on an S26
+  // Ultra. The controller watches real frame time and climbs or drops, so a capable device
+  // reaches the whole catalogue and a slow one settles where it stays smooth. Nobody configures
+  // anything, and the footer says what it settled on.
+  const [density, setDensity] = useState(LADDER[1]);
+  const [densityAuto, setDensityAuto] = useState(true);
+  // Rendered in the footer, so state rather than a ref.
+  const [available, setAvailable] = useState(0);
+  const densityRef = useRef(LADDER[1]);
+  const ctlRef = useRef(null);
+  // Built in an effect, not during render: constructing it inline made render non-idempotent, and
+  // the draw loop below cannot start before the effect runs anyway.
+  useEffect(() => {
+    ctlRef.current = createDensityController((limit, auto) => {
+      densityRef.current = limit;
+      setDensity(limit);
+      setDensityAuto(auto);
+    });
+  }, []);
+
   // Which chip was touched last, so the description line has one subject instead of four stacked.
   const [lastTouched, setLastTouched] = useState("stations");
   // The note describes the last chip TOUCHED, but touching a chip can mean turning it off — in
@@ -122,13 +138,39 @@ export default function SpaceView() {
   // data exists — which is why groups only appeared after toggling speed or switching views.
   const [gen, setGen] = useState(0);
   const canvasRef = useRef(null);
+  // The worker holds the satrecs and does the SGP4; the main thread only ever sees finished
+  // buffers. Parsing 16,000 element sets here would itself be a visible freeze.
+  const workerRef = useRef(null);
+  const framesRef = useRef({ at: 0, n: 0, a: null, b: null, grp: null });
+  const colorsRef = useRef([]);      // group index -> colour, matching the worker's grp byte
 
-  // Positions live in a ref and are painted to CANVAS, not returned as React elements. 940 SVG
-  // circles reconciled once a second made the dots JUMP rather than move; canvas skips React
-  // entirely, so the same objects can be redrawn every animation frame for the cost of a fill.
-  // Each entry holds the position now (a) and one second ahead (b); the frame loop interpolates
-  // between them, which is what turns a 1Hz propagation into 60fps motion.
-  const frameRef = useRef({ at: 0, items: [] });
+
+  useEffect(() => {
+    // Vite resolves this URL form at build time and emits the worker as its own chunk.
+    let w;
+    try {
+      w = new Worker(new URL("../workers/sgp4.worker.js", import.meta.url), { type: "module" });
+    } catch {
+      return;   // no worker support: the ISS still tracks, the satellite layer simply stays empty
+    }
+    workerRef.current = w;
+    w.onmessage = (e) => {
+      const m = e.data;
+      if (m.type === "positions") {
+        framesRef.current = {
+          at: performance.now(), n: m.n,
+          a: new Float32Array(m.a), b: new Float32Array(m.b), grp: new Uint8Array(m.grp),
+        };
+        setCount(m.n);
+      } else if (m.type === "loaded") {
+        // The worker reports what actually PARSED, which can be fewer than were sent when element
+        // sets are malformed. Using its number keeps the chip count honest.
+        satsRef.current[m.group] = m.parsed;
+        setGen((n) => n + 1);
+      }
+    };
+    return () => { w.terminate(); workerRef.current = null; };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -150,12 +192,13 @@ export default function SpaceView() {
         .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
         .then((j) => {
           if (!alive || !j || !j.sats) return;
-          satsRef.current[g] = j.sats
-            // The ISS is IN the stations group. It is already on screen as a live-tracked marker,
-            // so rendering the propagated copy too would show one object twice, slightly apart.
-            .filter((s) => s.id !== ISS_NORAD)
-            .map((s) => { try { return { id: s.id, name: s.name, satrec: sat.twoline2satrec(s.l1, s.l2) }; } catch { return null; } })
-            .filter(Boolean);
+          // Element sets go STRAIGHT to the worker, which parses and keeps the satrecs.
+          // The ISS is filtered out here: it is already on screen as a live-tracked marker, so a
+          // propagated copy would show the same object twice, slightly apart.
+          const sats = j.sats.filter((x) => x.id !== ISS_NORAD)
+            .map((x) => ({ id: x.id, name: x.name, l1: x.l1, l2: x.l2 }));
+          satsRef.current[g] = sats.length;
+          if (workerRef.current) workerRef.current.postMessage({ type: "load", group: g, sats });
           setMeta((m) => ({ ...m, [g]: { total: j.total, served: j.served, capped: j.capped, oldestEpochHours: j.oldestEpochHours } }));
           inflightRef.current[g] = false;
           setLoading((s) => ({ ...s, [g]: false }));
@@ -166,49 +209,32 @@ export default function SpaceView() {
     return () => { alive = false; };
   }, [on]);
 
-  // Propagation tick — once a second, deliberately. SGP4 is the expensive part; the smoothness
-  // comes from interpolation in the frame loop below, not from solving more often.
+  // Propagation tick — the main thread only ASKS now. The worker owns the satrecs, does the
+  // SGP4 and posts back transferable buffers, so nothing here blocks longer than a postMessage.
   useEffect(() => {
-    const geo = (satrec, when, gmst) => {
-      const pv = sat.propagate(satrec, when);
-      if (!pv || !pv.position) return null;
-      const gd = sat.eciToGeodetic(pv.position, gmst);
-      const lat = sat.degreesLat(gd.latitude), lon = sat.degreesLong(gd.longitude);
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-      return [px(lon), py(lat)];
-    };
-    const solve = () => {
-      const now = new Date();
-      const ahead = new Date(now.getTime() + 1000);
-      const g0 = sat.gstime(now), g1 = sat.gstime(ahead);
-      const items = [];
-      Object.keys(satsRef.current).forEach((g) => {
-        if (!on[g]) return;
-        const color = GROUP_COLOR[g] || "#8A94A3";
-        satsRef.current[g].forEach((s) => {
-          try {
-            const a = geo(s.satrec, now, g0); if (!a) return;
-            const b = geo(s.satrec, ahead, g1) || a;
-            // A trail that wraps the antimeridian would draw a line straight across the map, so any
-            // segment jumping more than a third of the width is dropped rather than drawn wrong.
-            const tail = [];
-            for (const dt of TRAIL_S) {
-              const when = new Date(now.getTime() + dt * 1000);
-              const p = geo(s.satrec, when, sat.gstime(when));
-              if (!p) break;
-              const prev = tail.length ? tail[tail.length - 1] : a;
-              if (Math.abs(p[0] - prev[0]) > W / 3) break;
-              tail.push(p);
-            }
-            items.push({ a, b, tail, color });
-          } catch { /* one bad element set must not stop the sweep */ }
-        });
+    const ask = () => {
+      const w = workerRef.current; if (!w) return;
+      const enabled = Object.keys(on).filter((g) => on[g] && satsRef.current[g]);
+      if (!enabled.length) {
+        framesRef.current = { at: performance.now(), n: 0, a: null, b: null, grp: null };
+        setAvailable(0); setCount(0); return;
+      }
+      // The plot budget is shared in PROPORTION to group size, so enabling Starlink alongside
+      // Stations does not squeeze the twenty stations down to nothing.
+      const limit = densityRef.current;
+      const total = enabled.reduce((a, g) => a + satsRef.current[g], 0);
+      setAvailable(total);
+      colorsRef.current = enabled.map((g) => GROUP_COLOR[g] || "#94A3B8");
+      w.postMessage({
+        type: "tick", at: Date.now(), ahead: 1000,
+        groups: enabled.map((g, i) => ({
+          group: g, index: i,
+          limit: limit ? Math.max(1, Math.round(limit * (satsRef.current[g] / total))) : 0,
+        })),
       });
-      frameRef.current = { at: performance.now(), items };
-      setCount(items.length);
     };
-    solve();
-    const id = setInterval(solve, 1000);
+    ask();
+    const id = setInterval(ask, 1000);
     return () => clearInterval(id);
   }, [on, gen]);
 
@@ -216,8 +242,10 @@ export default function SpaceView() {
   // thing that runs at display rate; nothing here allocates or touches React state.
   useEffect(() => {
     let raf = 0;
-    const draw = () => {
+    const draw = (ts) => {
       raf = requestAnimationFrame(draw);
+      // The frame loop is where performance is actually FELT, so it is where it is measured.
+      if (ctlRef.current) ctlRef.current.sample(ts || performance.now());
       const cv = canvasRef.current; if (!cv) return;
       const ctx = cv.getContext("2d"); if (!ctx) return;
       const dpr = window.devicePixelRatio || 1;
@@ -259,29 +287,42 @@ export default function SpaceView() {
       ctx.fillStyle = "rgba(253,224,71,0.9)"; ctx.beginPath(); ctx.arc(sx, sy, 2.6, 0, 6.284); ctx.fill();
 
       // ── satellites ──────────────────────────────────────────────────────────
-      const { at, items } = frameRef.current;
-      // Clamped so a backgrounded tab (which throttles timers) resumes cleanly instead of
-      // extrapolating a wild distance past the last solved position.
-      const f = Math.max(0, Math.min(1, (performance.now() - at) / 1000));
-      for (let i = 0; i < items.length; i++) {
-        const it = items[i];
-        const x = it.a[0] + (it.b[0] - it.a[0]) * (Math.abs(it.b[0] - it.a[0]) > W / 3 ? 0 : f);
-        const y = it.a[1] + (it.b[1] - it.a[1]) * f;
-        if (it.tail.length) {
-          ctx.strokeStyle = it.color; ctx.lineWidth = 0.9;
-          ctx.globalAlpha = 0.45;
-          ctx.beginPath(); ctx.moveTo(x, y);
-          for (const t of it.tail) ctx.lineTo(t[0], t[1]);
-          ctx.stroke();
-          ctx.globalAlpha = 1;
+      // Positions arrive as flat typed arrays from the worker: lat/lon now in `a`, lat/lon one
+      // second ahead in `b`. Interpolating between them turns a 1Hz solve into 60fps motion
+      // without asking the worker for more.
+      const fr = framesRef.current;
+      if (fr.n && fr.a) {
+        // Clamped so a backgrounded tab (whose timers throttle) resumes cleanly rather than
+        // extrapolating a wild distance past the last solved position.
+        const f = Math.max(0, Math.min(1, (performance.now() - fr.at) / 1000));
+        const cols = colorsRef.current;
+        // Dots SHRINK as the count rises. At 16,000 objects a 1.7px dot with a 2.9px halo covers
+        // roughly one pixel in sixteen — a tester reported the map vanishing entirely underneath.
+        // A dense constellation should read as a haze over the surface, not a sheet on top of it,
+        // so past a few thousand the dots lose their halo and fade.
+        const dense = fr.n > 3000;
+        const r = fr.n > 9000 ? 0.9 : fr.n > 3000 ? 1.25 : 1.7;
+        ctx.globalAlpha = fr.n > 9000 ? 0.55 : fr.n > 3000 ? 0.75 : 1;
+        for (let i = 0; i < fr.n; i++) {
+          const la0 = fr.a[i * 2], lo0 = fr.a[i * 2 + 1];
+          const la1 = fr.b[i * 2], lo1 = fr.b[i * 2 + 1];
+          // A step across the antimeridian would draw the dot sliding the whole width of the map
+          // backwards, so wrapping objects hold position for that second instead.
+          const wrap = Math.abs(lo1 - lo0) > 120;
+          const lat = la0 + (la1 - la0) * f;
+          const lon = wrap ? lo0 : lo0 + (lo1 - lo0) * f;
+          const x = px(lon), y = py(lat);
+          // A dark halo under every dot. Live true-colour imagery is mostly white cloud, and an
+          // unhaloed dot disappeared over anything bright — the layer read as empty over half the
+          // globe. One extra fill makes the colour legible on any background.
+          if (!dense) {
+            ctx.fillStyle = "rgba(2,8,16,0.85)";
+            ctx.beginPath(); ctx.arc(x, y, 2.9, 0, 6.284); ctx.fill();
+          }
+          ctx.fillStyle = cols[fr.grp[i]] || "#94A3B8";
+          ctx.beginPath(); ctx.arc(x, y, r, 0, 6.284); ctx.fill();
         }
-        // A dark halo under every dot. Live true-colour imagery is mostly white cloud, and an
-        // unhaloed dot disappeared over anything bright — the layer read as empty over half the
-        // globe. The ring costs one extra fill and makes the colour legible on any background.
-        ctx.fillStyle = "rgba(2,8,16,0.85)";
-        ctx.beginPath(); ctx.arc(x, y, 2.9, 0, 6.284); ctx.fill();
-        ctx.fillStyle = it.color;
-        ctx.beginPath(); ctx.arc(x, y, 1.7, 0, 6.284); ctx.fill();
+        ctx.globalAlpha = 1;
       }
     };
     raf = requestAnimationFrame(draw);
@@ -352,12 +393,22 @@ export default function SpaceView() {
               {b.label}
             </button>
           ))}
-          {!constrained && DENSITIES.map((d) => (
-            <button key={d.key} onClick={() => setDensity(d.key)} className="rounded font-mono"
-              title={d.key === 0 ? "Plot every object in the selected groups" : `Plot an even sample of ${d.label} objects`}
-              style={{ fontSize: 8.5, padding: "3px 6px", color: density === d.key ? "#04121F" : C.dim,
-                background: density === d.key ? C.dim : "transparent", border: `1px solid ${C.line}` }}>
-              {d.label}
+          {/* AUTO is the default and stays honest about what it picked; the fixed levels are for
+              someone who would rather decide than be decided for. */}
+          <button onClick={() => ctlRef.current && ctlRef.current.setAuto()} className="rounded font-mono"
+            title="Adjust automatically to keep this device smooth"
+            style={{ fontSize: 8.5, padding: "3px 6px", color: densityAuto ? "#04121F" : C.dim,
+              background: densityAuto ? C.dim : "transparent", border: `1px solid ${C.line}` }}>
+            Auto{densityAuto && density ? ` ${density >= 1000 ? (density / 1000) + "k" : density}` : ""}
+          </button>
+          {[1500, 6000, 0].map((lv) => (
+            <button key={lv} onClick={() => ctlRef.current && ctlRef.current.setManual(lv)} className="rounded font-mono"
+              title={lv === 0 ? "Plot every object in the selected groups" : `Plot an even sample of ${lv.toLocaleString()}`}
+              style={{ fontSize: 8.5, padding: "3px 6px",
+                color: !densityAuto && density === lv ? "#04121F" : C.dim,
+                background: !densityAuto && density === lv ? C.dim : "transparent",
+                border: `1px solid ${C.line}` }}>
+              {lv === 0 ? "All" : lv >= 1000 ? (lv / 1000) + "k" : lv}
             </button>
           ))}
           {view === "globe" && [1, 60, 600].map((x) => (
@@ -405,8 +456,8 @@ export default function SpaceView() {
         {view === "globe" ? (
           <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center font-mono"
             style={{ fontSize: 10, color: C.faint }}>loading globe…</div>}>
-            <SpaceGlobe on={on} satsRef={satsRef} colors={GROUP_COLOR} iss={pos}
-              textureUrl={BASEMAPS[base].globe} speed={speed} onCount={setCount} />
+            <SpaceGlobe framesRef={framesRef} colorsRef={colorsRef} iss={pos}
+              textureUrl={BASEMAPS[base].globe} speed={speed} />
           </Suspense>
         ) : (<>
         {!bgErr && <img src={BASEMAPS[base].flat} alt="" onError={() => setBgErr(true)} className="absolute inset-0 w-full h-full" style={{ objectFit: "cover", opacity: 0.5 }} />}
@@ -465,8 +516,8 @@ export default function SpaceView() {
         <div className="flex items-center justify-between gap-2">
           <span>
             {count > 0
-              ? `${count.toLocaleString()} satellites \u00b7 computed from orbital elements, not observed`
-              : "ISS tracked live \u00b7 other objects computed from orbital elements"}
+              ? `${densityNote(density, count, available, densityAuto)} · computed, not observed`
+              : "ISS tracked live · other objects computed from orbital elements"}
             {oldestEpoch > 0 ? ` \u00b7 elements up to ${Math.round(oldestEpoch)}h old` : ""}
           </span>
           <button onClick={() => setShowWhy((v) => !v)} className="rounded"

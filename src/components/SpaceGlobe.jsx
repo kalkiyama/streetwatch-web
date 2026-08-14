@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as sat from "satellite.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A real sphere, not a projection. Two things come free here that the flat map had to fake:
@@ -57,16 +56,16 @@ function solar(date) {
   return { lat: declDeg, lon: -15 * (utcH - 12) };
 }
 
-export default function SpaceGlobe({ on, satsRef, colors, textureUrl, speed, onCount, iss }) {
+export default function SpaceGlobe({ framesRef, colorsRef, textureUrl, speed, iss }) {
   const hostRef = useRef(null);
   const labelRef = useRef(null);
   const zoomRef = useRef(null);
   // Everything mutable that the animation loop touches lives here, so prop changes never tear
   // down the scene — rebuilding a WebGL context on every toggle would stutter badly.
-  const liveRef = useRef({ on, speed, satsRef, colors, iss });
+  const liveRef = useRef({ speed, iss });
   // Written in an effect, not during render: the scene reads these every frame, and a render-phase
   // write would be a side effect on a value React does not track.
-  useEffect(() => { liveRef.current = { on, speed, satsRef, colors, iss }; }, [on, speed, satsRef, colors, iss]);
+  useEffect(() => { liveRef.current = { speed, iss }; }, [speed, iss]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -297,11 +296,11 @@ export default function SpaceGlobe({ on, satsRef, colors, textureUrl, speed, onC
     const sunV = new THREE.Vector3();
     const t0 = Date.now();
     const start = performance.now();
-    let raf = 0, last = 0, reported = -1;
+    let raf = 0;
 
     const frame = () => {
       raf = requestAnimationFrame(frame);
-      const { on: onNow, speed: spd, satsRef: sref, colors: cols, iss: issPos } = liveRef.current;
+      const { speed: spd } = liveRef.current;
       const nowMs = t0 + (performance.now() - start) * spd;
       const when = new Date(nowMs);
 
@@ -320,42 +319,50 @@ export default function SpaceGlobe({ on, satsRef, colors, textureUrl, speed, onC
       // step with the terminator — two different night sides on one globe.
       earthMat.uniforms.sunDir.value.copy(sunV).normalize();
 
-      // SGP4 is the expensive part, so it runs at ~10Hz of WALL time regardless of multiplier —
-      // the camera and damping still animate every frame, which is what the eye reads as smooth.
-      if (performance.now() - last > 100) {
-        last = performance.now();
-        const gmst = sat.gstime(when);
+      // Positions come from the SAME worker buffers the flat map uses. The globe used to run its
+      // own SGP4 pass on the main thread, which is what a tester felt as Starlink crawling on a
+      // budget phone — and after the worker landed it was also reading a satsRef that now holds
+      // counts rather than satrecs, so it drew nothing at all. One producer, two consumers.
+      const fr = framesRef.current;
+      if (fr && fr.n && fr.a) {
+        const f = Math.max(0, Math.min(1, (performance.now() - fr.at) / 1000));
+        const cols = colorsRef.current || [];
+        const cache = [];
         let n = 0;
-        Object.keys(sref.current || {}).forEach((g) => {
-          if (!onNow[g]) return;
-          const c = new THREE.Color(cols[g] || "#94A3B8");
-          (sref.current[g] || []).forEach((o) => {
-            if (n >= MAX) return;
-            try {
-              const pv = sat.propagate(o.satrec, when);
-              if (!pv || !pv.position) return;
-              const gd = sat.eciToGeodetic(pv.position, gmst);
-              const lat = sat.degreesLat(gd.latitude), lon = sat.degreesLong(gd.longitude);
-              const alt = gd.height;
-              if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(alt)) return;
-              toVec(lat, lon, alt, v);
-              satPos[n * 3] = v.x; satPos[n * 3 + 1] = v.y; satPos[n * 3 + 2] = v.z;
-              satCol[n * 3] = c.r; satCol[n * 3 + 1] = c.g; satCol[n * 3 + 2] = c.b;
-              n++;
-            } catch { /* one bad element set must not stop the sweep */ }
-          });
-        });
-        // The ISS comes from the LIVE feed, not from the propagated list — SpaceView filters it
-        // out of the stations group precisely because it is tracked rather than computed. Placing
-        // it here keeps that distinction: one observed object, everything else derived.
-        // At an accelerated multiplier the live fix no longer describes the moment on screen, so
-        // the marker hides rather than sit somewhere it is not.
+        for (let i = 0; i < fr.n && n < MAX; i++) {
+          const la0 = fr.a[i * 2], lo0 = fr.a[i * 2 + 1];
+          const la1 = fr.b[i * 2], lo1 = fr.b[i * 2 + 1];
+          const wrap = Math.abs(lo1 - lo0) > 120;
+          const lat = la0 + (la1 - la0) * f;
+          const lon = wrap ? lo0 : lo0 + (lo1 - lo0) * f;
+          toVec(lat, lon, fr.alt ? fr.alt[i] : 550, v);
+          satPos[n * 3] = v.x; satPos[n * 3 + 1] = v.y; satPos[n * 3 + 2] = v.z;
+          const gi = fr.grp[i];
+          let c = cache[gi];
+          if (!c) { c = cache[gi] = new THREE.Color(cols[gi] || "#94A3B8"); }
+          satCol[n * 3] = c.r; satCol[n * 3 + 1] = c.g; satCol[n * 3 + 2] = c.b;
+          n++;
+        }
+        satGeo.setDrawRange(0, n);
+        satGeo.attributes.position.needsUpdate = true;
+        satGeo.attributes.color.needsUpdate = true;
+        // Points shrink as the constellation thickens, for the same reason the flat map's dots do:
+        // at full density a fixed size covers the planet instead of decorating it.
+        satPts.material.size = n > 9000 ? 0.012 : n > 3000 ? 0.018 : 0.028;
+        satPts.material.opacity = n > 9000 ? 0.7 : 0.95;
+      } else {
+        satGeo.setDrawRange(0, 0);
+      }
+
+      {
+        const { iss: issPos, speed: spd } = liveRef.current;
+        // The ISS comes from the LIVE feed, not the propagated set — SpaceView filters it out of
+        // the groups precisely because it is tracked rather than computed. At an accelerated
+        // multiplier the live fix no longer describes the moment on screen, so it hides rather
+        // than sit somewhere it is not.
         if (issPos && spd === 1) {
           toVec(issPos.lat, issPos.lon, issPos.altKm, v);
           iss.position.copy(v);
-          // Fly along the track rather than sit at a fixed angle: nadir points at Earth's centre
-          // and the long axis follows the direction of travel, which is roughly how it actually
-          // flies. Falls back to the previous frame's heading when the station is stationary.
           issUp.copy(v).normalize();
           if (issPrev.lengthSq() > 0 && !issPrev.equals(v)) {
             const fwd = issPrev.clone().sub(v).normalize().multiplyScalar(-1);
@@ -367,12 +374,7 @@ export default function SpaceGlobe({ on, satsRef, colors, textureUrl, speed, onC
           }
           issPrev.copy(v);
           iss.visible = true;
-        }
-        else iss.visible = false;
-        satGeo.setDrawRange(0, n);
-        satGeo.attributes.position.needsUpdate = true;
-        satGeo.attributes.color.needsUpdate = true;
-        if (n !== reported) { reported = n; if (onCount) onCount(n); }
+        } else iss.visible = false;
       }
 
       // The label is HTML, not scene geometry: text in a 3D scene either faces the wrong way or
