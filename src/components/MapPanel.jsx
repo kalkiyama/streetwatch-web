@@ -312,7 +312,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           boxShadow: "0 0 12px rgba(0,255,127,0.2)" }}>
           <div className="flex items-start justify-between gap-2">
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, color: "#00FF7F" }}>
+              <div style={{ fontSize: 12.5, color: airSel.lost ? C.dim : "#00FF7F" }}>
                 {airlineFromCallsign(airSel.callsign) || airSel.callsign || airSel.id || "unknown"}
                 {airSel.military ? " \u00b7 MIL" : ""}{airSel.isDrone ? " \u00b7 UAV" : ""}
               </div>
@@ -325,13 +325,18 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
             <button onClick={() => setAirSel(null)} aria-label="Close"
               style={{ color: C.dim, fontSize: 14, lineHeight: 1 }}>&times;</button>
           </div>
-          <div style={{ fontSize: 11.5, color: "#F6A821", marginTop: 5 }}>
+          {airSel.lost && (
+            <div style={{ fontSize: 10.5, color: C.dim, marginTop: 5 }}>
+              Contact lost — it landed, stopped transmitting, or moved beyond the 250nm the feed covers.
+            </div>
+          )}
+          {!airSel.lost && <div style={{ fontSize: 11.5, color: "#F6A821", marginTop: 5 }}>
             {Number.isFinite(airSel.altFt) ? Math.round(airSel.altFt).toLocaleString() + "ft" : "\u2014"}
             {Number.isFinite(airSel.groundSpeedKt) ? " \u00b7 " + Math.round(airSel.groundSpeedKt) + "kt" : ""}
             {Number.isFinite(airSel.verticalRateFpm) && Math.abs(airSel.verticalRateFpm) > 200
               ? (airSel.verticalRateFpm > 0 ? " \u00b7 climbing" : " \u00b7 descending") : ""}
             {airSel.onGround ? " \u00b7 on the ground" : ""}
-          </div>
+          </div>}
           {emergencyFromSquawk(airSel.squawk) && (
             <div style={{ fontSize: 10.5, color: "#F0553B", marginTop: 3 }}>
               {emergencyFromSquawk(airSel.squawk)} \u00b7 squawk {airSel.squawk}
