@@ -368,6 +368,12 @@ export default function SpaceView() {
 
 
   const shownGroups = Object.keys(on).filter((g) => on[g] && meta[g]);
+  // The MAXIMUM was the wrong statistic. "Elements up to 672h old" described the single stalest
+  // object out of 16,068 as though it characterised the set — a tester read it as the whole view
+  // being month-old data with no live traffic. The real GNSS distribution is min 5.6h, median
+  // 41.8h, p90 109h: typical elements are a day or two old, and a small tail of high-orbit objects
+  // stretches to weeks because they barely deviate from prediction and CelesTrak refreshes them
+  // less often. The typical case is what belongs on screen.
   const oldestEpoch = shownGroups.reduce((a, g) => Math.max(a, meta[g].oldestEpochHours || 0), 0);
   const capNotes = shownGroups.filter((g) => meta[g].capped)
     .map((g) => `${(groups.find((x) => x.group === g) || {}).label || g} ${meta[g].served} of ${meta[g].total.toLocaleString()}`);
@@ -538,9 +544,9 @@ export default function SpaceView() {
         <div className="flex items-center justify-between gap-2">
           <span>
             {count > 0
-              ? `${densityNote(density, count, available, densityAuto)} · computed, not observed`
+              ? `${densityNote(density, count, available, densityAuto)} \u00b7 positions computed for this moment from orbital elements`
               : "ISS tracked live · other objects computed from orbital elements"}
-            {oldestEpoch > 0 ? ` \u00b7 elements up to ${Math.round(oldestEpoch)}h old` : ""}
+
           </span>
           <button onClick={() => setShowWhy((v) => !v)} className="rounded"
             style={{ fontSize: 9, padding: "1px 5px", color: C.dim, border: `1px solid ${C.line}`, whiteSpace: "nowrap" }}>
@@ -563,7 +569,7 @@ export default function SpaceView() {
             {view === "globe" && " On the globe, orbit heights are compressed so that low orbits and \
 geostationary satellites 35,786km up fit the same view — higher is still higher, but the spacing is not \
 to scale, and the ISS model is indicative rather than a true likeness."}
-            {oldestEpoch > 0 && ` Oldest element set on screen is ${Math.round(oldestEpoch)}h old — accuracy degrades as that number grows.`}
+            {oldestEpoch > 0 && ` Most orbital elements are refreshed daily; a few high-orbit objects go longer between updates because they deviate little from prediction, and the stalest on screen is ${Math.round(oldestEpoch)}h old. Accuracy degrades as that number grows.`}
             {capNotes.length > 0 && ` Showing a capped subset: ${capNotes.join("; ")}.`}
           </>
         )}
