@@ -134,6 +134,8 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
   const airSelRef = useRef(null);
   const onAirSelRef = useRef(null);
   const lastSentRef = useRef(0);
+  const lastGoneRef = useRef(0);
+  const lastSeenRef = useRef(null);
   usvRef.current = usvContacts;
   airRef.current = aircraft;
   onViewRef.current = onView;
@@ -357,6 +359,17 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
     // heading at its own broadcast ground speed. This is ESTIMATED motion, and the footnote says
     // so — the same distinction the satellite layer draws between observed and computed.
     const dt = payload.at ? Math.min(30, (Date.now() - payload.at) / 1000) : 0;
+    // A locked aircraft can leave the feed — it lands, its transponder stops, or it drifts beyond
+    // the 250nm the upstream serves. The card was left showing a frozen altitude and speed for a
+    // marker that had vanished from the map, which reads as a glitch rather than as an ending.
+    if (airSelRef.current && onAirSelRef.current
+        && payload.at !== lastGoneRef.current
+        && !items.some((x) => x.id === airSelRef.current)) {
+      lastGoneRef.current = payload.at;
+      // Flag it, do not replace it. Sending only { id, lost } threw away the airline, type and
+      // registration, so a lost contact read "800ce1 · type unknown" — as if we had never known.
+      onAirSelRef.current({ ...(lastSeenRef.current || { id: airSelRef.current }), lost: true });
+    }
     // Density control, the same lesson the satellite layer learned: past a few hundred contacts a
     // fixed marker size covers the map instead of describing it. Close in there is room to be
     // bigger, which is where a silhouette starts to read as a shape rather than a blob.
@@ -372,7 +385,12 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
       // Nautical miles travelled since the fix, converted to degrees. Longitude shrinks with
       // latitude, so the cosine matters: without it aircraft near the poles drift sideways.
       let lat = a.lat, lon = a.lon;
-      if (dt > 0 && Number.isFinite(a.groundSpeedKt) && a.groundSpeedKt > 0 && !a.onGround) {
+      // Below 5,000ft an aircraft is climbing out or on approach: decelerating, turning onto
+      // finals, configuring. Projecting 15 seconds ahead at its last velocity overshoots, the next
+      // poll snaps it back, and it visibly jitters — which is what a tester saw watching an ATR
+      // land. Near the ground, plot only what was actually reported.
+      const manoeuvring = Number.isFinite(a.altFt) && a.altFt < 5000;
+      if (dt > 0 && !manoeuvring && Number.isFinite(a.groundSpeedKt) && a.groundSpeedKt > 0 && !a.onGround) {
         const nm = (a.groundSpeedKt * dt) / 3600;
         const rad = (hdg * Math.PI) / 180;
         lat += (nm * Math.cos(rad)) / 60;
@@ -415,6 +433,7 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
       // moment of the tap while the aircraft on screen kept flying.
       if (isSel && onAirSelRef.current && payload.at !== lastSentRef.current) {
         lastSentRef.current = payload.at;
+        lastSeenRef.current = a;
         onAirSelRef.current(a);
       }
       // FOLLOW the locked aircraft, but only when it is about to leave. Recentring on every
