@@ -44,3 +44,12 @@ button:disabled {
 @media (max-width: 640px) {
   .spacemedia { aspect-ratio: 1 / 1 !important; }
 }
+
+/* --- Locked-on aircraft ---------------------------------------------------------------
+   A slow pulse on the selection reticle. Slow on purpose: the aircraft beneath it is already
+   moving, and a fast pulse next to real motion reads as a glitch rather than a lock. */
+@keyframes airlockPulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.1); }
+}
+.airlock { animation: airlockPulse 1.8s ease-in-out infinite; pointer-events: none; }
