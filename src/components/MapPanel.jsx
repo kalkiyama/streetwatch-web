@@ -7,6 +7,18 @@ import { BACKEND_URL } from "../config.js";
 // One map, three switchable layers. Previously these lived on separate maps with separate
 // controls — feeds here, live sweep contacts there, activity heat somewhere else — which
 // made them feel like unrelated features rather than views of the same planet.
+// Below this zoom the visible area is most of a hemisphere: the query would be meaningless, the
+// payload large, and the dots a solid smear. Roughly country-to-continent scale and closer.
+// Zoom 6, not 4. The upstream feed caps a query at 250nm regardless of what is asked for, so at
+// wider views traffic appeared as a disc in the middle of an empty screen. At zoom 6 the visible
+// area is roughly what 250nm covers, so the layer describes the whole map rather than part of it.
+// Zoom 5. Six was too strict: over sparsely covered regions the layer showed nothing at all and
+// read as broken. The 250nm cap means a wider view is only partly covered, which the footnote
+// states — partial coverage that says so beats an empty map that does not.
+const AIR_MIN_ZOOM = 5;
+// Matches the upstream cap. Asking for more returns the same data and a `clamped` flag.
+const AIR_MAX_RADIUS_NM = 250;
+
 export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, userLoc = null, tab = "world",
   // Phones get a shorter map: at 60vh a map plus its chips filled the viewport edge to edge,
   // leaving nowhere obvious to scroll from. 44vh keeps surrounding context visible so the
@@ -20,6 +32,18 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   const [showHeat, setShowHeat] = useState(false);
   const [showAdv, setShowAdv] = useState(false);
   const [adv, setAdv] = useState(null);
+  // Live aircraft on the WORLD map. A tester on Android reported that no traffic appeared anywhere
+  // unless a site was selected, and that zooming elsewhere showed nothing while a competitor's map
+  // had data everywhere. They were right: /api/aircraft was only ever called by AviationRadar,
+  // using the SELECTED SITE's coordinates. The world map never asked for aircraft at all.
+  //
+  // On by default (world tab only), because "traffic just appears" was the expectation, and gated
+  // on zoom below so a whole-planet view does not fire a meaningless 10,000nm query every pan.
+  // What the map is currently looking at, reported upward by WorldMap. Drives the aircraft query.
+  const [view, setView] = useState(null);
+  const [showAir, setShowAir] = useState(!isDrones);
+  const [air, setAir] = useState(null);
+  const [airAge, setAirAge] = useState(null);
   const [showUsv, setShowUsv] = useState(isDrones);
   const [showSub, setShowSub] = useState(isDrones);
   // If the tab changes while the map stays mounted, re-apply the per-tab defaults so the map
@@ -40,6 +64,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
     if (lastTab.current === tab) return;
     lastTab.current = tab;
     setShowFeeds(!isDrones); setShowLive(isDrones); setShowUsv(isDrones); setShowSub(isDrones);
+    setShowAir(!isDrones);   // world leads with live traffic; drones does not
     // showHeat was the ONE layer this line did not set, so switching to the drones tab turned on
     // live contacts, sea drones and sub support — but left the activity layer off, which is the
     // most drone-specific layer of the four. The map looked empty and there was nothing to say
@@ -87,6 +112,33 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
       .catch(() => { if (alive) setNote("activity data unavailable"); });
     return () => { alive = false; };
   }, [showHeat, days]);
+
+  // Follows the MAP, not the selected site. Debounced, because a pan fires many moveend events and
+  // the proxy allows 120 requests a minute across all clients.
+  useEffect(() => {
+    if (!showAir || !view) { setAir(null); return; }
+    if (view.zoom < AIR_MIN_ZOOM) { setAir(null); return; }
+    let alive = true;
+    // Radius from the viewport's diagonal, so the circular query covers the rectangle on screen.
+    const r = Math.min(AIR_MAX_RADIUS_NM, Math.max(50, Math.round(view.radiusNm)));
+    const load = () =>
+      fetch(`${BACKEND_URL}/api/aircraft?lat=${view.lat.toFixed(3)}&lon=${view.lon.toFixed(3)}&radius=${r}`)
+        .then((res) => res.json())
+        .then((j) => {
+          if (!alive) return;
+          // Stamped on arrival. The map interpolates forward from this instant using each
+          // aircraft's own heading and ground speed, so the dots move continuously between polls
+          // instead of teleporting every fifteen seconds.
+          setAir({ at: Date.now(), items: j.aircraft || [] });
+          setAirAge(Number.isFinite(j.ageSec) ? j.ageSec : null);
+        })
+        .catch(() => { if (alive) setNote("live aircraft unavailable"); });
+    // Debounced on the first call so a pan fires one request rather than thirty; thereafter every
+    // 15s. Four requests a minute per viewer, against a proxy limit of 120.
+    const t = setTimeout(load, 600);
+    const id = setInterval(load, 15000);
+    return () => { alive = false; clearTimeout(t); clearInterval(id); };
+  }, [showAir, view]);
 
   useEffect(() => {
     if (!showUsv) { setUsv(null); return; }
@@ -163,6 +215,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
         {chip(showLive, "LIVE", () => setShowLive(!showLive), "#C084FC")}
         {chip(showAdv, "ADVISORIES", () => setShowAdv(!showAdv), "#F0553B")}
         {chip(showHeat, "ACTIVITY", () => setShowHeat(!showHeat), "#F6A821")}
+        {chip(showAir, "AIR", () => setShowAir(!showAir), "#F6A821")}
         {chip(showUsv, "SEA", () => setShowUsv(!showUsv), "#2DD4BF")}
         {chip(showSub, "SUB", () => setShowSub(!showSub), "#F0553B")}
       </div>
@@ -226,6 +279,8 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           onOpenSighting={onOpenSighting}
           onOpenVessel={onOpenVessel}
           liveContacts={showLive ? live : null}
+          aircraft={showAir ? air : null}
+          onView={setView}
           usvContacts={showUsv ? usv : null}
           subContacts={showSub ? sub : null}
           userLoc={userLoc}
@@ -240,6 +295,17 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
       <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginTop: 4, lineHeight: 1.5 }}>
         {showLive && "violet = UAV · amber = military · hollow = disputed · tap a contact to open its airspace. "}
         {showHeat && "Activity is measured from ADS-B broadcasters only; aircraft with transponders off are not counted. "}
+        {showAir && (view && view.zoom < AIR_MIN_ZOOM
+          ? "Zoom in to see live aircraft — the feed covers 250nm at a time. "
+          : air && air.items && air.items.length === 0
+          ? "No aircraft reported here right now. ADS-B coverage comes from volunteer receivers, " +
+            "which are dense over North America and western Europe and sparse elsewhere — an empty " +
+            "map here means no receiver heard anything, not that nothing is flying. "
+          : `${air && air.items ? air.items.length : 0} aircraft in view, broadcast by the aircraft themselves via ADS-B` +
+            `${Number.isFinite(airAge) ? `, ${airAge < 60 ? "seconds" : Math.round(airAge / 60) + " minutes"} old` : ""}. ` +
+            ` within 250nm of the map centre — the upstream feed's limit, so aircraft beyond that ` +
+            "are not missing, just not requested. Positions refresh every 15s; movement between " +
+            "refreshes is estimated from heading and speed. ")}
         {showSub && `${sub ? sub.length : 0} submarine SUPPORT vessels — surface tenders, rescue ships and submersible motherships. Submarines themselves cannot be tracked: AIS is VHF radio and does not travel through seawater. `}
         {showUsv && `${usv ? usv.length : 0} sea drones — filled = identified fleet (Saildrone, DriX and similar), hollow = small unidentified hull. Most military USVs broadcast no AIS at all. `}
         {!showLive && !showHeat && "Tap a cluster to zoom in · rings are ports, dots are airports."}

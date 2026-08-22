@@ -15,7 +15,7 @@ import { watchUserPan, keepInView } from "../mapFollow.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null,
+export default function WorldMap({ aircraft = null, onView = null, feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null,
   // Added Aug 1 so HeatMap can delegate its map here instead of running a second Leaflet
   // instance. Defaults are WorldMap's existing behaviour, so no existing caller changes.
   // scrollWheelZoom MATTERS: the activity map sits in a scrolling panel and wheel-zoom
@@ -125,7 +125,16 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   const showFeedsRef = useRef(showFeeds);
   showFeedsRef.current = showFeeds;
   const usvRef = useRef(usvContacts);
+  const airRef = useRef(null);
+  const onViewRef = useRef(onView);
+  const airTimerRef = useRef(null);
+  // Which aircraft is selected, by ICAO id. A ref, not state: the layer is torn down and rebuilt
+  // twice a second, so anything held in state would be lost on the next redraw — which is exactly
+  // what a tester saw when a click "did not hold".
+  const airSelRef = useRef(null);
   usvRef.current = usvContacts;
+  airRef.current = aircraft;
+  onViewRef.current = onView;
   const subRef = useRef(subContacts);
   subRef.current = subContacts;
   const onOpenVesselRef = useRef(onOpenVessel);
@@ -330,6 +339,106 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
   };
 
   // --- sea drones: hollow rings echo the marine layer's port styling ---
+  // AIRCRAFT. Drawn as small triangles rotated to their heading rather than dots: a dot says
+  // "something is here", a triangle says "something is here going that way", which is the whole
+  // point of live traffic. Colour separates military from civil because that distinction is the
+  // reason this app exists.
+  const drawAir = (lg) => {
+    const payload = airRef.current;
+    const items = payload && payload.items;
+    if (!items || !items.length) return;
+    const map = mapRef.current;
+    const zoom = map ? map.getZoom() : 6;
+    // DEAD RECKONING. Positions arrive every 15s; without this the aircraft sit still and then
+    // jump, which reads as broken rather than live. Each one is advanced along its own broadcast
+    // heading at its own broadcast ground speed. This is ESTIMATED motion, and the footnote says
+    // so — the same distinction the satellite layer draws between observed and computed.
+    const dt = payload.at ? Math.min(30, (Date.now() - payload.at) / 1000) : 0;
+    // Density control, the same lesson the satellite layer learned: past a few hundred contacts a
+    // fixed marker size covers the map instead of describing it. Close in there is room to be
+    // bigger, which is where a silhouette starts to read as a shape rather than a blob.
+    const many = items.length > 400;
+    const size = zoom >= 11 ? 13 : zoom >= 9 ? 10 : many ? 5 : 7;
+    items.forEach((a) => {
+      if (!Number.isFinite(a.lat) || !Number.isFinite(a.lon)) return;
+      // Field names come from the endpoint, not from guesswork: headingDeg, groundSpeedKt,
+      // isDrone and military. The first build read a.heading, which does not exist, so every
+      // aircraft pointed due north — a tester spotted it immediately.
+      const col = a.isDrone ? "#C084FC" : a.military ? "#F0553B" : "#F6A821";
+      const hdg = Number.isFinite(a.headingDeg) ? a.headingDeg : 0;
+      // Nautical miles travelled since the fix, converted to degrees. Longitude shrinks with
+      // latitude, so the cosine matters: without it aircraft near the poles drift sideways.
+      let lat = a.lat, lon = a.lon;
+      if (dt > 0 && Number.isFinite(a.groundSpeedKt) && a.groundSpeedKt > 0 && !a.onGround) {
+        const nm = (a.groundSpeedKt * dt) / 3600;
+        const rad = (hdg * Math.PI) / 180;
+        lat += (nm * Math.cos(rad)) / 60;
+        const cos = Math.cos((a.lat * Math.PI) / 180);
+        if (cos > 0.01) lon += (nm * Math.sin(rad)) / (60 * cos);
+      }
+      // ICAO wake-turbulence CATEGORY, not a guess from the type code. The first attempt matched
+      // B738 as a widebody via a sloppy /^B7[478]/ regex — a 737 is a narrowbody, and 123 of the
+      // 1,088 aircraft in one sample were drawn wrong. The category field says it directly:
+      // A1 light, A2 small, A3 large, A5 heavy, A7 rotorcraft, B1 glider.
+      const heavy = a.category === "A5";
+      const rotor = a.category === "A7";
+      const light = a.category === "A1" || a.category === "B1";
+      const sel = airSelRef.current === a.id;
+      const icon = Leaflet.divIcon({
+        className: "",
+        iconSize: [size * 2, size * 2],
+        iconAnchor: [size, size],
+        // A locked-on target rather than a plain outline: a green ring with a glow, sitting OUTSIDE
+        // the rotating wrapper so the reticle stays upright while the aircraft points along its
+        // heading. The pulse marks it as the thing being watched rather than merely highlighted.
+        html: `${sel ? `<div class="airlock" style="width:${size * 2.6}px;height:${size * 2.6}px;
+            position:absolute;left:${-size * 0.3}px;top:${-size * 0.3}px;border-radius:50%;
+            border:2.5px solid #00FF7F;
+            box-shadow:0 0 10px rgba(0,255,127,1),0 0 20px rgba(0,255,127,0.7),inset 0 0 6px rgba(0,255,127,0.8);
+            background:radial-gradient(circle,rgba(0,255,127,0.18) 40%,transparent 70%);"></div>` : ""}
+          <div style="width:${size * 2}px;height:${size * 2}px;transform:rotate(${hdg}deg);position:relative;">
+          <svg viewBox="0 0 10 10" width="${size * 2}" height="${size * 2}">
+            ${rotor
+              ? `<circle cx="5" cy="5" r="2.2" fill="${col}" stroke="rgba(2,8,16,0.85)" stroke-width="0.8"/><path d="M1 5 H9" stroke="${col}" stroke-width="0.9"/>`
+              : light
+              ? `<circle cx="5" cy="5" r="1.8" fill="${col}" stroke="rgba(2,8,16,0.85)" stroke-width="0.6"/>`
+              : heavy
+              ? `<path d="M5 0 L6 4 L9.6 6.2 L9.6 7.2 L6 6.2 L6 8.4 L7.4 9.6 L7.4 10 L5 9.2 L2.6 10 L2.6 9.6 L4 8.4 L4 6.2 L0.4 7.2 L0.4 6.2 L4 4 Z" fill="${col}" stroke="rgba(2,8,16,0.85)" stroke-width="0.5"/>`
+              : `<path d="M5 0 L9 10 L5 7.6 L1 10 Z" fill="${col}" stroke="rgba(2,8,16,0.85)" stroke-width="0.8"/>`}
+          </svg></div>`,
+      });
+      const isSel = airSelRef.current === a.id;
+      // FOLLOW the locked aircraft, but only when it is about to leave. Recentring on every
+      // redraw — twice a second — would make the map twitch continuously and fight anyone trying
+      // to pan away. Recentring only near the edge keeps the target on screen while leaving the
+      // view still the rest of the time.
+      if (isSel && map) {
+        const inner = map.getBounds().pad(-0.25);
+        if (!inner.contains([lat, lon])) map.panTo([lat, lon], { animate: true, duration: 0.6 });
+      }
+      Leaflet.marker([lat, lon], { icon, interactive: true, zIndexOffset: isSel ? 1000 : 0 })
+        .on("click", function () {
+          // Toggle, and redraw immediately so the ring appears without waiting for the next tick.
+          airSelRef.current = airSelRef.current === a.id ? null : a.id;
+          drawRef.current();
+        })
+        .bindTooltip(
+          // The endpoint knows the aircraft TYPE and registration, not just a callsign. Showing
+          // "AIRBUS A-330-300 · EI-ELA" answers "what is that" far better than a flight number,
+          // which was the tester's complaint about the first version.
+          `<b>${a.callsign || a.id || "unknown"}</b>${a.isDrone ? " · UAV" : a.military ? " · military" : ""}` +
+          `${a.desc ? "<br>" + a.desc : a.typeCode ? "<br>" + a.typeCode : ""}` +
+          `${a.registration ? " · " + a.registration : ""}` +
+          `${Number.isFinite(a.altFt) ? "<br>" + Math.round(a.altFt).toLocaleString() + "ft" : ""}` +
+          `${Number.isFinite(a.groundSpeedKt) ? " · " + Math.round(a.groundSpeedKt) + "kt" : ""}` +
+          `${Number.isFinite(a.verticalRateFpm) && Math.abs(a.verticalRateFpm) > 200
+              ? " · " + (a.verticalRateFpm > 0 ? "climbing" : "descending") : ""}`,
+          { direction: "top", opacity: 0.95 }
+        )
+        .addTo(lg);
+    });
+  };
+
   const drawUsv = (lg) => {
     const items = usvRef.current;
     if (!items || !items.length) return;
@@ -381,6 +490,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     if (!map || !lg) return;
     lg.clearLayers();
     drawHeat(lg);
+    drawAir(lg);
     drawUsv(lg);
     drawSub(lg);
 
@@ -513,7 +623,27 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
       // the same instant. Leaflet pans to fit a popup in view, that pan fires moveend, and
       // moveend redraws: the popup killed itself. HeatMap never hit this because it had no
       // moveend redraw at all; the bug surfaced with the Aug 1 merge onto WorldMap.
-      map.on("moveend zoomend", () => { if (!map._popup) drawRef.current(); });
+      const report = () => {
+        if (!onViewRef.current) return;
+        const c = map.getCenter(), b = map.getBounds();
+        // Half the diagonal in nautical miles: the smallest circle that covers the visible
+        // rectangle, so nothing on screen is missing from the query.
+        const dLat = (b.getNorth() - b.getSouth()) / 2;
+        const dLon = (b.getEast() - b.getWest()) / 2;
+        const nm = Math.hypot(dLat * 60, dLon * 60 * Math.cos((c.lat * Math.PI) / 180));
+        onViewRef.current({ lat: c.lat, lon: c.lng, zoom: map.getZoom(), radiusNm: nm });
+      };
+      report();
+      map.on("moveend zoomend", () => { if (!map._popup) drawRef.current(); report(); });
+
+      // Redrawing only on moveend meant the aircraft sat frozen until the map was touched — a
+      // tester reported exactly that. Twice a second is enough for motion to read as continuous
+      // at these speeds, and cheap because it redraws existing markers rather than fetching.
+      airTimerRef.current = setInterval(() => {
+        if (!map._popup && airRef.current && airRef.current.items && airRef.current.items.length) {
+          drawRef.current();
+        }
+      }, 500);
       map.on("popupclose", () => { if (pendingDraw.current) { pendingDraw.current = false; drawRef.current(); } });
       setTimeout(() => { try { map.invalidateSize(); draw(); } catch { /* not mounted */ } }, 200);
 
@@ -540,6 +670,7 @@ export default function WorldMap({ feeds, selectedId, onSelect, onOpenSighting, 
     return () => {
       try {
         if (roRef.current) { roRef.current.disconnect(); roRef.current = null; }
+        if (airTimerRef.current) { clearInterval(airTimerRef.current); airTimerRef.current = null; }
         if (mapRef.current) { mapRef.current.off("moveend zoomend"); mapRef.current.remove(); mapRef.current = null; }
       } catch { /* already gone */ }
     };
