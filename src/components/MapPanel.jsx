@@ -3,6 +3,7 @@ import { Layers } from "lucide-react";
 import WorldMap from "./WorldMap.jsx";
 import { C } from "../theme.js";
 import { BACKEND_URL } from "../config.js";
+import { airlineFromCallsign, emergencyFromSquawk } from "../airlines.js";
 
 // One map, three switchable layers. Previously these lived on separate maps with separate
 // controls — feeds here, live sweep contacts there, activity heat somewhere else — which
@@ -44,6 +45,9 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   const [showAir, setShowAir] = useState(!isDrones);
   const [air, setAir] = useState(null);
   const [airAge, setAirAge] = useState(null);
+  // The locked aircraft's record. A Leaflet tooltip is hover-only, so on a phone a tap locked the
+  // target and showed nothing at all — the reticle was the only feedback a tester got.
+  const [airSel, setAirSel] = useState(null);
   const [showUsv, setShowUsv] = useState(isDrones);
   const [showSub, setShowSub] = useState(isDrones);
   // If the tab changes while the map stays mounted, re-apply the per-tab defaults so the map
@@ -281,6 +285,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           liveContacts={showLive ? live : null}
           aircraft={showAir ? air : null}
           onView={setView}
+          onAirSelect={setAirSel}
           usvContacts={showUsv ? usv : null}
           subContacts={showSub ? sub : null}
           userLoc={userLoc}
@@ -291,6 +296,49 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           advisories={showAdv && adv ? adv.advisories : null}
         />
       </div>
+
+      {/* DOCKED below the map, not floating beside the aircraft. A floating card needs
+          map-container pixels and a positioned ancestor; this panel has neither to get wrong, and
+          works identically on a phone. The map already keeps the locked aircraft centred, so the
+          target and its details are both in view without either chasing the other.
+
+          NO DEPARTURE OR ARRIVAL. ADS-B does not carry them — aircraft broadcast where they ARE,
+          not where they are going, and `operator` is null on every one. Trackers showing routes
+          license schedule data. The airline below is decoded from the callsign prefix, which is
+          real; a route would be invented. */}
+      {airSel && (
+        <div className="font-mono" style={{ marginTop: 6, padding: "8px 10px", borderRadius: 7,
+          background: "rgba(4,18,31,0.95)", border: "1px solid rgba(0,255,127,0.6)",
+          boxShadow: "0 0 12px rgba(0,255,127,0.2)" }}>
+          <div className="flex items-start justify-between gap-2">
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, color: "#00FF7F" }}>
+                {airlineFromCallsign(airSel.callsign) || airSel.callsign || airSel.id || "unknown"}
+                {airSel.military ? " \u00b7 MIL" : ""}{airSel.isDrone ? " \u00b7 UAV" : ""}
+              </div>
+              <div style={{ fontSize: 10, color: C.dim, marginTop: 1 }}>
+                {airlineFromCallsign(airSel.callsign) && airSel.callsign ? airSel.callsign + " \u00b7 " : ""}
+                {airSel.desc || airSel.typeCode || "type unknown"}
+                {airSel.registration ? " \u00b7 " + airSel.registration : ""}
+              </div>
+            </div>
+            <button onClick={() => setAirSel(null)} aria-label="Close"
+              style={{ color: C.dim, fontSize: 14, lineHeight: 1 }}>&times;</button>
+          </div>
+          <div style={{ fontSize: 11.5, color: "#F6A821", marginTop: 5 }}>
+            {Number.isFinite(airSel.altFt) ? Math.round(airSel.altFt).toLocaleString() + "ft" : "\u2014"}
+            {Number.isFinite(airSel.groundSpeedKt) ? " \u00b7 " + Math.round(airSel.groundSpeedKt) + "kt" : ""}
+            {Number.isFinite(airSel.verticalRateFpm) && Math.abs(airSel.verticalRateFpm) > 200
+              ? (airSel.verticalRateFpm > 0 ? " \u00b7 climbing" : " \u00b7 descending") : ""}
+            {airSel.onGround ? " \u00b7 on the ground" : ""}
+          </div>
+          {emergencyFromSquawk(airSel.squawk) && (
+            <div style={{ fontSize: 10.5, color: "#F0553B", marginTop: 3 }}>
+              {emergencyFromSquawk(airSel.squawk)} \u00b7 squawk {airSel.squawk}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginTop: 4, lineHeight: 1.5 }}>
         {showLive && "violet = UAV · amber = military · hollow = disputed · tap a contact to open its airspace. "}
