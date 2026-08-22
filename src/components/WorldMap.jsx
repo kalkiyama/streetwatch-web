@@ -15,7 +15,7 @@ import { watchUserPan, keepInView } from "../mapFollow.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ aircraft = null, onView = null, feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null,
+export default function WorldMap({ aircraft = null, onView = null, onAirSelect = null, feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null,
   // Added Aug 1 so HeatMap can delegate its map here instead of running a second Leaflet
   // instance. Defaults are WorldMap's existing behaviour, so no existing caller changes.
   // scrollWheelZoom MATTERS: the activity map sits in a scrolling panel and wheel-zoom
@@ -132,9 +132,12 @@ export default function WorldMap({ aircraft = null, onView = null, feeds, select
   // twice a second, so anything held in state would be lost on the next redraw — which is exactly
   // what a tester saw when a click "did not hold".
   const airSelRef = useRef(null);
+  const onAirSelRef = useRef(null);
+  const lastSentRef = useRef(0);
   usvRef.current = usvContacts;
   airRef.current = aircraft;
   onViewRef.current = onView;
+  onAirSelRef.current = onAirSelect;
   const subRef = useRef(subContacts);
   subRef.current = subContacts;
   const onOpenVesselRef = useRef(onOpenVessel);
@@ -408,6 +411,12 @@ export default function WorldMap({ aircraft = null, onView = null, feeds, select
           </svg></div>`,
       });
       const isSel = airSelRef.current === a.id;
+      // Refresh the card as new positions arrive, or its altitude and speed would freeze at the
+      // moment of the tap while the aircraft on screen kept flying.
+      if (isSel && onAirSelRef.current && payload.at !== lastSentRef.current) {
+        lastSentRef.current = payload.at;
+        onAirSelRef.current(a);
+      }
       // FOLLOW the locked aircraft, but only when it is about to leave. Recentring on every
       // redraw — twice a second — would make the map twitch continuously and fight anyone trying
       // to pan away. Recentring only near the edge keeps the target on screen while leaving the
@@ -419,7 +428,11 @@ export default function WorldMap({ aircraft = null, onView = null, feeds, select
       Leaflet.marker([lat, lon], { icon, interactive: true, zIndexOffset: isSel ? 1000 : 0 })
         .on("click", function () {
           // Toggle, and redraw immediately so the ring appears without waiting for the next tick.
-          airSelRef.current = airSelRef.current === a.id ? null : a.id;
+          const now = airSelRef.current === a.id ? null : a.id;
+          airSelRef.current = now;
+          // The record goes UP to the docked card. Without this a tap on a phone locked the target
+          // and showed nothing, because the tooltip beside it is hover-only.
+          if (onAirSelRef.current) onAirSelRef.current(now ? a : null);
           drawRef.current();
         })
         .bindTooltip(
