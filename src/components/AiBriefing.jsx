@@ -168,8 +168,12 @@ export default function AiBriefing({ days = 7 }) {
             )}
             {data.coversPrevWindow === false && (
               <div style={{ marginTop: 4, color: C.amber }}>
-                Archive is {data.archiveAgeHours}h old — shorter than the comparison window, so
-                no week-on-week change can be shown yet.
+                {/* "old" was the wrong word and it inverted the meaning: 820h is how far BACK the
+                    archive reaches, not how stale the data is — the newest rows are seconds old. A
+                    tester read "Archive is 665h old" and reported the site was showing month-old
+                    data with no live traffic. The number was right; the noun was a lie. */}
+                Archive goes back {data.archiveAgeHours}h — less than the comparison window, so
+                no week-on-week change can be shown yet. Live data is current.
               </div>
             )}
             {data.risers && data.risers.length > 0 && (
