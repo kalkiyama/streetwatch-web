@@ -328,7 +328,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           </div>
           {airSel.lost && (
             <div style={{ fontSize: 10.5, color: C.dim, marginTop: 5 }}>
-              Contact lost — it landed, stopped transmitting, or moved beyond the 250nm the feed covers.
+              No longer in the feed. Aircraft drop out when they land, stop transmitting, or leave the covered area.
             </div>
           )}
           {!airSel.lost && <div style={{ fontSize: 11.5, color: "#F6A821", marginTop: 5 }}>
@@ -343,10 +343,14 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
               a live one on the map. */}
           {Number.isFinite(airSel.seenPosSec) && (
             <div style={{ fontSize: 9.5, color: airSel.seenPosSec > 30 ? C.amber : C.faint, marginTop: 4 }}>
-              {airSel.seenPosSec < 2 ? "heard just now" :
-               airSel.seenPosSec < 60 ? `heard ${Math.round(airSel.seenPosSec)}s ago` :
-               `heard ${Math.round(airSel.seenPosSec / 60)}min ago`}
-              {" \u00b7 "}{fmtHm(Date.now() - airSel.seenPosSec * 1000)}
+              {/* "heard" is receiver jargon, and the clock time beside it did not say WHOSE clock —
+                  the same moment reads 04:29 in UTC and 12:29 AM local, and switching the toggle
+                  changed the number with nothing explaining it. */}
+              {airSel.lost ? "last position " : "updated "}
+              {airSel.seenPosSec < 2 ? "just now" :
+               airSel.seenPosSec < 60 ? `${Math.round(airSel.seenPosSec)}s ago` :
+               `${Math.round(airSel.seenPosSec / 60)}min ago`}
+              {" \u00b7 "}{fmtHm(Date.now() - airSel.seenPosSec * 1000)}{isUtc() ? " UTC" : " local"}
             </div>
           )}
           {emergencyFromSquawk(airSel.squawk) && (
