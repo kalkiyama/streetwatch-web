@@ -1,10 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Shield, AlertTriangle, Bug, Info } from "lucide-react";
 import { C, fmtTs, addBaseTiles } from "../theme.js";
 import { guardTouchScroll } from "./mapTouch.js";
 import { BACKEND_URL } from "../config.js";
+
+// three.js is ~150kB gzipped and already lazily loaded for the Space tab; the same chunk serves
+// both, so opening Cyber costs nothing extra for anyone who has visited Space.
+const CyberGlobe = lazy(() => import("./CyberGlobe.jsx"));
+
+// Blue Marble as a BACKDROP rather than a subject: dark and cloud-free so the arcs read against
+// it. A live true-colour image is mostly white cloud and would swallow them.
+const GLOBE_TEXTURE =
+  "https://wvs.earthdata.nasa.gov/api/v1/snapshot?REQUEST=GetSnapshot&TIME=2004-01-01"
+  + "&BBOX=-90,-180,90,180&CRS=EPSG:4326&LAYERS=BlueMarble_ShadedRelief_Bathymetry"
+  + "&FORMAT=image/jpeg&WIDTH=2048&HEIGHT=1024";
 
 // CYBER — what is actually happening on the internet right now, without the missile animation.
 //
@@ -190,6 +201,10 @@ const Panel = ({ icon: Icon, title, note, children }) => (
 );
 
 export default function CyberView() {
+  // GLOBE by default. A tester called this tab "very minimal" beside Space and asked for the same
+  // globe; the flat map stays because it shows every flow at once, which a sphere cannot — half
+  // the planet is always facing away.
+  const [view, setView] = useState("globe");
   const [flows, setFlows] = useState(null);
   const [outages, setOutages] = useState(null);
   const [kev, setKev] = useState(null);
@@ -265,8 +280,53 @@ export default function CyberView() {
 
       <Panel icon={Shield} title="ATTACK FLOWS"
         note={flows?.computedAt ? `last 24h · computed ${fmtTs(flows.computedAt)}` : "loading…"}>
-        <FlowMap flows={mapped} selected={sel} onSelect={setSel}
-          onReady={(m) => { mapRef.current = m; }} />
+        {/* The aspect ratio is for the GLOBE only. FlowMap sets its own height, so forcing 16:10
+            on both left a band of empty background under the flat map. */}
+        <div className="relative" style={view === "globe" ? { aspectRatio: "16 / 10" } : undefined}>
+          {view === "globe" ? (
+            <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center font-mono"
+              style={{ fontSize: 10, color: C.faint }}>loading globe\u2026</div>}>
+              <CyberGlobe flows={mapped} coords={LL} selected={sel} onSelect={setSel}
+                textureUrl={GLOBE_TEXTURE} />
+            </Suspense>
+          ) : (
+            <FlowMap flows={mapped} selected={sel} onSelect={setSel}
+              onReady={(m) => { mapRef.current = m; }} />
+          )}
+          {/* WHAT AN ARC MEANS, in words. A line between PL and CL says something travelled between
+              two two-letter codes: not which countries, and not what the traffic was. Cloudflare
+              is measuring HTTP requests its WAF classified as attack traffic, counted by origin
+              and target over 24 hours — not intrusions, not breaches, and no attribution to anyone.
+              Stating that once beside the selected arc does more than the paragraph below ever did. */}
+          {view === "globe" && sel != null && mapped[sel] && (
+            <div className="absolute font-mono" style={{ left: 8, right: 8, bottom: 8, zIndex: 500,
+              background: "rgba(10,13,18,0.92)", border: `1px solid ${C.line}`,
+              borderRadius: 6, padding: "6px 9px" }}>
+              <div style={{ fontSize: 11.5, color: "#F6A821" }}>
+                {mapped[sel].domestic
+                  ? `${mapped[sel].originName} \u2192 itself`
+                  : `${mapped[sel].originName} \u2192 ${mapped[sel].targetName}`}
+                {" \u00b7 "}{mapped[sel].pct.toFixed(2)}%
+              </div>
+              <div style={{ fontSize: 9, color: C.faint, marginTop: 2, lineHeight: 1.4 }}>
+                share of requests Cloudflare's filters classified as attack traffic, last 24h.
+                Not intrusions or breaches, and not attributed to anyone — only where the
+                requests came from and went.
+              </div>
+            </div>
+          )}
+          <div className="absolute font-mono" style={{ right: 8, top: 8, zIndex: 500, display: "flex", gap: 3 }}>
+            {[["globe", "GLOBE"], ["map", "MAP"]].map(([k, label]) => (
+              <button key={k} onClick={() => setView(k)} className="rounded"
+                style={{ fontSize: 8.5, padding: "3px 7px",
+                  color: view === k ? "#0A0D12" : C.dim,
+                  background: view === k ? C.dim : "rgba(10,13,18,0.75)",
+                  border: `1px solid ${C.line}` }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div style={{ borderTop: `1px solid ${C.line}` }}>
           {/* CLEAR THE OUTAGE MARKER IN THE CLICK HANDLER, not in the map effect. That effect
               returns early when `selected` is null, so toggling a flow OFF left the outage circle
