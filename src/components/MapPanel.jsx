@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Layers } from "lucide-react";
 import WorldMap from "./WorldMap.jsx";
-import { C, fmtHm } from "../theme.js";
+import { C, fmtHm, isUtc } from "../theme.js";
 import { BACKEND_URL } from "../config.js";
 import { airlineFromCallsign, emergencyFromSquawk } from "../airlines.js";
 
