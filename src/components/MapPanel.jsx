@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Layers } from "lucide-react";
 import WorldMap from "./WorldMap.jsx";
-import { C } from "../theme.js";
+import { C, fmtHm } from "../theme.js";
 import { BACKEND_URL } from "../config.js";
 import { airlineFromCallsign, emergencyFromSquawk } from "../airlines.js";
 
@@ -338,6 +338,17 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
               ? (airSel.verticalRateFpm > 0 ? " \u00b7 climbing" : " \u00b7 descending") : ""}
             {airSel.onGround ? " \u00b7 on the ground" : ""}
           </div>}
+          {/* WHEN it was last heard, per aircraft. Most contacts are sub-second fresh (median 0.3s
+              in a 198-aircraft sample) but the tail reaches 45s, and a stale one looks identical to
+              a live one on the map. */}
+          {Number.isFinite(airSel.seenPosSec) && (
+            <div style={{ fontSize: 9.5, color: airSel.seenPosSec > 30 ? C.amber : C.faint, marginTop: 4 }}>
+              {airSel.seenPosSec < 2 ? "heard just now" :
+               airSel.seenPosSec < 60 ? `heard ${Math.round(airSel.seenPosSec)}s ago` :
+               `heard ${Math.round(airSel.seenPosSec / 60)}min ago`}
+              {" \u00b7 "}{fmtHm(Date.now() - airSel.seenPosSec * 1000)}
+            </div>
+          )}
           {emergencyFromSquawk(airSel.squawk) && (
             <div style={{ fontSize: 10.5, color: "#F0553B", marginTop: 3 }}>
               {emergencyFromSquawk(airSel.squawk)} \u00b7 squawk {airSel.squawk}

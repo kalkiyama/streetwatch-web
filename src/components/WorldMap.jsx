@@ -348,6 +348,38 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
   // "something is here", a triangle says "something is here going that way", which is the whole
   // point of live traffic. Colour separates military from civil because that distinction is the
   // reason this app exists.
+  // THE BOUNDARY OF THE QUESTION, drawn. The upstream feed serves 250nm around a point and no
+  // more, so at wider zooms traffic appears as a disc in the middle of an empty screen with
+  // nothing saying why — which reads as broken coverage rather than as a limit. A tester
+  // reported exactly that over Asia, and it confused us too. Outside this ring nothing was
+  // asked for, which is a different claim from nothing being there.
+  //
+  // Only drawn when it is legible: zoomed right in the circle is off-screen anyway and the line
+  // would be clutter.
+  const drawAirRing = (lg) => {
+    const payload = airRef.current;
+    if (!payload || !payload.items || !payload.items.length) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const c = map.getCenter();
+    const b = map.getBounds();
+    // Half the visible height in nautical miles. If the ring is far larger than the screen it has
+    // nothing to explain, so it is skipped.
+    const halfNm = ((b.getNorth() - b.getSouth()) / 2) * 60;
+    if (halfNm > 250) return;
+    Leaflet.circle([c.lat, c.lng], {
+      radius: 250 * 1852,                      // nautical miles to metres
+      // Weight and opacity raised deliberately: 1px at 0.35 was legible to good eyesight on a big
+      // screen and effectively invisible otherwise, which defeats the point of drawing a boundary
+      // to explain something. A faint hint someone has to hunt for is not an explanation.
+      // Cyan, not amber. Amber is CIVIL AIRCRAFT on this map, so an amber ring read as another
+      // contact rather than as a boundary — the line and the things inside it were saying the same
+      // thing in the same voice. Cyan belongs to no contact type here.
+      color: "#22D3EE", weight: 2, opacity: 0.85,
+      dashArray: "8 6", fill: false, interactive: false,
+    }).addTo(lg);
+  };
+
   const drawAir = (lg) => {
     const payload = airRef.current;
     const items = payload && payload.items;
@@ -522,6 +554,7 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
     if (!map || !lg) return;
     lg.clearLayers();
     drawHeat(lg);
+    drawAirRing(lg);
     drawAir(lg);
     drawUsv(lg);
     drawSub(lg);
