@@ -48,6 +48,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   // The locked aircraft's record. A Leaflet tooltip is hover-only, so on a phone a tap locked the
   // target and showed nothing at all — the reticle was the only feedback a tester got.
   const [airSel, setAirSel] = useState(null);
+  const [why, setWhy] = useState(false);
   const [showUsv, setShowUsv] = useState(isDrones);
   const [showSub, setShowSub] = useState(isDrones);
   // If the tab changes while the map stays mounted, re-apply the per-tab defaults so the map
@@ -345,6 +346,30 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
         </div>
       )}
 
+      {/* ONE LINE by default, the rest behind a toggle. Every active layer added its own
+          paragraph here unconditionally, so turning on five layers produced five paragraphs of
+          explanation under a map — more reading than looking, on a page whose whole point is
+          looking. The explanations are the app's differentiator and are not cut; they are just no
+          longer shouted at someone who did not ask. Same pattern as the Space tab's Why? toggle. */}
+      <div className="font-mono flex items-center justify-center gap-2" style={{ fontSize: 9, color: C.faint, marginTop: 4 }}>
+        <span>
+          {[showLive && live && `${live.length} contacts`,
+            showAir && air && air.items && `${air.items.length} aircraft`,
+            showUsv && usv && `${usv.length} sea drones`,
+            showSub && sub && `${sub.length} support vessels`,
+            showHeat && heat && `${heat.length} watched sites`,
+          ].filter(Boolean).join(" \u00b7 ") || "Tap a cluster to zoom in \u00b7 rings are ports, dots are airports"}
+        </span>
+        {/* A FAILURE stays visible. Everything else here answers a question someone might ask;
+            "live aircraft unavailable" answers one they have not thought to ask yet, and hiding it
+            behind a toggle means a broken layer looks like an empty one. */}
+        {note && <span style={{ color: C.amber }}>{note}</span>}
+        <button onClick={() => setWhy((v) => !v)} className="rounded"
+          style={{ fontSize: 9, padding: "0 5px", color: C.dim, border: `1px solid ${C.line}`, whiteSpace: "nowrap" }}>
+          {why ? "Less" : "Why?"}
+        </button>
+      </div>
+      {why && (
       <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginTop: 4, lineHeight: 1.5 }}>
         {showLive && "violet = UAV · amber = military · hollow = disputed · tap a contact to open its airspace. "}
         {showHeat && "Activity is measured from ADS-B broadcasters only; aircraft with transponders off are not counted. "}
@@ -362,8 +387,8 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
         {showSub && `${sub ? sub.length : 0} submarine SUPPORT vessels — surface tenders, rescue ships and submersible motherships. Submarines themselves cannot be tracked: AIS is VHF radio and does not travel through seawater. `}
         {showUsv && `${usv ? usv.length : 0} sea drones — filled = identified fleet (Saildrone, DriX and similar), hollow = small unidentified hull. Most military USVs broadcast no AIS at all. `}
         {!showLive && !showHeat && "Tap a cluster to zoom in · rings are ports, dots are airports."}
-        {note && ` · ${note}`}
       </div>
+      )}
     </div>
   );
 }
