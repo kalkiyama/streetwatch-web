@@ -1,12 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { ExternalLink } from "lucide-react";
 import { C, LAYERS } from "../theme.js";
-
-export function useClock() {
-  const [now, setNow] = useState(new Date());
-  useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
-  return now;
-}
 
 // Animated live preview for camera layers.
 export function LiveViewport({ cam, now, onOpen }) {
