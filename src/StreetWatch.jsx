@@ -550,7 +550,13 @@ export default function StreetWatch() {
             of the panel) to widen or narrow the list — no JS, no library, remembered nowhere
             on purpose (refresh restores the default). Phones keep the stacked layout. */}
         <aside className="w-full flex-shrink-0" style={{ background: C.panel }}>
-          <div className="p-3 flex flex-wrap items-center gap-x-4 gap-y-2" style={{ borderBottom: `1px solid ${C.line}` }}>
+          {/* COLUMN, not a wrapping row. As a row every filter group was a flex ITEM, so they sat
+              side by side and only broke when width ran out — LAYERS beside the search box, REGION
+              beside the country dropdown, and each group's label separated from the controls it
+              named. That is what two testers described as options sharing a line with nothing
+              saying which control they belonged to. A column gives each group its own row at every
+              width, and the centring inside each row then actually applies. */}
+          <div className="p-3 flex flex-col items-stretch gap-y-2" style={{ borderBottom: `1px solid ${C.line}` }}>
             {/* The search box filters the FEED CATALOG. On Cyber there is no catalog, so typing
                 did nothing at all — a control that cannot act is worse than no control. */}
             {browsesFeeds && (
@@ -588,8 +594,12 @@ export default function StreetWatch() {
                 feed browsing. On Cyber there is no catalog to filter, so these would offer to
                 narrow a list that does not exist. */}
             {browsesFeeds && (<>
-            <div className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1 }}>PUBLIC LAYERS</div>
-            <div className="flex flex-wrap gap-1.5">
+            {/* Each filter group gets its OWN centred row with its label beside it. Left-aligned
+                blocks with the label floating above wrapped into each other on a phone — two
+                testers reported options sharing a line with nothing saying which control they
+                belonged to. Centring also matches the tab pill and the Space tab controls. */}
+            <div className="font-mono flex items-center justify-center gap-1.5 flex-wrap" style={{ marginTop: 6 }}>
+              <span style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginRight: 2 }}>LAYERS</span>
               {tabLayers.map((k) => {
                 const L = LAYERS[k]; const on = active.includes(k); const Icon = L.icon;
                 return (
@@ -601,8 +611,9 @@ export default function StreetWatch() {
                 );
               })}
             </div>
-            <div className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1 }}>REGION</div>
-            <div className="flex flex-wrap gap-1.5 pb-1">
+            {/* Row 3 — region */}
+            <div className="font-mono flex items-center justify-center gap-1.5 flex-wrap" style={{ marginTop: 6 }}>
+              <span style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginRight: 2 }}>REGION</span>
               {continents.map((ct) => (
                 <button key={ct} onClick={() => { setContinent(ct); setCountry("All"); }}
                   className="px-2 py-1 rounded font-mono flex-shrink-0"
@@ -618,6 +629,8 @@ export default function StreetWatch() {
                 <label>, so nothing associates it with this control programmatically. A screen
                 reader announced an unlabelled dropdown. Flagged by the Aug 2 accessibility
                 audit — the only failure that was not the C.faint contrast problem. */}
+            {/* Row 4 — country */}
+            <div className="flex items-center justify-center" style={{ marginTop: 6 }}>
             <select value={country} onChange={(e) => setCountry(e.target.value)}
               aria-label="Filter feeds by country"
               className="px-2.5 rounded font-mono"
@@ -625,9 +638,10 @@ export default function StreetWatch() {
                 border: `1px solid ${C.line}`, minWidth: 150, maxWidth: 200 }}>
               {countries.map((cn) => <option key={cn} value={cn} style={{ background: C.panel }}>{cn === "All" ? "All countries" : cn}</option>)}
             </select>
+            </div>
             {(continent !== "All" || country !== "All") && (
               <button onClick={() => { setContinent("All"); setCountry("All"); }}
-                className="mt-2 font-mono flex items-center gap-1" style={{ fontSize: 10, color: C.faint }}>
+                className="mt-2 font-mono flex items-center justify-center gap-1 w-full" style={{ fontSize: 10, color: C.faint }}>
                 <X size={11} /> clear region
               </button>
             )}
@@ -703,7 +717,8 @@ export default function StreetWatch() {
                 few exact matches — showing {search.fuzzy} close spelling{search.fuzzy === 1 ? "" : "s"} too
               </div>
             )}
-            <div className="flex items-center gap-1 mt-2">
+            {/* Row 5 — favourites and location */}
+            <div className="flex items-center justify-center gap-1 mt-2">
               {/* BOTH options shown, active one filled — the single chip displayed only the
                   CURRENT state, so it read as a label rather than a control and gave no hint what
                   the alternative was. Same shape and colours as the LIST/MAP pair beside it. */}
@@ -717,7 +732,12 @@ export default function StreetWatch() {
                 style={{ fontSize: 10, color: nearMe ? C.ink : C.dim, background: nearMe ? C.cyan : C.panel2, border: `1px solid ${nearMe ? C.cyan : C.line}` }}>
                 <Navigation size={11} /> Near me
               </button>
-              <span className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginLeft: 8, marginRight: 4 }}>TIMES</span>
+            </div>
+            {/* Row 6 — clock and the result count. Split from the row above because four controls
+                and a count wrapped mid-group on a phone, leaving UTC and LOCAL orphaned on a line
+                with nothing explaining them. */}
+            <div className="flex items-center justify-center gap-1 mt-2">
+              <span className="font-mono" style={{ fontSize: 9, color: C.faint, letterSpacing: 1, marginRight: 4 }}>TIMES</span>
               {[[true, "UTC"], [false, "LOCAL"]].map(([v, label]) => (
                 <button key={label} onClick={() => { setUtc(v); bumpTz((n) => n + 1); }}
                   className="px-2.5 py-1 rounded font-mono"
