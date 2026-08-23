@@ -207,7 +207,10 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
           Only aircraft that broadcast are visible — an empty airspace means nothing was seen there.
           {" "}
           <button onClick={() => setWhy((v) => !v)}
-            style={{ color: C.dim, background: "none", border: "none", padding: 0,
+            // Cyan, not C.dim. The INLINE shape is right — these sit at the end of a sentence, where a
+          // bordered button would interrupt the prose — but dim grey underlined text recedes into
+          // the background and reads as an aside rather than a control.
+          style={{ color: C.cyan, background: "none", border: "none", padding: 0,
               textDecoration: "underline", cursor: "pointer", fontSize: 9.5 }}>
             {why ? "less" : "why?"}
           </button>

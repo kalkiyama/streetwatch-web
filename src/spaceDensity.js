@@ -81,7 +81,11 @@ export function createDensityController(onChange) {
 // unexplained. "3,000 of 10,754" alone reads like a failure; saying why it is 3,000 does not.
 export function densityNote(limit, plotted, total, auto) {
   if (!total) return "";
-  if (!limit || plotted >= total) return `${total.toLocaleString()} plotted \u2014 the full set`;
+  // "the full set" claimed completeness of the CATEGORY when it only ever meant "nothing was
+  // dropped by the plot limit". Harmless for Starlink, badly wrong for the military group, whose
+  // heading has to say "not all that fly" while this line said the opposite directly beneath it.
+  // "all N available" is the same fact without the stronger claim.
+  if (!limit || plotted >= total) return `all ${total.toLocaleString()} available`;
   const of = `${plotted.toLocaleString()} of ${total.toLocaleString()}`;
   return auto
     ? `${of} \u2014 an even sample, adjusted to keep this device smooth`
