@@ -14,7 +14,14 @@ export default function EarthView({ center }) {
   const [back, setBack] = useState(1);
   const [err, setErr] = useState(false);
   const violet = "#A78BFA";
-  const date = new Date(Date.now() - back * 86400000);
+  // The clock is read ONCE, at mount, and every date derives from that. useMemo did not help:
+  // its callback still runs during render, which is what the rule objects to. A lazy useState
+  // initialiser runs once and never again.
+  //
+  // It also fixes a real latent bug — reading Date.now() inline meant the imagery could roll to a
+  // new day mid-session, silently swapping the picture someone was looking at.
+  const [today] = useState(() => Date.now());
+  const date = new Date(today - back * 86400000);
   const time = ymd(date);
   const latSpan = 18, lonSpan = 24;
   const minLat = Math.max(-90, center.lat - latSpan / 2), maxLat = Math.min(90, center.lat + latSpan / 2);
