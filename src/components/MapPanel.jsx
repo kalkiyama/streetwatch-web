@@ -49,6 +49,14 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   // target and showed nothing at all — the reticle was the only feedback a tester got.
   const [airSel, setAirSel] = useState(null);
   const [why, setWhy] = useState(false);
+  // A ticking clock, so "17s ago" actually ages while you watch it. Reading Date.now() during
+  // render both froze the number until new data arrived AND made render impure — the same
+  // problem, and one fix. One second is the smallest step the text can express.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
   const [showUsv, setShowUsv] = useState(isDrones);
   const [showSub, setShowSub] = useState(isDrones);
   // If the tab changes while the map stays mounted, re-apply the per-tab defaults so the map
@@ -350,10 +358,13 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
                   the same moment reads 04:29 in UTC and 12:29 AM local, and switching the toggle
                   changed the number with nothing explaining it. */}
               {airSel.lost ? "last position " : "updated "}
-              {airSel.seenPosSec < 2 ? "just now" :
-               airSel.seenPosSec < 60 ? `${Math.round(airSel.seenPosSec)}s ago` :
-               `${Math.round(airSel.seenPosSec / 60)}min ago`}
-              {" \u00b7 "}{fmtHm(Date.now() - airSel.seenPosSec * 1000)}{isUtc() ? " UTC" : " local"}
+              {(() => {
+                // Age from the fix time, recomputed as `now` ticks. seenPosSec was a snapshot taken
+                // when the payload arrived, so on its own it never grew.
+                const age = airSel.seenPosSec + (now - (airSel._at || now)) / 1000;
+                return age < 2 ? "just now" : age < 60 ? `${Math.round(age)}s ago` : `${Math.round(age / 60)}min ago`;
+              })()}
+              {" \u00b7 "}{fmtHm((airSel._at || now) - airSel.seenPosSec * 1000)}{isUtc() ? " UTC" : " your time"}
             </div>
           )}
           {emergencyFromSquawk(airSel.squawk) && (
