@@ -72,7 +72,10 @@ export const GROUP_INFO = {
     text: "Television, communications and relay craft parked 35,786km up, where an orbit takes exactly one day so they hang over a fixed spot. This is why satellite dishes never move.",
   },
   military: {
-    what: "Military — CelesTrak's listed set",
+    // The ONLY heading here carrying a caveat, because for this group the COUNT is the misleading
+    // part: "Military · 24 plotted — the full set" invites the conclusion that two dozen military
+    // satellites exist. That correction cannot sit behind a tap.
+    what: "Military — the 24 CelesTrak publishes, not all that fly",
     text: "The objects CelesTrak publishes under its military heading: around two dozen reconnaissance craft, mostly German SAR-Lupe and French Helios. NOT a complete list of military satellites — most are unpublished or not identified as such, and this app does not guess.",
   },
   science: {

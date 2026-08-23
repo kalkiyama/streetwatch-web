@@ -100,6 +100,7 @@ export default function SpaceView() {
   // they are hidden behind a toggle rather than cut.
   const [showLayers, setShowLayers] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   // How many objects to plot is MEASURED, not guessed. A budget Android and a flagship are both
   // "mobile", and the gap between them is wider than the gap between the flagship and a laptop —
   // a tester on a cheap phone watched Starlink crawl while the same build ran clean on an S26
@@ -531,12 +532,24 @@ export default function SpaceView() {
           would recreate the wall of text this layout already had to fix once. */}
       {described && GROUP_INFO[described] && (
         <div className="px-3 py-2" style={{ borderTop: `1px solid ${C.line}`, background: "rgba(4,18,31,0.45)" }}>
-          <div className="font-mono" style={{ fontSize: 10, color: GROUP_COLOR[described] || C.dim, letterSpacing: 0.4 }}>
-            {GROUP_INFO[described].what}
+          {/* The HEADING stays — "Navigation constellations" is four words and answers the question
+              a chip reading "GNSS" raises. The paragraph beneath it does not: it is worth reading
+              once and then never again, and shown unconditionally it is a wall of text under a map
+              on every single toggle. Same collapse the map footnote already uses. */}
+          <div className="flex items-center gap-2">
+            <span className="font-mono" style={{ fontSize: 10, color: GROUP_COLOR[described] || C.dim, letterSpacing: 0.4 }}>
+              {GROUP_INFO[described].what}
+            </span>
+            <button onClick={() => setShowInfo((v) => !v)} className="rounded font-mono"
+              style={{ fontSize: 9.5, padding: "1px 7px", color: C.cyan, background: "rgba(34,211,238,0.10)", border: `1px solid ${C.cyan}66`, whiteSpace: "nowrap" }}>
+              {showInfo ? "Less" : "More"}
+            </button>
           </div>
-          <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.45, marginTop: 2 }}>
-            {GROUP_INFO[described].text}
-          </div>
+          {showInfo && (
+            <div style={{ fontSize: 11, color: C.dim, lineHeight: 1.45, marginTop: 3 }}>
+              {GROUP_INFO[described].text}
+            </div>
+          )}
         </div>
       )}
 
@@ -549,7 +562,7 @@ export default function SpaceView() {
 
           </span>
           <button onClick={() => setShowWhy((v) => !v)} className="rounded"
-            style={{ fontSize: 9, padding: "1px 5px", color: C.dim, border: `1px solid ${C.line}`, whiteSpace: "nowrap" }}>
+            style={{ fontSize: 9.5, padding: "1px 7px", color: C.cyan, background: "rgba(34,211,238,0.10)", border: `1px solid ${C.cyan}66`, whiteSpace: "nowrap" }}>
             {showWhy ? "Less" : "Why?"}
           </button>
         </div>

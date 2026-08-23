@@ -233,7 +233,10 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
         <div className="font-mono" style={{ fontSize: 9, color: C.faint, marginBottom: 5, lineHeight: 1.5 }}>
           LIVE shows the whole sweep — a radar below shows one site, right now.{" "}
           <button onClick={() => setWhyLive((v) => !v)}
-            style={{ color: C.dim, background: "none", border: "none", padding: 0,
+            // Cyan, not C.dim. The INLINE shape is right — these sit at the end of a sentence, where a
+          // bordered button would interrupt the prose — but dim grey underlined text recedes into
+          // the background and reads as an aside rather than a control.
+          style={{ color: C.cyan, background: "none", border: "none", padding: 0,
               textDecoration: "underline", cursor: "pointer", font: "inherit" }}>
             {whyLive ? "less" : "why?"}
           </button>
@@ -380,7 +383,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
             behind a toggle means a broken layer looks like an empty one. */}
         {note && <span style={{ color: C.amber }}>{note}</span>}
         <button onClick={() => setWhy((v) => !v)} className="rounded"
-          style={{ fontSize: 9, padding: "0 5px", color: C.dim, border: `1px solid ${C.line}`, whiteSpace: "nowrap" }}>
+          style={{ fontSize: 9.5, padding: "1px 7px", color: C.cyan, background: "rgba(34,211,238,0.10)", border: `1px solid ${C.cyan}66`, whiteSpace: "nowrap" }}>
           {why ? "Less" : "Why?"}
         </button>
       </div>
