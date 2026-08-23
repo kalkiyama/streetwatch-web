@@ -750,7 +750,13 @@ export default function StreetWatch() {
                 </button>
               ))}
               <span style={{ fontSize: 10, color: C.faint, marginLeft: 4 }}>
-                {`${results.length.toLocaleString()} feeds`}
+                {/* A DENOMINATOR when filtered. "3 feeds" after picking a country reads as a broken
+                    filter; "3 of 308" reads as a fact. The Drones catalogue is genuinely thin —
+                    34 sites for the whole United States, 5 for Canada — so most country selections
+                    return one or two, and a tester reported that as airports failing to show. */}
+                {results.length === CATALOG.filter((c) => tab === "drones" ? c.tag === "uav" : c.tag !== "uav").length
+                  ? `${results.length.toLocaleString()} feeds`
+                  : `${results.length.toLocaleString()} of ${CATALOG.filter((c) => tab === "drones" ? c.tag === "uav" : c.tag !== "uav").length.toLocaleString()} feeds`}
               </span>
             </div>
             </>)}
