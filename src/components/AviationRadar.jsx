@@ -85,7 +85,7 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
     }, 12000);                                   // 12s ≈ two polls; long enough to be fair
     return () => { clearInterval(id); clearTimeout(stop); };
   }, []);
-  const acRef = useRef({}); const lastRef = useRef(Date.now()); const liveRef = useRef(false); const failRef = useRef(0);
+  const acRef = useRef({}); const lastRef = useRef(0); const liveRef = useRef(false); const failRef = useRef(0);
 
   useEffect(() => {
     // NEVER SEED SIMULATED CONTACTS WHEN A BACKEND IS CONFIGURED. This line used to run on
@@ -123,7 +123,10 @@ export default function AviationRadar({ center, initialRadius, onRadius, initial
     poll();
     const pollId = BACKEND_URL ? setInterval(poll, 5000) : null;
     const tickId = setInterval(() => {
-      const now = Date.now(), dt = (now - lastRef.current) / 1000; lastRef.current = now;
+      // lastRef starts at 0, not Date.now(): reading the clock in a useRef argument runs on every
+      // render for a value only the first one uses. The guard below keeps the first tick's dt sane
+      // — without it the opening frame computes 1.7 billion seconds of elapsed time.
+      const now = Date.now(), dt = lastRef.current ? (now - lastRef.current) / 1000 : 0; lastRef.current = now;
       Object.values(acRef.current).forEach((a) => {
         a.tn = (a.tn || 0) + 1;
         // Drones loiter for hours — keep a much longer track for them than for airliners.
