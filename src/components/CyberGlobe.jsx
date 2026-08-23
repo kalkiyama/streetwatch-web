@@ -227,7 +227,7 @@ export default function CyberGlobe({ flows, coords, selected, onSelect, textureU
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
     };
     // Mounts once; live values are read through liveRef so a selection never rebuilds the context.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [textureUrl]);
 
   return (
