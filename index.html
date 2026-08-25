@@ -88,7 +88,34 @@
           24/7 military &amp; drone watch across a thousand-plus airspaces, with a 90-day public archive.
           Public feeds only, and it states plainly what it cannot see.
         </p>
-        <p style="font-size:12px;opacity:.55;margin:0">Loading the live console…</p>
+        <!-- Hidden when scripts are off, because the noscript box below says the opposite: leaving
+             "Loading…" above "nothing will load" shows a visitor a promise and its retraction at
+             the same time. The <style> only applies inside <noscript>, so with scripts on this
+             behaves exactly as before. -->
+        <noscript><style>.sw-loading{display:none}</style></noscript>
+        <p class="sw-loading" style="font-size:12px;opacity:.55;margin:0">Loading the live console…</p>
+        <!-- Without this, a visitor with scripts disabled sits on "Loading the live console…" for
+             ever, with nothing saying it will never finish. Found by serving this app over a Tor
+             onion address: Tor Browser's "Safest" level disables JavaScript on every site, and
+             that is the level the people most motivated to use Tor are likeliest to choose.
+             A privacy extension or a locked-down work browser does the same thing.
+             Those are deliberate choices, so this addresses them as such rather than as a fault. -->
+        <noscript>
+          <div style="max-width:460px;margin:14px 0 0;padding:14px 16px;border:1px solid #2A3340;border-radius:8px;background:#131822;text-align:left">
+            <p style="margin:0 0 8px;font-size:13px;color:#F6A821">This console needs JavaScript, and it is switched off.</p>
+            <p style="margin:0 0 8px;font-size:12.5px;line-height:1.55;opacity:.8">
+              Everything here is drawn live from public feeds — aircraft broadcasting their own
+              positions, ships on AIS, satellites computed from published orbital elements — so
+              there is no static page to fall back to. Nothing will load until scripts are allowed.
+            </p>
+            <p style="margin:0;font-size:12px;line-height:1.55;opacity:.6">
+              If you are on Tor Browser, this is the “Safest” security level. The sources are named
+              on every panel and are all public: airplanes.live, aisstream.io, Fintraffic,
+              Kystverket, CelesTrak, NASA GIBS and Cloudflare Radar. You can read them directly
+              without this site.
+            </p>
+          </div>
+        </noscript>
       </main>
     </div>
     <script type="module" src="/src/main.jsx"></script>
