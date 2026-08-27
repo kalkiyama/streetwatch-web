@@ -1,4 +1,4 @@
-import { X, Globe, Plane, Ship, Layers, Camera, Share2, Hand, Sparkles } from "lucide-react";
+import { X, Globe, Plane, Share2, Sparkles, Satellite, Shield, Server } from "lucide-react";
 import { C } from "../theme.js";
 import { useEffect, useState } from "react";
 import { BACKEND_URL } from "../config.js";
@@ -25,6 +25,11 @@ export default function Intro({ open, onClose, feedCount = null }) {
   // Coverage figures are FETCHED, never typed. Hardcoding them meant the welcome screen quietly
   // described an older, smaller product every time coverage grew. If the fetch fails we fall back
   // to durable language ("1,000+") rather than a specific number that might now be wrong.
+  // THREE sections open, four behind a toggle. Seven at once was around 400 words aimed at a
+  // first-time visitor — the person least invested in reading any of it, and most likely to close
+  // the box rather than work through it. Drones is the thing nobody else does; Space and Data are
+  // the two that look like something the moment they load. Those three earn the space.
+  const [more, setMore] = useState(false);
   const [cov, setCov] = useState(null);
   useEffect(() => {
     if (!open || cov) return;
@@ -73,35 +78,61 @@ export default function Intro({ open, onClose, feedCount = null }) {
           </button>
         </div>
 
-        <S icon={Globe} color={C.cyan} title="World — find anything">
-          Search {feedText} feeds (typos are fine), or tap <b>MAP</b> to browse the whole planet
-          visually. Tap a cluster to zoom in; tap a dot to open it. Cyan dots are airports,
-          blue rings are ports. Every filter — layer, region, search — updates the map live.
+        {/* ORGANISED BY TAB, because that is what a visitor sees. The previous version was
+            arranged by feature — World, Layers, Marine, Cameras — and had never been updated as
+            the app grew: Space, Cyber and Data were not mentioned once, so three of five tabs were
+            invisible to anyone reading the guide. The app explains its data scrupulously and had
+            drifted back into not explaining ITSELF.
+
+            Each line says what is BEHIND the tab, not what category it belongs to. "Orbital
+            tracking" is a label; "16,000 satellites on a globe lit by the real sun" is a reason to
+            press it. */}
+
+        <S icon={Plane} color={C.amber} title="Drones — the watch nobody else runs">
+          A sweep patrols <b>{airspaceText} airspaces</b> around the clock — {namedText} named
+          military airfields across {countryText}, plus a global grid that finds activity nobody
+          thought to watch{cov && cov.gridPromoted ? ` (${cov.gridPromoted} grid cells have already been promoted for producing contacts)` : ""}.
+          Contacts are filterable to <b>MIL / UAV</b>, every track can be replayed from the{" "}
+          <b>90-day archive</b>, and <b>AT FIELD</b> ranks bases by aircraft seen within 10nm below
+          4,000ft — activity at the runway itself rather than the airspace around it. Those are very
+          different numbers, and the gap between them is usually the interesting part.
         </S>
 
-        <S icon={Layers} color="#C084FC" title="Map layers — compose your view">
-          On the map, switch on <b style={{ color: "#C084FC" }}>LIVE DRONES</b> (military &amp; UAV
-          contacts right now), <b style={{ color: "#F6A821" }}>ACTIVITY</b> (where they concentrate
-          over 1–90 days), <b style={{ color: "#2DD4BF" }}>SEA DRONES</b> and{" "}
-          <b style={{ color: "#F0553B" }}>SUB SUPPORT</b> (surface ships around submarine
-          operations). Layers stack. Tap any contact to open its radar with it selected.
+        {!more && (
+          <button onClick={() => setMore(true)} className="rounded font-mono w-full"
+            style={{ fontSize: 11, padding: "7px 10px", marginBottom: 14, color: C.cyan,
+              background: "rgba(34,211,238,0.08)", border: `1px solid ${C.cyan}44` }}>
+            Also here: every other live feed, cyber attack flows, AI analysis, sharing
+          </button>
+        )}
+        {more && (<>
+        <S icon={Globe} color={C.cyan} title="World — everything else that moves">
+          {feedText} public feeds: airports, ports, weather satellites, webcams, wildlife.
+          Search it (typos are fine) or browse the map. Switch on live aircraft, ships, sea drones
+          and submarine-support vessels; layers stack. Tap any contact to open its radar with that
+          aircraft or ship already selected.
         </S>
 
-        <S icon={Plane} color={C.amber} title="Drones — the watch">
-          A sweep patrols <b>{airspaceText} airspaces</b> around the clock — {namedText} named military airfields across {countryText}, plus a global grid that finds activity nobody thought to watch{cov && cov.gridPromoted ? ` (${cov.gridPromoted} grid cells have already been promoted for producing contacts)` : ""}. It keeps a
-          <b> 90-day public archive</b>, and lets you replay any contact&rsquo;s recorded track on a
-          map. Radars filter to <b>MIL / UAV</b> and flip between radar and real-geography views.
+        <S icon={Satellite} color="#A78BFA" title="Space — 16,000 satellites, right now">
+          A globe lit by the real sun, with city lights on the night side and every active satellite
+          computed for this moment from published orbital elements. Toggle Starlink, GPS, weather,
+          Earth imaging or the whole catalogue. Speed time up to watch a day pass in minutes. The
+          ISS is tracked live and modelled separately, because its position is <i>observed</i> while
+          the rest are <i>computed</i>.
         </S>
 
-        <S icon={Ship} color="#2563EB" title="Marine — live ships">
-          Live vessels from state-run open AIS feeds (Baltic + Norway &amp; Svalbard; global joins
-          automatically when its provider is healthy). Filter any port radar to sea drones or
-          submarine-support vessels.
+        <S icon={Server} color="#22D3EE" title="Data — where the internet physically is">
+          5,258 data centres in 148 countries, on satellite imagery detailed enough to see the
+          cooling plant on the roof. Each one says when that imagery was taken. Capacity, water use
+          and power sourcing are shown as <b>unknown</b> where nobody publishes them, which is
+          most of the time — this map does not guess.
         </S>
 
-        <S icon={Camera} color="#37C46A" title="Cameras & more">
-          Every feed offers <b>NEARBY CAMS</b> — public webcams within 31 miles. Weather satellites,
-          wildlife cams, city views and the ISS live in their own layers.
+        <S icon={Shield} color="#F0553B" title="Cyber — attacks and outages">
+          Where internet attack traffic is coming from and going to, on a globe, with arcs that lift
+          higher the further the traffic travels. Plus national outages and the vulnerabilities
+          currently being exploited in the wild. Measured by Cloudflare — filtered requests over 24
+          hours, not intrusions, and not attributed to anyone.
         </S>
 
         <S icon={Sparkles} color="#C084FC" title="AI-assisted analysis">
@@ -112,22 +143,13 @@ export default function Intro({ open, onClose, feedCount = null }) {
           numbers are always shown beside it, and every AI output is labelled.
         </S>
 
-        <S icon={Layers} color="#F0553B" title="Reading the maps">
-          <b>AT FIELD</b> ranks bases by aircraft seen within 10nm below 4,000ft — activity at the
-          runway itself, not the surrounding airspace. Those are very different numbers, and the
-          gap between them is usually the interesting part. <b>ADVISORIES</b> shows official
-          conflict-zone bulletins; they advise <i>civil</i> operators and never bind military
-          flights, so military traffic can legitimately appear inside airspace airlines avoid.
-        </S>
-
         <S icon={Share2} color={C.dim} title="Share exactly what you see">
           Every radar view has a share link that reopens at the same feed, range and selected
-          aircraft — evidence you can hand to someone.
+          aircraft — evidence you can hand to someone. On a phone, one finger scrolls the page
+          and <b>two fingers pan any map</b>.
         </S>
+        </>)}
 
-        <S icon={Hand} color={C.faint} title="On a phone">
-          One finger scrolls the page; <b>two fingers pan any map</b>.
-        </S>
 
         <div className="rounded" style={{ background: C.panel2, border: `1px solid ${C.line}`,
           padding: "10px 12px", marginBottom: 12 }}>
