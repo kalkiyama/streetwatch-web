@@ -107,10 +107,16 @@ export default function DataCentres() {
     const c = {};
     records.forEach((r) => {
       if (country !== "All" && r.country !== country) return;
-      if (r.state) c[r.state] = (c[r.state] || 0) + 1;
+      // Keyed by the DISPLAYED name, not the stored value. PeeringDB's state field is freeform:
+      // six US records write "New York" where the rest write "NY", so keying by the raw value put
+      // the same state in the dropdown twice — once with 81 facilities and once with 1. A filter
+      // that lists a place twice makes a reader doubt everything else on the page.
+      if (r.state) {
+        const label = subdivisionName(r.country, r.state);
+        c[label] = (c[label] || 0) + 1;
+      }
     });
-    return Object.entries(c).sort((a, b) =>
-      subdivisionName(country, a[0]).localeCompare(subdivisionName(country, b[0])));
+    return Object.entries(c).sort((a, b) => a[0].localeCompare(b[0]));
   }, [records, country]);
 
   // A record without a state is NOT hidden when a state filter is off — but it cannot match one
@@ -122,7 +128,9 @@ export default function DataCentres() {
     return records.filter((r) => {
       if (srcFilter !== "All" && r.src !== srcFilter) return false;
       if (country !== "All" && r.country !== country) return false;
-      if (region !== "All" && r.state !== region) return false;
+      // Compared on the displayed name too, so a record storing "NY" and one storing "New York"
+      // both match the single "New York" option.
+      if (region !== "All" && subdivisionName(r.country, r.state) !== region) return false;
       if (needle) {
         // The country and state NAMES are searchable too. Someone typing "Germany" or "Maryland"
         // should find them; matching only the stored codes would mean the search understood less
@@ -274,7 +282,7 @@ export default function DataCentres() {
             style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
             <option value="All" style={{ background: C.panel }}>All states / regions</option>
             {regions.map(([rn, n]) => (
-              <option key={rn} value={rn} style={{ background: C.panel }}>{subdivisionName(country, rn)} ({n})</option>
+              <option key={rn} value={rn} style={{ background: C.panel }}>{rn} ({n})</option>
             ))}
           </select>
         )}
@@ -315,6 +323,27 @@ export default function DataCentres() {
         {state === "loading" && (
           <div className="absolute inset-0 flex items-center justify-center font-mono"
             style={{ fontSize: 10, color: C.faint, background: C.panel }}>loading facilities…</div>
+        )}
+        {/* AN EMPTY RESULT HAS TO SAY WHY. Searching "Germany" while Utah was still selected
+            returned nothing and left a blank map — the filters had combined exactly as asked, but
+            silence reads as a broken search rather than as an honest zero. Naming the active
+            filters shows what is excluding things, and the button removes them. */}
+        {state === "ok" && shown.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 font-mono px-6 text-center"
+            style={{ background: "rgba(4,18,31,0.86)" }}>
+            <div style={{ fontSize: 12, color: C.amber }}>Nothing matches all of these at once</div>
+            <div style={{ fontSize: 10.5, color: C.dim, lineHeight: 1.6 }}>
+              {[country !== "All" && countryName(country),
+                region !== "All" && subdivisionName(country, region),
+                srcFilter !== "All" && srcFilter,
+                q.trim() && `"${q.trim()}"`].filter(Boolean).join("  +  ")}
+            </div>
+            <button onClick={() => { setCountry("All"); setRegion("All"); setSrcFilter("All"); }}
+              className="rounded font-mono" style={{ fontSize: 10, padding: "4px 10px", marginTop: 2,
+                color: "#04121F", background: C.cyan }}>
+              Clear the filters, keep the search
+            </button>
+          </div>
         )}
         {state === "error" && (
           <div className="absolute inset-0 flex items-center justify-center font-mono"
