@@ -514,7 +514,25 @@ export default function StreetWatch() {
               two-way toggle — the single most important control for a first-time visitor, who
               otherwise cannot tell the world browser from the drone watch. */}
           {!startHidden && (
-            <StartHere onDismiss={dismissStart} onGo={(t) => { setTab(t); dismissStart(); }} />
+            <StartHere onDismiss={dismissStart} onGo={(t) => {
+              setTab(t);
+              // Dismissing here removed the banner and pulled the layout UP by its height — on a
+              // phone the search input then landed under the finger that had just pressed Watch,
+              // and the browser read the touch-end as a tap on it. A button promising to show
+              // something opened a keyboard instead. The banner is left in place; it is dismissed
+              // on the next visit by its own timer.
+              //
+              // Blur first, in case anything did take focus during the reflow, then put the
+              // contacts in view — which is what "Watch" actually promised.
+              setTimeout(() => {
+                if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+                const el = document.querySelector("[data-sweep]");
+                if (el && el.scrollIntoView) {
+                  const top = el.getBoundingClientRect().top;
+                  if (top > window.innerHeight * 0.75) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              }, 80);
+            }} />
           )}
           <div className="tabpill flex items-center rounded-lg" style={{ border: `1px solid ${C.line}`, padding: 2, background: C.panel2,
             minWidth: 0, overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" }}>
@@ -834,7 +852,7 @@ export default function StreetWatch() {
               container. It was rendering INSIDE a box capped at 46vh with its own scroll — so the
               tab's main feature was squeezed into a scrolling panel, narrower than the map beside
               it, and below a 240-row feed list. Nothing told a reader it was there at all. */}
-          {tab === "drones" && <DroneSweep onOpen={openSighting} onOpenVessel={openVesselFromList} />}
+          {tab === "drones" && <div data-sweep><DroneSweep onOpen={openSighting} onOpenVessel={openVesselFromList} /></div>}
 
           <div style={{ maxHeight: "46vh", overflowY: "auto" }} className="lg:max-h-none">
             {tab === "drones" && (
