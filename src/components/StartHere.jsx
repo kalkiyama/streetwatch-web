@@ -40,10 +40,13 @@ export default function StartHere({ onGo, onDismiss }) {
   if (!fact) return null;
 
   return (
-    <div className="flex items-center gap-2 rounded-lg px-3 py-2 mb-2 font-mono"
+    // STACKED, not a single row. As one row the text sat between two fixed-width elements and on a
+    // phone had almost nothing left — it wrapped to roughly one word per line. The label and the
+    // controls belong together on top; the sentence gets the full width beneath them.
+    <div className="rounded-lg px-3 py-2 mb-2 font-mono"
       style={{ border: `1px solid ${C.cyan}44`, background: "rgba(34,211,238,0.07)", fontSize: 11.5 }}>
-      <span style={{ color: C.faint, letterSpacing: 1, fontSize: 9, flexShrink: 0 }}>RIGHT NOW</span>
-      <span style={{ color: C.text, flex: 1, minWidth: 0, lineHeight: 1.45 }}>{fact.text}</span>
+      <div className="flex items-center gap-2">
+        <span style={{ color: C.faint, letterSpacing: 1, fontSize: 9, flex: 1 }}>RIGHT NOW</span>
       <button onClick={() => onGo && onGo(fact.tab)}
         className="flex items-center gap-1 rounded flex-shrink-0"
         style={{ fontSize: 10.5, padding: "3px 9px", color: "#04121F", background: C.cyan }}>
@@ -51,6 +54,8 @@ export default function StartHere({ onGo, onDismiss }) {
       </button>
       <button onClick={onDismiss} aria-label="Dismiss"
         style={{ color: C.dim, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}>×</button>
+      </div>
+      <div style={{ color: C.text, lineHeight: 1.45, marginTop: 3 }}>{fact.text}</div>
     </div>
   );
 }
