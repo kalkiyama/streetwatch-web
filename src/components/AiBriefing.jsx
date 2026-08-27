@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Sparkles, FileText, GitCompare, AlertTriangle, Copy, Check } from "lucide-react";
 import { C } from "../theme.js";
+import SitesTable from "./SitesTable.jsx";
 import { AIS_BACKEND_URL } from "../config.js";
 
 // Weekly digest + cross-domain correlations.
@@ -206,6 +207,9 @@ export default function AiBriefing({ days = 7 }) {
               <div style={{ fontSize: 12.5, color: C.text, lineHeight: 1.6 }}>{data.briefing}</div>
             </div>
           )}
+          {/* The briefing names eight sites because a briefing over 394 is not a briefing. This is
+              the rest of them — every site the sweep recorded, sortable and exportable. */}
+          <SitesTable days={data.windowDays || 7} />
         </>
       )}
 
