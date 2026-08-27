@@ -16,6 +16,7 @@ import MarineRadar from "./components/MarineRadar.jsx";
 import EarthView from "./components/EarthView.jsx";
 import SpaceView from "./components/SpaceView.jsx";
 import DataCentres from "./components/DataCentres.jsx";
+import StartHere from "./components/StartHere.jsx";
 import DroneSweep from "./components/DroneSweep.jsx";
 import CyberView from "./components/CyberView.jsx";
 
@@ -177,6 +178,19 @@ export default function StreetWatch() {
       return Number.isFinite(t) && t > 0 && Date.now() - t < 7 * 86400000;
     } catch { return true; }
   });
+  // Dismissed for a week, not for ever — the fact changes, so an invitation someone declined on a
+  // quiet Tuesday is worth offering again when something is actually happening.
+  const [startHidden, setStartHidden] = useState(() => {
+    try {
+      const t = Number(localStorage.getItem("sw-start-seen"));
+      return Number.isFinite(t) && t > 0 && Date.now() - t < 7 * 86400000;
+    } catch { return true; }
+  });
+  const dismissStart = () => {
+    setStartHidden(true);
+    try { localStorage.setItem("sw-start-seen", String(Date.now())); } catch { /* private mode */ }
+  };
+
   const dismissFeedback = () => {
     setFeedbackHidden(true);
     try { localStorage.setItem("sw-feedback-seen", String(Date.now())); } catch { /* private mode */ }
@@ -499,17 +513,8 @@ export default function StreetWatch() {
           {/* Primary mode switch. Grouped in one pill with a shared border so it reads as a
               two-way toggle — the single most important control for a first-time visitor, who
               otherwise cannot tell the world browser from the drone watch. */}
-          {!feedbackHidden && (
-            <div className="flex items-center gap-2 rounded-lg px-3 py-2 mb-2 font-mono"
-              style={{ border: `1px solid ${C.amber}55`, background: "rgba(246,168,33,0.09)", fontSize: 11 }}>
-              <span style={{ color: C.amber, flex: 1 }}>
-                Help us test — tell us anything that looks wrong.{" "}
-                <a href="https://docs.google.com/forms/d/e/1FAIpQLSeg3Xj8j48amg8CAB1k14Wgkd88MRe6oWvNK6p6mVzQfmXMEg/viewform" target="_blank" rel="noreferrer" onClick={dismissFeedback}
-                  style={{ color: C.amber, textDecoration: "underline" }}>Report a problem</a>
-              </span>
-              <button onClick={dismissFeedback} aria-label="Dismiss"
-                style={{ color: C.dim, padding: "0 4px", lineHeight: 1 }}>×</button>
-            </div>
+          {!startHidden && (
+            <StartHere onDismiss={dismissStart} onGo={(t) => { setTab(t); dismissStart(); }} />
           )}
           <div className="tabpill flex items-center rounded-lg" style={{ border: `1px solid ${C.line}`, padding: 2, background: C.panel2,
             minWidth: 0, overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" }}>
@@ -520,10 +525,21 @@ export default function StreetWatch() {
               { k: "dc", label: "Data", icon: Server, hint: "where the internet is" }].map((t) => (
               <button key={t.k} onClick={() => { setTab(t.k); dismissCoach(); }}
                 aria-pressed={tab === t.k}
-                className="flex items-center gap-1.5 rounded"
+                className="swtab flex items-center gap-1.5 rounded"
                 style={{ padding: "6px 12px", fontSize: 13, fontWeight: tab === t.k ? 700 : 500,
-                  color: tab === t.k ? C.ink : C.dim,
-                  background: tab === t.k ? C.amber : "transparent", transition: "background .15s" }}>
+                  // An inactive tab was flat text on a dark bar — indistinguishable from a label,
+                  // which is why a coach mark had to exist to say "these are tabs". A border and a
+                  // hover state say it without a sentence. Same lesson as the faint Why? toggles:
+                  // something interactive styled quietly stops looking interactive.
+                  color: tab === t.k ? C.ink : C.text,
+                  // C.line (#2A303C) against C.panel2 (#1C212B) is a 6-point difference — a border
+                  // technically present and practically invisible. A tab has to announce itself as
+                  // pressable before anyone knows to press it, so this one is deliberately louder
+                  // than the app's usual dividers. It is a control, not a division between things.
+                  border: `1.5px solid ${tab === t.k ? C.amber : "rgba(138,148,163,0.45)"}`,
+                  background: tab === t.k ? C.amber : C.panel2,
+                  boxShadow: tab === t.k ? "0 0 10px rgba(246,168,33,0.35)" : "none",
+                  transition: "background .15s, border-color .15s" }}>
                 <t.icon size={14} />
                 <span>{t.label}</span>
                 <span className="hidden sm:inline" style={{ fontSize: 9, opacity: 0.7, fontWeight: 400 }}>· {t.hint}</span>
@@ -533,17 +549,6 @@ export default function StreetWatch() {
         </nav>
       </header>
 
-      {!introOpen && !coachSeen && (
-        <div className="flex justify-end px-4 md:px-6" style={{ marginTop: -4 }}>
-          <div className="flex items-start gap-2 rounded-lg" role="button" tabIndex={0} onClick={dismissCoach}
-            style={{ maxWidth: 300, marginRight: 40, padding: "8px 12px", cursor: "pointer",
-              background: C.amber, color: C.ink, fontSize: 12, lineHeight: 1.4,
-              boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
-            <span style={{ fontSize: 14 }}>↑</span>
-            <span>You are on <b>Drones</b> — the military &amp; UAV watch. <b>World</b> browses all 7,000+ public feeds. Switch here anytime. <span style={{ opacity: 0.7 }}>(tap to dismiss)</span></span>
-          </div>
-        </div>
-      )}
 
       {/* ONE COLUMN. The two-column layout gave the filters a tall narrow sidebar and squeezed
           the map, list, radar and briefing into what was left. The filters are now a bar across
