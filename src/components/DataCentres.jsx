@@ -5,6 +5,7 @@ import { Server, X } from "lucide-react";
 import { C, addBaseTiles } from "../theme.js";
 import { guardTouchScroll } from "./mapTouch.js";
 import { BACKEND_URL } from "../config.js";
+import { countryName, subdivisionName } from "../placeNames.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Where the internet physically is.
@@ -74,6 +75,8 @@ export default function DataCentres() {
   const mapRef = useRef(null);
   const layerRef = useRef(null);
   const tileRef = useRef(null);
+  const panelRef = useRef(null);
+  const refRef = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -95,7 +98,9 @@ export default function DataCentres() {
   const countries = useMemo(() => {
     const c = {};
     records.forEach((r) => { if (r.country) c[r.country] = (c[r.country] || 0) + 1; });
-    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+    // Sorted by the NAME shown, not the code stored — otherwise "Germany" sorts under D and
+    // "United Kingdom" under G, which is exactly the confusion the names are meant to remove.
+    return Object.entries(c).sort((a, b) => countryName(a[0]).localeCompare(countryName(b[0])));
   }, [records]);
 
   const regions = useMemo(() => {
@@ -104,7 +109,8 @@ export default function DataCentres() {
       if (country !== "All" && r.country !== country) return;
       if (r.state) c[r.state] = (c[r.state] || 0) + 1;
     });
-    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+    return Object.entries(c).sort((a, b) =>
+      subdivisionName(country, a[0]).localeCompare(subdivisionName(country, b[0])));
   }, [records, country]);
 
   // A record without a state is NOT hidden when a state filter is off — but it cannot match one
@@ -118,7 +124,13 @@ export default function DataCentres() {
       if (country !== "All" && r.country !== country) return false;
       if (region !== "All" && r.state !== region) return false;
       if (needle) {
-        const hay = `${r.name || ""} ${r.operator || ""} ${r.city || ""} ${r.address || ""}`.toLowerCase();
+        // The country and state NAMES are searchable too. Someone typing "Germany" or "Maryland"
+        // should find them; matching only the stored codes would mean the search understood less
+        // than the dropdown beside it displays.
+        // toLowerCase() must wrap BOTH literals. With the call on the second only it lowercased
+        // the country and state and nothing else — so "germany" matched while "equinix" did not.
+        const hay = (`${r.name || ""} ${r.operator || ""} ${r.city || ""} ${r.address || ""} `
+          + `${countryName(r.country) || ""} ${subdivisionName(r.country, r.state) || ""}`).toLowerCase();
         if (!hay.includes(needle)) return false;
       }
       return true;
@@ -129,11 +141,25 @@ export default function DataCentres() {
     if (mapRef.current || !elRef.current) return;
     const map = Leaflet.map(elRef.current, {
       center: [30, 0], zoom: 2, scrollWheelZoom: false, worldCopyJump: true,
+      // Bounded, so the map cannot be dragged off the world. Without this a stray drag lands on
+      // blank white with no landmark to navigate back by — the map looks broken, and a new visitor
+      // has no way to know it is simply pointed at nothing.
+      maxBounds: [[-85, -180], [85, 180]],
+      maxBoundsViscosity: 1,
+      minZoom: 2,
       // Right-hand side: the left corner is where every other map on the web puts it, and on this
       // tab it sat over the densest part of the world map — the North Atlantic and western Europe.
       zoomControl: false,
     });
-    Leaflet.control.zoom({ position: "topright" }).addTo(map);
+    // Vertically centred on the right edge, matching the Space and Cyber globes. Leaflet only
+    // offers the four corners, so the container is nudged with CSS after it is created.
+    const zc = Leaflet.control.zoom({ position: "topright" }).addTo(map);
+    // Nudged down the right edge with a margin rather than absolute positioning: taking it out of
+    // Leaflet's own corner layout pushed it outside the container, so the + button sat off screen
+    // and only - was reachable.
+    const zel = zc.getContainer();
+    zel.style.marginTop = "38%";
+    zel.style.marginRight = "10px";
     // addBaseTiles takes (Leaflet, map) — passing only the map called Leaflet.tileLayer on the map
     // object, which has no such method. guardTouchScroll takes the map alone.
     guardTouchScroll(map);
@@ -150,6 +176,16 @@ export default function DataCentres() {
     if (tileRef.current) { map.removeLayer(tileRef.current); tileRef.current = null; }
     const b = BASEMAPS[basemap];
     tileRef.current = Leaflet.tileLayer(b.url, { attribution: b.attr, maxZoom: b.max }).addTo(map);
+    // BORDERS AND PLACE NAMES over the imagery. Satellite tiles carry none, so a dot in the Sahel
+    // or central Asia sits in an unlabelled expanse — the reader can see a building but not which
+    // country it is in, which is most of what they came to find out.
+    if (refRef.current) { map.removeLayer(refRef.current); refRef.current = null; }
+    if (basemap !== "street") {
+      refRef.current = Leaflet.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        { maxZoom: b.max, pane: "shadowPane", opacity: 0.9 }
+      ).addTo(map);
+    }
     tileRef.current.bringToBack();
   }, [basemap]);
 
@@ -185,19 +221,38 @@ export default function DataCentres() {
     // Marker size carries the network count where PeeringDB reports one (79% of records). A site
     // with two hundred networks present is a different kind of place from a single-tenant room,
     // and that number is reported by the operator rather than inferred from anything.
+    const bounds = [];
     shown.forEach((r, i) => {
       const n = Number.isFinite(r.networks) ? r.networks : 0;
       const radius = n > 100 ? 7 : n > 25 ? 5.5 : n > 5 ? 4 : 3;
+      bounds.push([r.lat, r.lon]);
       Leaflet.circleMarker([r.lat, r.lon], {
-        radius, color: OPERATOR_COLOUR, weight: 1.2, opacity: 0.9,
-        fillColor: OPERATOR_COLOUR, fillOpacity: 0.35,
+        // A dark outline and solid fill, so the dot reads on a pale Terrain basemap as well as on
+        // dark imagery. Cyan at 35% opacity vanished against anything light.
+        radius, color: "#04121F", weight: 1.6, opacity: 0.9,
+        fillColor: OPERATOR_COLOUR, fillOpacity: 0.95,
       })
-        .on("click", () => setSel(r))
+        .on("click", () => {
+          setSel(r);
+          // Scroll the panel INTO VIEW. It renders below the map, so on a laptop a click looked
+          // like it did nothing at all — the answer was off the bottom of the screen.
+          setTimeout(() => {
+            const el = panelRef.current;
+            if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }, 60);
+        })
         .bindTooltip(`${r.name || "unnamed"}${r.operator ? " · " + r.operator : ""}`,
           { direction: "top", opacity: 0.9 })
         .addTo(lg);
     });
-  }, [shown]);
+    // FIT THE VIEW to what the filter left. Searching "Germany" while looking at Maryland filtered
+    // correctly and left the map where it was, so the search appeared not to work — the results
+    // were off screen. Only on a real narrowing: refitting on every keystroke would fight anyone
+    // panning around while they type.
+    if (bounds.length && bounds.length < records.length) {
+      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 11, animate: true });
+    }
+  }, [shown, records.length]);
 
   const fmtUnknown = (v) => (v == null || v === "" ? <span style={{ color: C.faint }}>unknown</span> : v);
 
@@ -210,7 +265,7 @@ export default function DataCentres() {
           style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
           <option value="All" style={{ background: C.panel }}>All countries ({records.length.toLocaleString()})</option>
           {countries.map(([cn, n]) => (
-            <option key={cn} value={cn} style={{ background: C.panel }}>{cn} ({n})</option>
+            <option key={cn} value={cn} style={{ background: C.panel }}>{countryName(cn)} ({n})</option>
           ))}
         </select>
         {regions.length > 0 && (
@@ -219,7 +274,7 @@ export default function DataCentres() {
             style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
             <option value="All" style={{ background: C.panel }}>All states / regions</option>
             {regions.map(([rn, n]) => (
-              <option key={rn} value={rn} style={{ background: C.panel }}>{rn} ({n})</option>
+              <option key={rn} value={rn} style={{ background: C.panel }}>{subdivisionName(country, rn)} ({n})</option>
             ))}
           </select>
         )}
@@ -252,8 +307,10 @@ export default function DataCentres() {
         ))}
       </div>
 
+      {/* A fixed height, not an aspect ratio. 16:10 left dead space above and below on a narrow
+          screen, because the Leaflet container does not stretch to fill a shape it was not given. */}
       <div className="relative w-full rounded-lg overflow-hidden"
-        style={{ border: `1px solid ${C.line}`, aspectRatio: "16 / 10" }}>
+        style={{ border: `1px solid ${C.line}`, height: "min(70vh, 560px)" }}>
         <div ref={elRef} className="absolute inset-0" />
         {state === "loading" && (
           <div className="absolute inset-0 flex items-center justify-center font-mono"
@@ -266,7 +323,7 @@ export default function DataCentres() {
       </div>
 
       {sel && (
-        <div className="font-mono rounded-lg" style={{ padding: "10px 12px",
+        <div ref={panelRef} className="font-mono rounded-lg" style={{ padding: "10px 12px",
           background: "rgba(4,18,31,0.95)", border: `1px solid ${OPERATOR_COLOUR}66` }}>
           <div className="flex items-start justify-between gap-2">
             <div style={{ minWidth: 0 }}>
@@ -277,7 +334,8 @@ export default function DataCentres() {
           </div>
 
           <div style={{ fontSize: 10.5, color: C.dim, marginTop: 7, lineHeight: 1.5 }}>
-            {[sel.address, sel.city, sel.state, sel.country].filter(Boolean).join(" · ")}
+            {[sel.address, sel.city, subdivisionName(sel.country, sel.state), countryName(sel.country)]
+              .filter(Boolean).join(" · ")}
             <br />
             {sel.lat.toFixed(4)}, {sel.lon.toFixed(4)}
           </div>
@@ -289,7 +347,14 @@ export default function DataCentres() {
             <div><span style={{ color: C.faint }}>capacity </span>{fmtUnknown(null)}</div>
             <div><span style={{ color: C.faint }}>water use </span>{fmtUnknown(null)}</div>
             <div><span style={{ color: C.faint }}>power supply </span>{fmtUnknown(sel.voltage ? sel.voltage.join(", ") : null)}</div>
-            <div><span style={{ color: C.faint }}>substations </span>{fmtUnknown(sel.substations)}</div>
+            {/* A BOOLEAN, not a count — PeeringDB's diverse_serving_substations means "fed by more
+                than one substation", which is a resilience property. Rendered raw it showed nothing
+                at all, because React does not print booleans: an empty gap where the whole point of
+                this panel is that unknown says so. */}
+            <div><span style={{ color: C.faint }}>power feeds </span>
+              {sel.substations === true ? "more than one substation"
+                : sel.substations === false ? "single substation"
+                : fmtUnknown(null)}</div>
             <div><span style={{ color: C.faint }}>networks present </span>{fmtUnknown(sel.networks)}</div>
             <div><span style={{ color: C.faint }}>source </span>{sel.src}</div>
           </div>
