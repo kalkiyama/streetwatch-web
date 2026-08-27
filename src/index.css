@@ -31,8 +31,13 @@ button:disabled {
    app's primary navigation, because the tabs past the fold are invisible rather than merely
    small. Below 640px they wrap to a centred 2x2 grid instead. Wrapped content has nothing
    left to scroll, so the scrollbar goes away on its own. */
+/* Wrapping at EVERY width, not just on phones. A fifth tab pushed Data past the right edge of the
+   row on a laptop — and because the pill scrolls horizontally there was no cue that anything was
+   there, so a whole tab was invisible. Wrapping shows all of them at any width; the phone rule
+   below just makes the wrap a tidy 2x2 instead of ragged. */
+.tabpill { flex-wrap: wrap; justify-content: center; }
+
 @media (max-width: 640px) {
-  .tabpill { flex-wrap: wrap; }
   .tabpill > button { flex: 1 0 calc(50% - 4px); justify-content: center; }
 }
 
@@ -53,3 +58,10 @@ button:disabled {
   50%      { opacity: 1;    transform: scale(1.1); }
 }
 .airlock { animation: airlockPulse 1.8s ease-in-out infinite; pointer-events: none; }
+
+/* --- Tab hover -------------------------------------------------------------------------
+   Confirms a tab is pressable the moment a cursor crosses it. Only on devices with a real
+   pointer: a phone has no hover, and a sticky hover state there reads as a wrong selection. */
+@media (hover: hover) {
+  .swtab:hover { border-color: rgba(246,168,33,0.55) !important; }
+}
