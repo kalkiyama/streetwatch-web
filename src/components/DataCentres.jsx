@@ -215,7 +215,9 @@ export default function DataCentres() {
         if (!alive) return;
         const a = (j.results && j.results[0] && j.results[0].attributes) || null;
         setImagery(a ? {
-          date: a["SRC_DATE2"] || null,
+          // Esri returns the STRING "Null" where it has no acquisition date, which is truthy —
+          // so the panel printed "captured Null". Treated as absent, which is what it means.
+          date: a["SRC_DATE2"] && String(a["SRC_DATE2"]).toLowerCase() !== "null" ? a["SRC_DATE2"] : null,
           res: a["RESOLUTION (M)"] || null,
           source: a.SOURCE || null,
           desc: a.DESCRIPTION || null,
