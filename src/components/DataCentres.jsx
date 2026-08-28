@@ -70,6 +70,10 @@ export default function DataCentres() {
   // Per-facility imagery date, fetched on selection. Esri publishes acquisition metadata per tile,
   // so a specific building can be dated honestly even though the basemap as a whole cannot.
   const [imagery, setImagery] = useState(null);
+  // The count and the marker key stay visible; the coverage caveat moves behind a toggle. It is
+  // still the most important thing on the panel — without it someone concludes Amazon has no data
+  // centres — but it is worth reading once, not on every visit under every map.
+  const [whyList, setWhyList] = useState(false);
 
   const elRef = useRef(null);
   const mapRef = useRef(null);
@@ -409,6 +413,12 @@ export default function DataCentres() {
         {shown.length.toLocaleString()} of {records.length.toLocaleString()} facilities shown
         {data && data.built ? ` · list built ${data.built.slice(0, 10)}` : ""}
         {" · "}larger circles carry more networks.{" "}
+        <button onClick={() => setWhyList((v) => !v)} className="rounded"
+          style={{ fontSize: 9, padding: "0 5px", marginLeft: 2, color: C.cyan,
+            background: "rgba(34,211,238,0.10)", border: `1px solid ${C.cyan}66`, whiteSpace: "nowrap" }}>
+          {whyList ? "Less" : "Why?"}
+        </button>{" "}
+        {whyList && (<>
         {/* Saying what a dataset MISSES matters more here than usual: PeeringDB lists facilities
             that sell interconnection, so the hyperscalers who build their own are largely absent.
             Someone reading this map without that caveat would conclude Amazon has no data centres. */}
@@ -416,6 +426,7 @@ export default function DataCentres() {
         colocation and carrier sites well, and largely omits the campuses hyperscalers build for
         themselves. Records are never merged: one site may appear more than once under different
         names, and each keeps its own source.
+        </>)}
       </div>
     </div>
   );
