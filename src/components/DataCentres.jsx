@@ -38,9 +38,11 @@ const BASEMAPS = {
   },
   street: {
     label: "Street",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attr: "OpenStreetMap contributors, CARTO",
-    max: 20,
+    // CARTO started requiring an API key here, so this button quietly served an error tile —
+    // one of three basemaps was simply broken. OSM's own tiles need no key and no account.
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attr: "OpenStreetMap contributors",
+    max: 19,
   },
   terrain: {
     label: "Terrain",
@@ -80,6 +82,7 @@ export default function DataCentres() {
   const layerRef = useRef(null);
   const tileRef = useRef(null);
   const panelRef = useRef(null);
+  const lastFitRef = useRef("");
   const refRef = useRef(null);
 
   useEffect(() => {
@@ -238,13 +241,34 @@ export default function DataCentres() {
     const bounds = [];
     shown.forEach((r, i) => {
       const n = Number.isFinite(r.networks) ? r.networks : 0;
-      const radius = n > 100 ? 7 : n > 25 ? 5.5 : n > 5 ? 4 : 3;
+      // Bigger, and bigger again over imagery. The floor moved from 3px to 5px because the
+      // smallest dots are the records with no network count — a third of the OSM set — so the
+      // least visible marker was carrying the newest data.
+      const radius = (n > 100 ? 8 : n > 25 ? 6.5 : n > 5 ? 5.5 : 5) + (basemap !== "street" ? 1.6 : 0);
       bounds.push([r.lat, r.lon]);
+      // A selected dot looked like every other one — and in a data centre park that means 25
+      // identical dots within 2km with nothing marking which was clicked. Same answer as the
+      // aircraft layer: a green reticle, drawn first so the dot itself stays on top.
+      const isSel = sel && sel.srcId === r.srcId;
+      if (isSel) {
+        Leaflet.circleMarker([r.lat, r.lon], {
+          radius: radius + 7, color: "#00FF7F", weight: 2.5, opacity: 0.95,
+          fillColor: "#00FF7F", fillOpacity: 0.12, interactive: false,
+        }).addTo(lg);
+      }
       Leaflet.circleMarker([r.lat, r.lon], {
         // A dark outline and solid fill, so the dot reads on a pale Terrain basemap as well as on
         // dark imagery. Cyan at 35% opacity vanished against anything light.
-        radius, color: "#04121F", weight: 1.6, opacity: 0.9,
-        fillColor: OPERATOR_COLOUR, fillOpacity: 0.95,
+        radius: isSel ? radius + 1 : radius,
+        // The outline follows the BASEMAP's tone, because no single colour works on all three.
+        // A white halo reads on dark satellite imagery and vanishes into OpenTopoMap, which is
+        // pale beige; a dark halo does the reverse. Guessing a middle grey serves neither.
+        color: isSel ? "#00FF7F" : basemap === "satellite" ? "#FFFFFF" : "#0A1220",
+        weight: isSel ? 2.5 : 1.6, opacity: isSel ? 0.95 : 0.9,
+        // Amber for the selected one, and a deeper cyan on the pale basemaps where #22D3EE
+        // washes out.
+        fillColor: isSel ? "#F6A821" : basemap === "satellite" ? OPERATOR_COLOUR : "#0891B2",
+        fillOpacity: 1,
       })
         .on("click", () => {
           setSel(r);
@@ -263,10 +287,16 @@ export default function DataCentres() {
     // correctly and left the map where it was, so the search appeared not to work — the results
     // were off screen. Only on a real narrowing: refitting on every keystroke would fight anyone
     // panning around while they type.
-    if (bounds.length && bounds.length < records.length) {
+    // Keyed on what the reader CHOSE. Two problems it fixes: adding `sel` to the dependencies
+    // above (so the reticle repaints) would otherwise re-run the fit on every click, throwing the
+    // view back out and undoing whatever zoom someone had chosen to get there — and keying on the
+    // result count meant a country switch sometimes did not move the map at all.
+    const fitKey = `${country}|${region}|${srcFilter}|${q}`;
+    if (bounds.length && fitKey !== lastFitRef.current) {
+      lastFitRef.current = fitKey;
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 11, animate: true });
     }
-  }, [shown, records.length]);
+  }, [shown, records.length, sel, basemap]);
 
   const fmtUnknown = (v) => (v == null || v === "" ? <span style={{ color: C.faint }}>unknown</span> : v);
 
@@ -299,8 +329,13 @@ export default function DataCentres() {
             className="px-2 rounded font-mono"
             style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
             <option value="All" style={{ background: C.panel }}>All sources</option>
+            {/* A dropdown offering "peeringdb" and "osm" asks the reader to already know the
+                difference between two databases. These labels say what the distinction IS — which
+                is also exactly why the two sets differ. */}
             {sources.map(([sn, n]) => (
-              <option key={sn} value={sn} style={{ background: C.panel }}>{sn} ({n})</option>
+              <option key={sn} value={sn} style={{ background: C.panel }}>
+                {sn === "peeringdb" ? "Operator-listed" : sn === "osm" ? "Mapped on the ground" : sn} ({n})
+              </option>
             ))}
           </select>
         )}
@@ -328,7 +363,15 @@ export default function DataCentres() {
         <div ref={elRef} className="absolute inset-0" />
         {state === "loading" && (
           <div className="absolute inset-0 flex items-center justify-center font-mono"
-            style={{ fontSize: 10, color: C.faint, background: C.panel }}>loading facilities…</div>
+            style={{ fontSize: 10.5, color: C.dim, background: C.panel, flexDirection: "column", gap: 6 }}>
+            {/* Naming the size is the honest version of a spinner. This is a 2.9MB list of 8,728
+                facilities and it takes a moment on a slow connection — a blank panel for three
+                seconds reads as broken, and "loading" alone does not say why it is slow. */}
+            <div style={{ width: 120, height: 2, background: C.line, overflow: "hidden", borderRadius: 2 }}>
+              <div className="dcbar" style={{ width: "40%", height: "100%", background: C.cyan }} />
+            </div>
+            reading 8,728 facilities…
+          </div>
         )}
         {/* AN EMPTY RESULT HAS TO SAY WHY. Searching "Germany" while Utah was still selected
             returned nothing and left a blank map — the filters had combined exactly as asked, but
@@ -391,7 +434,8 @@ export default function DataCentres() {
                 : sel.substations === false ? "single substation"
                 : fmtUnknown(null)}</div>
             <div><span style={{ color: C.faint }}>networks present </span>{fmtUnknown(sel.networks)}</div>
-            <div><span style={{ color: C.faint }}>source </span>{sel.src}</div>
+            <div><span style={{ color: C.faint }}>source </span>
+              {sel.src === "peeringdb" ? "operator-listed" : sel.src === "osm" ? "mapped on the ground" : sel.src}</div>
           </div>
 
           {imagery && imagery.date && (
