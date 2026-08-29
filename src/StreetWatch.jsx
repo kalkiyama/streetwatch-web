@@ -32,7 +32,15 @@ export default function StreetWatch() {
   const now = useClock();
   // Default landing is the DRONE WATCH — the differentiator — rather than the generic world
   // browser. Deep links (?feed=...) below still route to whichever tab their feed lives in.
-  const [tab, setTab] = useState("drones");
+  // Read from the URL so a tab can be linked and survives a reload. Without this, refreshing on
+  // Data landed back on Drones — and more to the point, there was no way to send anyone a link to
+  // any tab but the first.
+  const [tab, setTab] = useState(() => {
+    try {
+      const t = new URL(window.location.href).searchParams.get("tab");
+      return ["drones", "world", "cyber", "space", "dc"].includes(t) ? t : "drones";
+    } catch { return "drones"; }
+  });
   const [CATALOG, setCatalog] = useState([]);
   const [catalogErr, setCatalogErr] = useState(false);
   useEffect(() => {
@@ -63,7 +71,14 @@ export default function StreetWatch() {
       const f = CATALOG.find((c) => c.id === want);
       // route to the tab this feed belongs to — a shared webcam link must not strand the
       // recipient on the drone view, and a shared UAV link must not strand them on world
-      setTab(f && f.tag === "uav" ? "drones" : "world");
+      //
+      // UNLESS the URL names a tab explicitly. A stale `feed` parameter left over from an earlier
+      // visit was overriding `?tab=dc` on every reload, so refreshing any tab landed on World.
+      // An explicit choice beats an inferred one: if someone shares `?tab=space`, they mean Space,
+      // whatever else is in the URL beside it.
+      let named = null;
+      try { named = new URL(window.location.href).searchParams.get("tab"); } catch { /* ignore */ }
+      if (!named) setTab(f && f.tag === "uav" ? "drones" : "world");
     }
   }, [CATALOG]);
   // THE WATCHED AIRFIELDS COME FROM THE SWEEP, NOT FROM catalog.json. The catalog carried 240
@@ -215,6 +230,25 @@ export default function StreetWatch() {
     if (viewSel) url.searchParams.set("ac", viewSel); else url.searchParams.delete("ac");
     window.history.replaceState(null, "", url);
   }, [selectedId, CATALOG, viewRadius, viewSel]);
+
+  // Its OWN effect, not folded into the one above: that one returns early when a feed is selected
+  // and skips entirely for the location-specific feeds, so the tab would go unwritten in exactly
+  // the cases someone is most likely to want to share.
+  //
+  // Drones stays parameter-free. It is the default, and a clean root URL is worth keeping — the
+  // parameter appears only when a reader has chosen something other than where they landed.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("tab") === tab) return;
+      // Written for EVERY tab including the default. Leaving Drones parameter-free kept the root
+      // URL clean, but it also meant Drones had nothing to defend it: on reload the feed-inference
+      // ran unopposed and sent the reader to World. A tab that cannot survive a refresh is worse
+      // than a slightly longer URL.
+      url.searchParams.set("tab", tab);
+      window.history.replaceState(null, "", url);
+    } catch { /* older browsers, private modes */ }
+  }, [tab]);
 
   // Marine analogue of openSighting: open a port's radar with a specific vessel
   // pre-selected. Same pendingSel mechanism the aviation path uses.
