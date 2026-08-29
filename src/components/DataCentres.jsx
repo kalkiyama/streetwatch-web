@@ -75,6 +75,13 @@ export default function DataCentres() {
   // The count and the marker key stay visible; the coverage caveat moves behind a toggle. It is
   // still the most important thing on the panel — without it someone concludes Amazon has no data
   // centres — but it is worth reading once, not on every visit under every map.
+  // ON by default. This tab answers "where is the internet", and a data centre is just a building
+  // until something connects it — the cables are as much of that answer as the buildings are.
+  // Drawing 656 polylines is cheap next to 8,728 markers, and the file carrying them is already
+  // downloaded either way.
+  const [showCables, setShowCables] = useState(true);
+  const [selCable, setSelCable] = useState(null);
+  const cablePanelRef = useRef(null);
   const [whyList, setWhyList] = useState(false);
 
   const elRef = useRef(null);
@@ -238,6 +245,45 @@ export default function DataCentres() {
     // Marker size carries the network count where PeeringDB reports one (79% of records). A site
     // with two hundred networks present is a different kind of place from a single-tenant room,
     // and that number is reported by the operator rather than inferred from anything.
+    // Cables first, so facility markers sit on top of them rather than under.
+    if (showCables && data && data.cables) {
+      data.cables.forEach((c) => {
+        // EVERY segment, named or not. Only 274 of 656 carry a name in OpenStreetMap, and dropping
+        // the rest would hide real coverage to make the layer look tidier. An unnamed cable is
+        // still a cable somebody surveyed.
+        const line = Leaflet.polyline(c.line, {
+          color: "#A78BFA", weight: c.name ? 1.4 : 1, opacity: c.name ? 0.7 : 0.45,
+          interactive: !!c.name,
+          // A 1.4px line is close to unclickable, especially on a phone. Leaflet widens the hit
+          // area without widening what is drawn.
+          bubblingMouseEvents: false,
+        });
+        if (c.name) line.options.weight = 1.4;
+        if (c.name) {
+          line.bindTooltip(
+            `${c.name}${c.operator ? " · " + c.operator : ""}`,
+            { sticky: true, opacity: 0.9 }
+          );
+          // Clickable, so the panel can show the operator and link out. OSM carries no laying
+          // date, no capacity and no endpoint list — TeleGeography has all three and this does
+          // not, which is the other half of the licence trade.
+          line.on("click", (e) => {
+            Leaflet.DomEvent.stopPropagation(e);
+            setSelCable(c);
+            setSel(null);
+            // Scroll the panel into view, exactly as the facility markers do. Without it a click
+            // on a cable looks like it did nothing at all — the answer renders below the fold and
+            // a reader has no reason to suspect it is there.
+            setTimeout(() => {
+              const el = cablePanelRef.current;
+              if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }, 60);
+          });
+        }
+        line.addTo(lg);
+      });
+    }
+
     const bounds = [];
     shown.forEach((r, i) => {
       const n = Number.isFinite(r.networks) ? r.networks : 0;
@@ -272,6 +318,7 @@ export default function DataCentres() {
       })
         .on("click", () => {
           setSel(r);
+          setSelCable(null);
           // Scroll the panel INTO VIEW. It renders below the map, so on a laptop a click looked
           // like it did nothing at all — the answer was off the bottom of the screen.
           setTimeout(() => {
@@ -296,7 +343,7 @@ export default function DataCentres() {
       lastFitRef.current = fitKey;
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 11, animate: true });
     }
-  }, [shown, records.length, sel, basemap]);
+  }, [shown, records.length, sel, basemap, showCables, data]);
 
   const fmtUnknown = (v) => (v == null || v === "" ? <span style={{ color: C.faint }}>unknown</span> : v);
 
@@ -345,6 +392,13 @@ export default function DataCentres() {
       </div>
 
       <div className="flex items-center justify-center gap-1 font-mono">
+        <button onClick={() => setShowCables((v) => !v)} className="rounded"
+          style={{ fontSize: 8.5, padding: "3px 8px", marginRight: 6,
+            color: showCables ? "#04121F" : "#A78BFA",
+            background: showCables ? "#A78BFA" : "transparent",
+            border: "1px solid #A78BFA66" }}>
+          CABLES
+        </button>
         {Object.entries(BASEMAPS).map(([k, b]) => (
           <button key={k} onClick={() => setBasemap(k)} className="rounded"
             style={{ fontSize: 8.5, padding: "3px 8px",
@@ -400,6 +454,46 @@ export default function DataCentres() {
         )}
       </div>
 
+      {selCable && (
+        <div ref={cablePanelRef} className="font-mono rounded-lg" style={{ padding: "10px 12px", marginTop: 6,
+          background: "rgba(4,18,31,0.95)", border: "1px solid #A78BFA66" }}>
+          <div className="flex items-start justify-between gap-2">
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, color: "#A78BFA" }}>{selCable.name}</div>
+              <div style={{ fontSize: 10.5, color: C.dim, marginTop: 2 }}>
+                submarine cable · {selCable.line.length} points as drawn
+              </div>
+            </div>
+            <button onClick={() => setSelCable(null)} aria-label="Close" style={{ color: C.dim }}>
+              <X size={14} />
+            </button>
+          </div>
+          {/* Everything OSM has, and an explicit account of what it does not. Laying date,
+              capacity, fibre pairs and the endpoint list are all things a reader would reasonably
+              expect of a cable map and none of them are in OpenStreetMap's tags. Saying so beats
+              a panel that simply omits the rows. */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1" style={{ fontSize: 10, marginTop: 8 }}>
+            <div><span style={{ color: C.faint }}>operator </span>
+              {selCable.operator || <span style={{ color: C.faint }}>unknown</span>}</div>
+            <div><span style={{ color: C.faint }}>laid </span>
+              <span style={{ color: C.faint }}>not in OpenStreetMap</span></div>
+            <div><span style={{ color: C.faint }}>capacity </span>
+              <span style={{ color: C.faint }}>not in OpenStreetMap</span></div>
+            <div><span style={{ color: C.faint }}>landing points </span>
+              <span style={{ color: C.faint }}>not in OpenStreetMap</span></div>
+          </div>
+          <div style={{ fontSize: 9, color: C.faint, marginTop: 8, lineHeight: 1.45 }}>
+            Laying dates, capacity and the list of countries a cable connects are tracked by
+            TeleGeography, whose licence does not fit this app. What is here is the route as an
+            OpenStreetMap contributor drew it.{" "}
+            <a href={selCable.ref} target="_blank" rel="noreferrer" style={{ color: "#A78BFA" }}>source record ↗</a>
+            {selCable.wikipedia && (
+              <> · <a href={`https://en.wikipedia.org/wiki/${encodeURIComponent(selCable.wikipedia.replace(/^[a-z]+:/, ""))}`}
+                target="_blank" rel="noreferrer" style={{ color: "#A78BFA" }}>Wikipedia ↗</a></>
+            )}
+          </div>
+        </div>
+      )}
       {sel && (
         <div ref={panelRef} className="font-mono rounded-lg" style={{ padding: "10px 12px",
           background: "rgba(4,18,31,0.95)", border: `1px solid ${OPERATOR_COLOUR}66` }}>
@@ -475,6 +569,21 @@ export default function DataCentres() {
         depends on whether a contributor mapped the area, so it is uneven by country. Around a
         quarter of the OSM records carry no name and a third no operator: a building someone
         surveyed without labelling is still a building, and the coordinates are the point.
+        The violet lines are <b>submarine cables</b>, also from OpenStreetMap, and their coverage is
+        <b> very uneven</b>: 72% of the mapped segments lie in the North Sea and Baltic, where OSM's
+        contributors are most active. Southeast Asia has 30, the Caribbean 9, the mid-Atlantic 6.
+        The world has roughly 570 active systems and 199 are named here.{" "}
+        <b>So this is a map of what has been mapped, not of where cables are.</b> A dense North Sea
+        and an empty Pacific says more about who draws maps than about where the internet runs —
+        the same way the drone watch's coverage follows volunteer ADS-B receivers rather than
+        aircraft.{" "}
+        Fewer than half the segments carry a name; the unnamed ones are drawn anyway, because a
+        cable nobody has labelled is still a cable somebody surveyed. Routes are as contributors
+        drew them rather than surveyed positions, and Antarctica is genuinely empty — it has no
+        submarine cables at all, only satellite links.{" "}
+        TeleGeography's map is far more complete and was not used: it is licensed NonCommercial-
+        ShareAlike, which does not fit an app whose other data is ODbL, and they state that their
+        routes are stylised too.{" "}
         Records are never merged, so one site may appear more than once under different names and
         at slightly different coordinates. Each keeps the source it came from — that two
         independent sources disagree about a place is itself worth seeing.
