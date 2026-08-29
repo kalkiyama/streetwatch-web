@@ -424,10 +424,16 @@ export default function DataCentres() {
         {/* Saying what a dataset MISSES matters more here than usual: PeeringDB lists facilities
             that sell interconnection, so the hyperscalers who build their own are largely absent.
             Someone reading this map without that caveat would conclude Amazon has no data centres. */}
-        This list comes from PeeringDB, where operators maintain their own entries — so it covers
-        colocation and carrier sites well, and largely omits the campuses hyperscalers build for
-        themselves. Records are never merged: one site may appear more than once under different
-        names, and each keeps its own source.
+        Two sources, and they see different things. <b>PeeringDB</b> is maintained by operators who
+        sell interconnection, so it covers colocation and carrier sites well and largely omits the
+        campuses hyperscalers build for themselves. <b>OpenStreetMap</b> fills much of that gap —
+        it is where the Amazon, Microsoft, Google and Meta buildings come from — but its coverage
+        depends on whether a contributor mapped the area, so it is uneven by country. Around a
+        quarter of the OSM records carry no name and a third no operator: a building someone
+        surveyed without labelling is still a building, and the coordinates are the point.
+        Records are never merged, so one site may appear more than once under different names and
+        at slightly different coordinates. Each keeps the source it came from — that two
+        independent sources disagree about a place is itself worth seeing.
         </>)}
       </div>
     </div>
