@@ -82,6 +82,12 @@ export default function DataCentres() {
   const [showCables, setShowCables] = useState(true);
   const [selCable, setSelCable] = useState(null);
   const cablePanelRef = useRef(null);
+  // The draw function, held in a ref. A `moveend` listener is attached once when the map is
+  // created, so a function passed to it directly would close over the FIRST render's `shown`,
+  // `sel` and `basemap` and never see an update — markers would silently stop reflecting the
+  // filters. The ref is reassigned on every render, so the listener always calls the current one.
+  // Same pattern WorldMap.jsx uses for exactly the same reason.
+  const drawRef = useRef(null);
   const [whyList, setWhyList] = useState(false);
 
   const elRef = useRef(null);
@@ -187,7 +193,12 @@ export default function DataCentres() {
     guardTouchScroll(map);
     mapRef.current = map;
     layerRef.current = Leaflet.layerGroup().addTo(map);
-    return () => { map.remove(); mapRef.current = null; };
+    // Culling only works if the map redraws when the view moves. Without this, panning would
+    // leave blank space where markers had been culled and never fill it in — which is worse than
+    // the slowness culling is meant to fix.
+    const redraw = () => { if (drawRef.current) drawRef.current(); };
+    map.on("moveend zoomend", redraw);
+    return () => { map.off("moveend zoomend", redraw); map.remove(); mapRef.current = null; };
   }, []);
 
   // The tile layer is REPLACED rather than toggled, so only one is ever fetching. Leaving the
@@ -238,6 +249,10 @@ export default function DataCentres() {
   }, [sel]);
 
   useEffect(() => {
+    drawRef.current = draw;
+    draw();
+
+    function draw() {
     const map = mapRef.current, lg = layerRef.current;
     if (!map || !lg) return;
     lg.clearLayers();
@@ -245,9 +260,15 @@ export default function DataCentres() {
     // Marker size carries the network count where PeeringDB reports one (79% of records). A site
     // with two hundred networks present is a different kind of place from a single-tenant room,
     // and that number is reported by the operator rather than inferred from anything.
+    const view = map.getBounds().pad(0.3);
+
     // Cables first, so facility markers sit on top of them rather than under.
     if (showCables && data && data.cables) {
       data.cables.forEach((c) => {
+        // A cable is culled only if NO part of it is on screen — testing every point would be
+        // slower than drawing it, and testing only the midpoint would drop a trans-Atlantic cable
+        // whenever its middle sat off the edge.
+        if (!c.line.some((pt) => view.contains(pt))) return;
         // EVERY segment, named or not. Only 274 of 656 carry a name in OpenStreetMap, and dropping
         // the rest would hide real coverage to make the layer look tidier. An unnamed cable is
         // still a cable somebody surveyed.
@@ -284,6 +305,12 @@ export default function DataCentres() {
       });
     }
 
+    // DRAW ONLY WHAT IS ON SCREEN. 8,728 circle markers redrawn on every pan is what made the map
+    // go blank while it caught up; Leaflet has no notion of which markers moved, so the whole set
+    // is rebuilt each time. The visible window is usually a few dozen.
+    //
+    // Padded by 30% so markers exist slightly beyond the edge and a short pan does not reveal
+    // empty space before the redraw lands.
     const bounds = [];
     shown.forEach((r, i) => {
       const n = Number.isFinite(r.networks) ? r.networks : 0;
@@ -291,7 +318,11 @@ export default function DataCentres() {
       // smallest dots are the records with no network count — a third of the OSM set — so the
       // least visible marker was carrying the newest data.
       const radius = (n > 100 ? 8 : n > 25 ? 6.5 : n > 5 ? 5.5 : 5) + (basemap !== "street" ? 1.6 : 0);
+      // `bounds` collects EVERY filtered record, not only the drawn ones — fitting the view to a
+      // country must frame the whole country, not whatever happened to be on screen when the
+      // filter changed.
       bounds.push([r.lat, r.lon]);
+      if (!view.contains([r.lat, r.lon])) return;
       // A selected dot looked like every other one — and in a data centre park that means 25
       // identical dots within 2km with nothing marking which was clicked. Same answer as the
       // aircraft layer: a green reticle, drawn first so the dot itself stays on top.
@@ -343,7 +374,8 @@ export default function DataCentres() {
       lastFitRef.current = fitKey;
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 11, animate: true });
     }
-  }, [shown, records.length, sel, basemap, showCables, data]);
+    }
+  }, [shown, records.length, sel, basemap, showCables, data, country, region, srcFilter, q]);
 
   const fmtUnknown = (v) => (v == null || v === "" ? <span style={{ color: C.faint }}>unknown</span> : v);
 
