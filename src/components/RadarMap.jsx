@@ -66,6 +66,11 @@ export default function RadarMap({ center, contacts, radiusNm, sel, onSel, heigh
     if (!box.current || map.current) return;
     map.current = Leaflet.map(box.current, {
       zoomControl: false, scrollWheelZoom: false, attributionControl: true, minZoom: 2, maxZoom: 12,
+      // Bounded to the world. Without this a drag past the poles lands on blank space with no
+      // landmark to navigate back by — the map looks broken when it is simply pointed at nothing.
+      // Added to DataCentres on Aug 27 for exactly this and never applied to the other three.
+      maxBounds: [[-85, -180], [85, 180]],
+      maxBoundsViscosity: 1,
     }).setView([center.lat, center.lng], 7);
     ensureZoomStyle();
     Leaflet.control.zoom({ position: "topright" }).addTo(map.current);   // CSS recentres this to the middle-right edge
