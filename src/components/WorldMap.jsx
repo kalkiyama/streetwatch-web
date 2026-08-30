@@ -673,6 +673,11 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
         zoom: startFix ? 7 : (iv ? iv.zoom : 2),
         worldCopyJump: true, preferCanvas: true,
         zoomControl: false, minZoom: 1,
+        // Bounded to the world. Without this a drag past the poles lands on blank space with no
+        // landmark to navigate back by — the map looks broken when it is simply pointed at nothing.
+        // Added to DataCentres on Aug 27 for exactly this and never applied to the other three.
+        maxBounds: [[-85, -180], [85, 180]],
+        maxBoundsViscosity: 1,
         ...(maxZoomRef.current ? { maxZoom: maxZoomRef.current } : {}),
         scrollWheelZoom: scrollWheelRef.current,
       });

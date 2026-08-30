@@ -114,6 +114,11 @@ function FlowMap({ flows, selected, onSelect, onReady }) {
     if (!box.current || map.current) return;
     map.current = Leaflet.map(box.current, {
       center: [20, 0], zoom: 1, minZoom: 1, maxZoom: 6,
+      // Bounded to the world. Without this a drag past the poles lands on blank space with no
+      // landmark to navigate back by — the map looks broken when it is simply pointed at nothing.
+      // Added to DataCentres on Aug 27 for exactly this and never applied to the other three.
+      maxBounds: [[-85, -180], [85, 180]],
+      maxBoundsViscosity: 1,
       zoomControl: false, worldCopyJump: true,
       // The panel scrolls; wheel-zoom here would hijack the page.
       scrollWheelZoom: false, attributionControl: true,
