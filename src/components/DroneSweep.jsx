@@ -127,7 +127,11 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
         <span className="flex items-center gap-2">
           <span style={{ width: 3, height: 14, background: "#C084FC", borderRadius: 2, flexShrink: 0 }} />
           <Radio size={12} color="#C084FC" />
-          <span style={{ fontSize: 14, fontWeight: 700, color: C.text, letterSpacing: 0.2 }}>Global sweep</span>
+          {/* A LABEL, not a headline. "Global sweep" is the panel's name and never changes; it was
+              set 14px/700 — the loudest thing here — while the live contact count sat three sizes
+              below it in the faintest colour on the panel. The eye landed on a static word and
+              found the news last. */}
+          <span style={{ fontSize: 10, fontWeight: 500, color: C.faint, letterSpacing: 1 }}>GLOBAL SWEEP</span>
         </span>
       </div>
 
@@ -158,21 +162,38 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
             exist as far as the reader is concerned. The gradient is the smallest honest hint. */}
       </div>
 
-      <div className="px-3 pb-1.5" style={{ fontSize: 12, color: C.text, fontWeight: 600 }}>
-        Military &amp; UAV watch · air and sea
-        <span style={{ display: "block", fontSize: 10, color: C.faint, fontWeight: 400, marginTop: 1 }}>
+      <div className="px-3 pb-1.5">
+        {/* The COUNT is the headline, because it is the only part of this block that changes.
+            Tabular numerals so it does not shuffle as the figures tick. */}
+        {/* Violet, not white. Every other identifying mark on this panel — the accent bar, the icon,
+            the mode buttons — is #C084FC, and a white headline read as belonging to a different
+            component. */}
+        <span style={{ display: "block", fontSize: 19, fontWeight: 700, color: "#C084FC",
+          letterSpacing: -0.2, lineHeight: 1.15, fontVariantNumeric: "tabular-nums" }}>
           {mode === "live"
-            ? `${drones.length} aircraft now · ${((marine && marine.usv && marine.usv.count) || 0) + ((marine && marine.sub && marine.sub.count) || 0)} vessels of interest · ${(data && data.sweep && data.sweep.sites) || 0} airspaces`
+            ? `${drones.length} aircraft airborne now`
+            // A HEADLINE HOLDS A NUMBER. These modes had instructions here — "tap a circle for
+            // detail" — set larger than anything else on the panel. The instruction belongs in
+            // the line beneath; what goes here is what is being counted.
             : mode === "heat"
-              ? `Where activity concentrates over ${days} day${days > 1 ? "s" : ""} — tap a circle for detail`
+              ? `Activity over ${days} day${days > 1 ? "s" : ""}`
               : mode === "routes"
-                ? `One aircraft across several airfields over ${days} day${days > 1 ? "s" : ""} — tap to see each stop`
+                ? `Multi-stop runs, ${days} day${days > 1 ? "s" : ""}`
                 : mode === "ops"
                   // NOT "movements". Aircraft that stay inside the radius never end a track here,
                   // so this counts traffic BETWEEN places — a busy training field shows a small
                   // number, and saying "movements" would read as a broken tool.
-                  ? "Aircraft arriving from and departing to elsewhere — tap a site for each one"
-                  : `${(hist && hist.count) || 0} recorded · archive keeps 90 days`}
+                  ? "Arrivals and departures"
+                  : `${(hist && hist.count) || 0} recorded`}
+        </span>
+        <span style={{ display: "block", fontSize: 10.5, color: C.faint, marginTop: 3 }}>
+          {mode === "live"
+            ? `${((marine && marine.usv && marine.usv.count) || 0) + ((marine && marine.sub && marine.sub.count) || 0)} vessels of interest \u00b7 ${(data && data.sweep && data.sweep.sites) || 0} airspaces watched`
+            : mode === "heat" ? "Where it concentrates, from the archive \u2014 tap a circle for detail"
+            : mode === "routes" ? "One aircraft across several airfields \u2014 tap to see each stop"
+            : mode === "ops" ? "Traffic between places, inferred from where tracks end and begin \u2014 tap a site"
+            : mode === "archive" ? "Everything the sweep saw \u2014 the archive keeps 90 days"
+            : "Military & UAV watch \u00b7 air and sea"}
         </span>
       </div>
 
