@@ -194,7 +194,10 @@ export default function DataCentres() {
       // the same state in the dropdown twice — once with 81 facilities and once with 1. A filter
       // that lists a place twice makes a reader doubt everything else on the page.
       if (r.state) {
+        // subdivisionName returns null for values that are not places — "n/a", a country code in
+        // the state field. Keying by the return value put a literal "null" in the dropdown.
         const label = subdivisionName(r.country, r.state);
+        if (!label) return;
         c[label] = (c[label] || 0) + 1;
       }
     });
@@ -783,7 +786,8 @@ export default function DataCentres() {
 
       <div className="font-mono" style={{ fontSize: 9, color: C.faint, lineHeight: 1.5 }}>
         {shown.length.toLocaleString()} of {records.length.toLocaleString()} facilities shown
-        {statusFilter === "operating" && (
+        {statusFilter === "operating"
+          && records.filter((r) => ["proposed","under_construction","permitted","blocked","withdrawn"].includes(r.status) && matches(r, "status")).length > 0 && (
           <>{" · "}<span style={{ color: C.amber }}>
             showing places that exist — {records.filter((r) => matches(r, "status") && ["proposed", "under_construction", "permitted"].includes(r.status)).length} planned
             and {records.filter((r) => matches(r, "status") && ["blocked", "withdrawn"].includes(r.status)).length} refused or abandoned sites are hidden
