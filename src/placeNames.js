@@ -365,9 +365,79 @@ export function countryName(code) {
   return COUNTRY_NAMES[code.toUpperCase()] || code;
 }
 
+// Spelling variants that mean the same place. PeeringDB and OpenStreetMap both take this field as
+// free text from whoever filled the form, so Germany arrived as 42 dropdown entries where it has
+// 16 states: "Bavaria" and "Bayern", "Hessen" and "Hesse" and "Hessia", "NRW" and
+// "Nordrhein-Westfalen" and "North Rhine-Westphalia", "Baden-Wuerttemberg" and
+// "Baden-Württemberg".
+//
+// Only the countries where the duplication is bad enough to matter. A country listing three
+// regions where it should list two is untidy; one listing 42 where it should list 16 makes a
+// reader doubt every other number on the page.
+//
+// Keys are lowercased and stripped of accents before lookup, so "Baden-Württemberg" and
+// "baden-wuerttemberg" both land here without needing an entry each.
+const ALIASES = {
+  DE: {
+    "bayern": "Bavaria", "oberbayern": "Bavaria", "oberpfalz": "Bavaria", "mittelfranken": "Bavaria",
+    "hessen": "Hesse", "hessia": "Hesse", "darmstadt": "Hesse", "giessen": "Hesse", "gießen": "Hesse",
+    "nrw": "North Rhine-Westphalia", "nordrhein-westfalen": "North Rhine-Westphalia",
+    "dusseldorf": "North Rhine-Westphalia", "koln": "North Rhine-Westphalia",
+    "munster": "North Rhine-Westphalia", "detmold": "North Rhine-Westphalia",
+    "baden-wuerttemberg": "Baden-Württemberg", "bw": "Baden-Württemberg",
+    "stuttgart": "Baden-Württemberg", "freiburg": "Baden-Württemberg",
+    "niedersachsen": "Lower Saxony", "hannover": "Lower Saxony", "weser-ems": "Lower Saxony",
+    "sachsen": "Saxony", "leipzig": "Saxony",
+    "sachsen-anhalt": "Saxony-Anhalt",
+    "thueringen": "Thuringia", "th": "Thuringia",
+    "sh": "Schleswig-Holstein", "hh": "Hamburg", "mv": "Mecklenburg-Vorpommern",
+    "de": null,
+  },
+  IN: {
+    "maharastra": "Maharashtra", "maharshtra": "Maharashtra", "mh": "Maharashtra",
+    "karnataka": "Karnataka", "ka": "Karnataka",
+    "tamilnadu": "Tamil Nadu", "tn": "Tamil Nadu",
+    "up": "Uttar Pradesh", "wb": "West Bengal", "ap": "Andhra Pradesh",
+    "jk": "Jammu and Kashmir", "mp": "Madhya Pradesh", "pb": "Punjab",
+  },
+  TR: { "istanbul": "İstanbul", "sisli": "İstanbul", "bakirkoy": "İstanbul", "eyup": "İstanbul" },
+  ID: {
+    "dki jakarta": "Jakarta", "daerah khusus ibukota jakarta": "Jakarta",
+    "jakarta selatan": "Jakarta", "jawa barat": "West Java", "jawa tengah": "Central Java",
+    "jawa timur": "East Java", "jawatimur": "East Java", "diy": "Yogyakarta",
+    "daerah istimewa yogyakarta": "Yogyakarta",
+  },
+};
+
+// Values that are not a place at all. They came from a form where somebody had to type something.
+const NOT_A_PLACE = new Set(["n/a", "na", "nil", "none", "(none)", "not applicable", "other", "-", "."]);
+
+function fold(v) {
+  return String(v).trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")   // strip accents: Württemberg -> Wurttemberg
+    .replace(/[.,]+$/, "");                             // "Maharashtra," -> "Maharashtra"
+}
+
 export function subdivisionName(countryCode, state) {
   if (!state) return null;
-  const table = SUBDIVISIONS[(countryCode || "").toUpperCase()];
-  if (!table) return state;
-  return table[state.toUpperCase()] || state;
+  const cc = (countryCode || "").toUpperCase();
+  const f = fold(state);
+  if (!f || NOT_A_PLACE.has(f)) return null;
+
+  // Aliases first, because they resolve variants the subdivision table would miss. A null value
+  // in the alias table means "this is a country code in the state field", which is not a region.
+  const alias = ALIASES[cc];
+  if (alias && Object.prototype.hasOwnProperty.call(alias, f)) return alias[f];
+
+  const table = SUBDIVISIONS[cc];
+  if (table) {
+    const hit = table[state.trim().toUpperCase()];
+    if (hit) return hit;
+    // A full name that already matches one of ours, differing only in case or a trailing comma.
+    const byName = Object.values(table).find((v) => fold(v) === f);
+    if (byName) return byName;
+  }
+  // Unrecognised, so returned as written. A name we cannot normalise is still a name somebody
+  // typed, and dropping it would hide the record entirely.
+  return state.trim().replace(/[.,]+$/, "");
 }
