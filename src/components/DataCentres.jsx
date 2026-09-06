@@ -474,7 +474,11 @@ export default function DataCentres() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-center gap-1.5 flex-wrap font-mono" style={{ fontSize: 9 }}>
-        <span style={{ color: C.faint, letterSpacing: 1, marginRight: 2 }}>COUNTRY</span>
+        {/* Each label and its control wrapped as ONE element. As flex siblings they wrapped
+            independently, so on a phone the label sat on one line and its dropdown on the next —
+            four filters became eight rows and no label was beside the thing it named. */}
+        <label className="inline-flex items-center gap-1">
+        <span style={{ color: C.faint, letterSpacing: 1 }}>COUNTRY</span>
         <select value={country} onChange={(e) => { setCountry(e.target.value); setRegion("All"); }}
           className="px-2 rounded font-mono"
           style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
@@ -483,10 +487,10 @@ export default function DataCentres() {
             <option key={cn} value={cn} style={{ background: C.panel }}>{countryName(cn)} ({n})</option>
           ))}
         </select>
+        </label>
         {country !== "All" && regions.length > 0 && (
-          <><span style={{ color: C.faint, letterSpacing: 1, marginLeft: 6, marginRight: 2 }}>REGION</span></>
-        )}
-        {country !== "All" && regions.length > 0 && (
+          <label className="inline-flex items-center gap-1">
+          <span style={{ color: C.faint, letterSpacing: 1 }}>REGION</span>
           <select value={region} onChange={(e) => setRegion(e.target.value)}
             className="px-2 rounded font-mono"
             style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
@@ -495,12 +499,14 @@ export default function DataCentres() {
               <option key={rn} value={rn} style={{ background: C.panel }}>{rn} ({n})</option>
             ))}
           </select>
+          </label>
         )}
         {/* SOURCE. Only shown once more than one source is in the file — with PeeringDB alone a
             filter offering a single choice is noise. It appears when the OSM records land. */}
         {/* Counted from the data rather than hardcoded, so a source that stops carrying a status
             does not leave a control offering an empty set. */}
-        <span style={{ color: C.faint, letterSpacing: 1, marginLeft: 6, marginRight: 2 }}>STATUS</span>
+        <label className="inline-flex items-center gap-1">
+        <span style={{ color: C.faint, letterSpacing: 1 }}>STATUS</span>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
           className="px-2 rounded font-mono"
           style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
@@ -521,8 +527,10 @@ export default function DataCentres() {
             Everything ({records.filter((r) => matches(r, "status")).length.toLocaleString()})
           </option>
         </select>
+        </label>
         {sources.length > 1 && (
-          <><span style={{ color: C.faint, letterSpacing: 1, marginLeft: 6, marginRight: 2 }}>SOURCE</span>
+          <label className="inline-flex items-center gap-1">
+          <span style={{ color: C.faint, letterSpacing: 1 }}>SOURCE</span>
           <select value={srcFilter} onChange={(e) => setSrcFilter(e.target.value)}
             className="px-2 rounded font-mono"
             style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
@@ -537,7 +545,7 @@ export default function DataCentres() {
                   : sn === "dcx" ? "Traced through filings" : sn} ({n})
               </option>
             ))}
-          </select></>
+          </select></label>
         )}
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="operator, name or city"
           className="px-2 rounded font-mono"
@@ -602,7 +610,16 @@ export default function DataCentres() {
         </div>
       )}
 
-      <div className="flex items-center justify-center gap-1 font-mono">
+      {/* gap-1 was 4px between everything, so a label sat as close to its own chip as it did to
+          the next group — the grouping existed in the markup and not on screen. The wrapping
+          elements below carry the grouping instead. */}
+      <div className="flex items-center justify-center gap-4 flex-wrap font-mono">
+        {/* CABLES is not a basemap. It sat as a fourth chip beside Satellite, Street and Terrain,
+            which are three exclusive choices of background — so four chips in a row implied four
+            options of the same kind, when one is a data layer you toggle and three are a picker.
+            Labelled separately, and separated by a gap. */}
+        <span className="inline-flex items-center gap-1.5">
+        <span style={{ fontSize: 8.5, color: C.faint, letterSpacing: 1 }}>LAYER</span>
         <button onClick={() => setShowCables((v) => !v)} className="rounded"
           style={{ fontSize: 8.5, padding: "3px 8px", marginRight: 6,
             color: showCables ? "#04121F" : "#A78BFA",
@@ -610,6 +627,9 @@ export default function DataCentres() {
             border: "1px solid #A78BFA66" }}>
           CABLES
         </button>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+        <span style={{ fontSize: 8.5, color: C.faint, letterSpacing: 1 }}>BACKGROUND</span>
         {Object.entries(BASEMAPS).map(([k, b]) => (
           <button key={k} onClick={() => setBasemap(k)} className="rounded"
             style={{ fontSize: 8.5, padding: "3px 8px",
@@ -619,6 +639,7 @@ export default function DataCentres() {
             {b.label}
           </button>
         ))}
+        </span>
       </div>
 
       {/* A fixed height, not an aspect ratio. 16:10 left dead space above and below on a narrow
