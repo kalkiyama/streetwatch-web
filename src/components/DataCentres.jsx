@@ -107,6 +107,17 @@ export default function DataCentres() {
   // filters. The ref is reassigned on every render, so the listener always calls the current one.
   // Same pattern WorldMap.jsx uses for exactly the same reason.
   const drawRef = useRef(null);
+  // OPERATING ONLY, by default.
+  //
+  // Everything at once was 10,600 markers in six visual states — filled dots, hollow rings, grey
+  // outlines, red crosses, violet cable lines and a green reticle — on one map. That is not a map,
+  // it is a legend nobody asked for, and a first-time visitor met crosses and hollow rings with no
+  // way to know what they meant.
+  //
+  // Opening on places that EXIST gives one visual state and a readable map. Everything else is one
+  // choice away, and by the time someone selects "proposed" the meaning of a hollow grey ring is
+  // obvious from context rather than needing a key.
+  const [statusFilter, setStatusFilter] = useState("operating");
   const [showChanges, setShowChanges] = useState(false);
   const [whyList, setWhyList] = useState(false);
 
@@ -166,6 +177,12 @@ export default function DataCentres() {
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return records.filter((r) => {
+      // Records with NO status are the PeeringDB and OSM ones — buildings that exist, listed by
+      // their operator or surveyed by a mapper. They belong with "operating" rather than being
+      // filtered out by a control that does not describe them.
+      if (statusFilter === "operating" && r.status && r.status !== "operating") return false;
+      if (statusFilter === "planned" && !["proposed", "under_construction", "permitted"].includes(r.status)) return false;
+      if (statusFilter === "stopped" && !["blocked", "withdrawn"].includes(r.status)) return false;
       if (srcFilter !== "All" && r.src !== srcFilter) return false;
       if (country !== "All" && r.country !== country) return false;
       // Compared on the displayed name too, so a record storing "NY" and one storing "New York"
@@ -183,7 +200,7 @@ export default function DataCentres() {
       }
       return true;
     });
-  }, [records, country, region, q, srcFilter]);
+  }, [records, country, region, q, srcFilter, statusFilter]);
 
   useEffect(() => {
     if (mapRef.current || !elRef.current) return;
@@ -409,13 +426,13 @@ export default function DataCentres() {
     // above (so the reticle repaints) would otherwise re-run the fit on every click, throwing the
     // view back out and undoing whatever zoom someone had chosen to get there — and keying on the
     // result count meant a country switch sometimes did not move the map at all.
-    const fitKey = `${country}|${region}|${srcFilter}|${q}`;
+    const fitKey = `${country}|${region}|${srcFilter}|${q}|${statusFilter}`;
     if (bounds.length && fitKey !== lastFitRef.current) {
       lastFitRef.current = fitKey;
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 11, animate: true });
     }
     }
-  }, [shown, records.length, sel, basemap, showCables, data, country, region, srcFilter, q]);
+  }, [shown, records.length, sel, basemap, showCables, data, country, region, srcFilter, q, statusFilter]);
 
   const fmtUnknown = (v) => (v == null || v === "" ? <span style={{ color: C.faint }}>unknown</span> : v);
 
@@ -431,7 +448,10 @@ export default function DataCentres() {
             <option key={cn} value={cn} style={{ background: C.panel }}>{countryName(cn)} ({n})</option>
           ))}
         </select>
-        {regions.length > 0 && (
+        {country !== "All" && regions.length > 0 && (
+          <><span style={{ color: C.faint, letterSpacing: 1, marginLeft: 6, marginRight: 2 }}>REGION</span></>
+        )}
+        {country !== "All" && regions.length > 0 && (
           <select value={region} onChange={(e) => setRegion(e.target.value)}
             className="px-2 rounded font-mono"
             style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
@@ -443,7 +463,31 @@ export default function DataCentres() {
         )}
         {/* SOURCE. Only shown once more than one source is in the file — with PeeringDB alone a
             filter offering a single choice is noise. It appears when the OSM records land. */}
+        {/* Counted from the data rather than hardcoded, so a source that stops carrying a status
+            does not leave a control offering an empty set. */}
+        <span style={{ color: C.faint, letterSpacing: 1, marginLeft: 6, marginRight: 2 }}>STATUS</span>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-2 rounded font-mono"
+          style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
+          <option value="operating" style={{ background: C.panel }}>
+            Operating ({records.filter((r) => !r.status || r.status === "operating").length.toLocaleString()})
+          </option>
+          {/* US ONLY, and it has to say so. All 927 planned, blocked and withdrawn records are
+              American — DataCentersExposed traces planning decisions through US regulatory
+              filings and has no equivalent elsewhere. Without this label a reader outside the US
+              concludes no data centre proposal has ever been refused in their country. */}
+          <option value="planned" style={{ background: C.panel }}>
+            Planned or building — US only ({records.filter((r) => ["proposed", "under_construction", "permitted"].includes(r.status)).length.toLocaleString()})
+          </option>
+          <option value="stopped" style={{ background: C.panel }}>
+            Refused or abandoned — US only ({records.filter((r) => ["blocked", "withdrawn"].includes(r.status)).length.toLocaleString()})
+          </option>
+          <option value="all" style={{ background: C.panel }}>
+            Everything ({records.length.toLocaleString()})
+          </option>
+        </select>
         {sources.length > 1 && (
+          <><span style={{ color: C.faint, letterSpacing: 1, marginLeft: 6, marginRight: 2 }}>SOURCE</span>
           <select value={srcFilter} onChange={(e) => setSrcFilter(e.target.value)}
             className="px-2 rounded font-mono"
             style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
@@ -458,7 +502,7 @@ export default function DataCentres() {
                   : sn === "dcx" ? "Traced through filings" : sn} ({n})
               </option>
             ))}
-          </select>
+          </select></>
         )}
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="operator, name or city"
           className="px-2 rounded font-mono"
@@ -707,6 +751,12 @@ export default function DataCentres() {
 
       <div className="font-mono" style={{ fontSize: 9, color: C.faint, lineHeight: 1.5 }}>
         {shown.length.toLocaleString()} of {records.length.toLocaleString()} facilities shown
+        {statusFilter === "operating" && (
+          <>{" · "}<span style={{ color: C.amber }}>
+            showing places that exist — {records.filter((r) => ["proposed", "under_construction", "permitted"].includes(r.status)).length} planned
+            and {records.filter((r) => ["blocked", "withdrawn"].includes(r.status)).length} refused or abandoned sites are hidden
+          </span></>
+        )}
         {data && data.built ? ` · list built ${data.built.slice(0, 10)}` : ""}
         {" · "}larger circles carry more networks.{" "}
         <button onClick={() => setWhyList((v) => !v)} className="rounded"
