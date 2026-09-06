@@ -140,15 +140,46 @@ export default function DataCentres() {
 
   const records = (data && data.records) || [];
 
+  // COUNTS HAVE TO RESPECT THE OTHER FILTERS. With United States and Maryland selected, the status
+  // dropdown still offered "Everything (10,600)" — a number describing the whole world on a control
+  // that would have returned 42. A count that does not predict what selecting it gives you is worse
+  // than no count, because it looks like an answer.
+  //
+  // Each dropdown counts with ITSELF excluded, so every number reads "if I pick this, I get that".
+  const matches = (r, skip) => {
+    const needle = q.trim().toLowerCase();
+    if (skip !== "status") {
+      if (statusFilter === "operating" && r.status && r.status !== "operating") return false;
+      if (statusFilter === "planned" && !["proposed", "under_construction", "permitted"].includes(r.status)) return false;
+      if (statusFilter === "stopped" && !["blocked", "withdrawn"].includes(r.status)) return false;
+    }
+    if (skip !== "src" && srcFilter !== "All" && r.src !== srcFilter) return false;
+    if (skip !== "country" && country !== "All" && r.country !== country) return false;
+    // Skipping "country" has to skip REGION as well. A region cannot outlive its country: with
+    // Maryland selected, the "All countries" option counted 42 — Maryland's total — on a control
+    // whose whole purpose is to clear that constraint and show thousands.
+    if (skip !== "region" && skip !== "country"
+        && region !== "All" && subdivisionName(r.country, r.state) !== region) return false;
+    if (needle) {
+      const hay = (`${r.name || ""} ${r.operator || ""} ${r.city || ""} ${r.address || ""} `
+        + `${countryName(r.country) || ""} ${subdivisionName(r.country, r.state) || ""}`).toLowerCase();
+      if (!hay.includes(needle)) return false;
+    }
+    return true;
+  };
+
+  // Defined ABOVE the memos that call it. `const` is not hoisted, so declaring this next to
+  // `shown` — below countries, regions and sources — meant those three called it before it
+  // existed and the tab crashed on render.
   const sources = useMemo(() => {
     const c = {};
-    records.forEach((r) => { if (r.src) c[r.src] = (c[r.src] || 0) + 1; });
+    records.forEach((r) => { if (r.src && matches(r, "src")) c[r.src] = (c[r.src] || 0) + 1; });
     return Object.entries(c).sort((a, b) => b[1] - a[1]);
   }, [records]);
 
   const countries = useMemo(() => {
     const c = {};
-    records.forEach((r) => { if (r.country) c[r.country] = (c[r.country] || 0) + 1; });
+    records.forEach((r) => { if (r.country && matches(r, "country")) c[r.country] = (c[r.country] || 0) + 1; });
     // Sorted by the NAME shown, not the code stored — otherwise "Germany" sorts under D and
     // "United Kingdom" under G, which is exactly the confusion the names are meant to remove.
     return Object.entries(c).sort((a, b) => countryName(a[0]).localeCompare(countryName(b[0])));
@@ -157,7 +188,7 @@ export default function DataCentres() {
   const regions = useMemo(() => {
     const c = {};
     records.forEach((r) => {
-      if (country !== "All" && r.country !== country) return;
+      if (!matches(r, "region")) return;
       // Keyed by the DISPLAYED name, not the stored value. PeeringDB's state field is freeform:
       // six US records write "New York" where the rest write "NY", so keying by the raw value put
       // the same state in the dropdown twice — once with 81 facilities and once with 1. A filter
@@ -174,6 +205,7 @@ export default function DataCentres() {
   // when a state is chosen, and 31% of records have no state at all. The count beneath the map
   // says how many are shown of how many exist, so a thin result reads as the data being thin
   // rather than as a filter that broke.
+
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return records.filter((r) => {
@@ -443,7 +475,7 @@ export default function DataCentres() {
         <select value={country} onChange={(e) => { setCountry(e.target.value); setRegion("All"); }}
           className="px-2 rounded font-mono"
           style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
-          <option value="All" style={{ background: C.panel }}>All countries ({records.length.toLocaleString()})</option>
+          <option value="All" style={{ background: C.panel }}>All countries ({records.filter((r) => matches(r, "country")).length.toLocaleString()})</option>
           {countries.map(([cn, n]) => (
             <option key={cn} value={cn} style={{ background: C.panel }}>{countryName(cn)} ({n})</option>
           ))}
@@ -470,20 +502,20 @@ export default function DataCentres() {
           className="px-2 rounded font-mono"
           style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
           <option value="operating" style={{ background: C.panel }}>
-            Operating ({records.filter((r) => !r.status || r.status === "operating").length.toLocaleString()})
+            Operating ({records.filter((r) => matches(r, "status") && (!r.status || r.status === "operating")).length.toLocaleString()})
           </option>
           {/* US ONLY, and it has to say so. All 927 planned, blocked and withdrawn records are
               American — DataCentersExposed traces planning decisions through US regulatory
               filings and has no equivalent elsewhere. Without this label a reader outside the US
               concludes no data centre proposal has ever been refused in their country. */}
           <option value="planned" style={{ background: C.panel }}>
-            Planned or building — US only ({records.filter((r) => ["proposed", "under_construction", "permitted"].includes(r.status)).length.toLocaleString()})
+            Planned or building — US only ({records.filter((r) => matches(r, "status") && ["proposed", "under_construction", "permitted"].includes(r.status)).length.toLocaleString()})
           </option>
           <option value="stopped" style={{ background: C.panel }}>
-            Refused or abandoned — US only ({records.filter((r) => ["blocked", "withdrawn"].includes(r.status)).length.toLocaleString()})
+            Refused or abandoned — US only ({records.filter((r) => matches(r, "status") && ["blocked", "withdrawn"].includes(r.status)).length.toLocaleString()})
           </option>
           <option value="all" style={{ background: C.panel }}>
-            Everything ({records.length.toLocaleString()})
+            Everything ({records.filter((r) => matches(r, "status")).length.toLocaleString()})
           </option>
         </select>
         {sources.length > 1 && (
@@ -753,8 +785,8 @@ export default function DataCentres() {
         {shown.length.toLocaleString()} of {records.length.toLocaleString()} facilities shown
         {statusFilter === "operating" && (
           <>{" · "}<span style={{ color: C.amber }}>
-            showing places that exist — {records.filter((r) => ["proposed", "under_construction", "permitted"].includes(r.status)).length} planned
-            and {records.filter((r) => ["blocked", "withdrawn"].includes(r.status)).length} refused or abandoned sites are hidden
+            showing places that exist — {records.filter((r) => matches(r, "status") && ["proposed", "under_construction", "permitted"].includes(r.status)).length} planned
+            and {records.filter((r) => matches(r, "status") && ["blocked", "withdrawn"].includes(r.status)).length} refused or abandoned sites are hidden
           </span></>
         )}
         {data && data.built ? ` · list built ${data.built.slice(0, 10)}` : ""}
