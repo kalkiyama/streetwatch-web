@@ -24,6 +24,25 @@ import { countryName, subdivisionName } from "../placeNames.js";
 
 const OPERATOR_COLOUR = "#22D3EE";
 
+// STATUS DECIDES THE SHAPE, because half of these places do not exist.
+//
+// Of the DataCentersExposed campuses, 933 are operating and 927 are not: 589 proposals, 176 under
+// construction, 53 permitted, and 109 that were BLOCKED or WITHDRAWN — refused or abandoned. The
+// eight largest capacity figures on the whole map belong to sites that have never run, and one of
+// them, Project Jade at 10,000MW, was turned down.
+//
+// Drawing a planning application the same way as a building would be the first thing on this map
+// that asserts something false. So: a filled dot is a place, an outline is a plan, and a struck
+// dot is a plan that failed.
+const STATUS = {
+  operating:          { label: "operating",          fill: true,  colour: "#22D3EE", exists: true },
+  under_construction: { label: "under construction", fill: false, colour: "#F6A821", exists: false },
+  permitted:          { label: "permitted",          fill: false, colour: "#F6A821", exists: false },
+  proposed:           { label: "proposed",           fill: false, colour: "#8A94A3", exists: false },
+  blocked:            { label: "blocked",            fill: false, colour: "#F0553B", exists: false },
+  withdrawn:          { label: "withdrawn",          fill: false, colour: "#F0553B", exists: false },
+};
+
 // THERE IS NO LIVE SATELLITE BASEMAP, and it is worth being plain about that. Every world imagery
 // layer is a composite stitched from acquisitions months or years apart — the visible seams are
 // where one capture meets another. So the map cannot carry a single date. What it CAN do is report
@@ -318,6 +337,19 @@ export default function DataCentres() {
       // smallest dots are the records with no network count — a third of the OSM set — so the
       // least visible marker was carrying the newest data.
       const radius = (n > 100 ? 8 : n > 25 ? 6.5 : n > 5 ? 5.5 : 5) + (basemap !== "street" ? 1.6 : 0);
+      const st = r.status ? STATUS[r.status] : null;
+      // A blocked or withdrawn site gets a cross through it. Nothing else on the internet maps a
+      // refused proposal, and it should not look like a quieter version of a building.
+      if (st && (r.status === "blocked" || r.status === "withdrawn")) {
+        const d = radius + 3;
+        const pt = map.latLngToContainerPoint([r.lat, r.lon]);
+        const a = map.containerPointToLatLng([pt.x - d, pt.y - d]);
+        const b = map.containerPointToLatLng([pt.x + d, pt.y + d]);
+        const c2 = map.containerPointToLatLng([pt.x - d, pt.y + d]);
+        const d2 = map.containerPointToLatLng([pt.x + d, pt.y - d]);
+        Leaflet.polyline([a, b], { color: st.colour, weight: 1.6, opacity: 0.85, interactive: false }).addTo(lg);
+        Leaflet.polyline([c2, d2], { color: st.colour, weight: 1.6, opacity: 0.85, interactive: false }).addTo(lg);
+      }
       // `bounds` collects EVERY filtered record, not only the drawn ones — fitting the view to a
       // country must frame the whole country, not whatever happened to be on screen when the
       // filter changed.
@@ -340,12 +372,18 @@ export default function DataCentres() {
         // The outline follows the BASEMAP's tone, because no single colour works on all three.
         // A white halo reads on dark satellite imagery and vanishes into OpenTopoMap, which is
         // pale beige; a dark halo does the reverse. Guessing a middle grey serves neither.
-        color: isSel ? "#00FF7F" : basemap === "satellite" ? "#FFFFFF" : "#0A1220",
+        color: isSel ? "#00FF7F"
+          : st && !st.fill ? st.colour
+          : basemap === "satellite" ? "#FFFFFF" : "#0A1220",
         weight: isSel ? 2.5 : 1.6, opacity: isSel ? 0.95 : 0.9,
         // Amber for the selected one, and a deeper cyan on the pale basemaps where #22D3EE
         // washes out.
-        fillColor: isSel ? "#F6A821" : basemap === "satellite" ? OPERATOR_COLOUR : "#0891B2",
-        fillOpacity: 1,
+        // An OUTLINE where the place does not exist yet, or never will. The fill is what says
+        // "this is here"; withholding it is the whole distinction.
+        fillColor: isSel ? "#F6A821"
+          : st ? st.colour
+          : basemap === "satellite" ? OPERATOR_COLOUR : "#0891B2",
+        fillOpacity: isSel ? 1 : st && !st.fill ? 0 : 1,
       })
         .on("click", () => {
           setSel(r);
@@ -357,7 +395,8 @@ export default function DataCentres() {
             if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
           }, 60);
         })
-        .bindTooltip(`${r.name || "unnamed"}${r.operator ? " · " + r.operator : ""}`,
+        .bindTooltip(`${r.name || "unnamed"}${r.operator ? " · " + r.operator : ""}`
+          + `${st && !st.exists ? " · " + st.label.toUpperCase() : ""}`,
           { direction: "top", opacity: 0.9 })
         .addTo(lg);
     });
@@ -413,7 +452,9 @@ export default function DataCentres() {
                 is also exactly why the two sets differ. */}
             {sources.map(([sn, n]) => (
               <option key={sn} value={sn} style={{ background: C.panel }}>
-                {sn === "peeringdb" ? "Operator-listed" : sn === "osm" ? "Mapped on the ground" : sn} ({n})
+                {sn === "peeringdb" ? "Operator-listed"
+                  : sn === "osm" ? "Mapped on the ground"
+                  : sn === "dcx" ? "Traced through filings" : sn} ({n})
               </option>
             ))}
           </select>
@@ -531,7 +572,17 @@ export default function DataCentres() {
           background: "rgba(4,18,31,0.95)", border: `1px solid ${OPERATOR_COLOUR}66` }}>
           <div className="flex items-start justify-between gap-2">
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, color: OPERATOR_COLOUR }}>{sel.name || "unnamed facility"}</div>
+              <div style={{ fontSize: 13, color: sel.status && STATUS[sel.status] ? STATUS[sel.status].colour : OPERATOR_COLOUR }}>
+                {sel.name || "unnamed facility"}
+              </div>
+              {sel.status && STATUS[sel.status] && !STATUS[sel.status].exists && (
+                <div style={{ fontSize: 10, color: STATUS[sel.status].colour, marginTop: 1 }}>
+                  {sel.status === "blocked" ? "This was refused and does not exist."
+                    : sel.status === "withdrawn" ? "This was abandoned and does not exist."
+                    : sel.status === "proposed" ? "This is a proposal. It may never be built."
+                    : `This is ${STATUS[sel.status].label} and is not operating yet.`}
+                </div>
+              )}
               <div style={{ fontSize: 10.5, color: C.dim, marginTop: 2 }}>{sel.operator}</div>
             </div>
             <button onClick={() => setSel(null)} aria-label="Close" style={{ color: C.dim }}><X size={14} /></button>
@@ -548,8 +599,16 @@ export default function DataCentres() {
               "unknown" rather than omitted, because an absent row reads as a field that does not
               exist while an explicit unknown reads as a fact nobody publishes. */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-1" style={{ fontSize: 10, marginTop: 8 }}>
-            <div><span style={{ color: C.faint }}>capacity </span>{fmtUnknown(null)}</div>
-            <div><span style={{ color: C.faint }}>water use </span>{fmtUnknown(null)}</div>
+            {/* CAPACITY AND STATUS TRAVEL TOGETHER. "10,000 MW" beside a name reads as a fact
+                about a place; for Project Jade it is a fact about a planning application that was
+                refused. The number is never shown on its own. */}
+            <div><span style={{ color: C.faint }}>capacity </span>
+              {sel.powerMw
+                ? <>{sel.powerMw.toLocaleString()} MW{sel.status && STATUS[sel.status] && !STATUS[sel.status].exists
+                    ? <span style={{ color: STATUS[sel.status].colour }}> · {STATUS[sel.status].label}</span> : ""}</>
+                : fmtUnknown(null)}</div>
+            <div><span style={{ color: C.faint }}>water use </span>
+              {sel.waterGpd ? `${sel.waterGpd.toLocaleString()} gal/day` : fmtUnknown(null)}</div>
             <div><span style={{ color: C.faint }}>power supply </span>{fmtUnknown(sel.voltage ? sel.voltage.join(", ") : null)}</div>
             {/* A BOOLEAN, not a count — PeeringDB's diverse_serving_substations means "fed by more
                 than one substation", which is a resilience property. Rendered raw it showed nothing
@@ -560,8 +619,14 @@ export default function DataCentres() {
                 : sel.substations === false ? "single substation"
                 : fmtUnknown(null)}</div>
             <div><span style={{ color: C.faint }}>networks present </span>{fmtUnknown(sel.networks)}</div>
+            {sel.parent && <div><span style={{ color: C.faint }}>owner </span>{sel.parent}</div>}
+            {sel.sqft && <div><span style={{ color: C.faint }}>floor area </span>{sel.sqft.toLocaleString()} sq ft</div>}
+            {sel.year && <div><span style={{ color: C.faint }}>operational </span>{sel.year}</div>}
+            {sel.confidence && <div><span style={{ color: C.faint }}>confidence </span>{sel.confidence}</div>}
             <div><span style={{ color: C.faint }}>source </span>
-              {sel.src === "peeringdb" ? "operator-listed" : sel.src === "osm" ? "mapped on the ground" : sel.src}</div>
+              {sel.src === "peeringdb" ? "operator-listed"
+                : sel.src === "osm" ? "mapped on the ground"
+                : sel.src === "dcx" ? "traced through filings" : sel.src}</div>
           </div>
 
           {imagery && imagery.date && (
