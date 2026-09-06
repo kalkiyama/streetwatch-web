@@ -107,6 +107,7 @@ export default function DataCentres() {
   // filters. The ref is reassigned on every render, so the listener always calls the current one.
   // Same pattern WorldMap.jsx uses for exactly the same reason.
   const drawRef = useRef(null);
+  const [showChanges, setShowChanges] = useState(false);
   const [whyList, setWhyList] = useState(false);
 
   const elRef = useRef(null);
@@ -463,6 +464,64 @@ export default function DataCentres() {
           className="px-2 rounded font-mono"
           style={{ fontSize: 10, height: 26, width: 190, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }} />
       </div>
+
+      {/* WHAT MOVED. Half the campuses here are places that do not exist — proposals, sites under
+          construction, and ones that were refused or abandoned — and those statuses change: a
+          blocked proposal wins on appeal, an operating site is decommissioned, a plan is withdrawn
+          after opposition. That reversal is the most interesting thing this map holds and nothing
+          else shows it.
+
+          Collapsed, because on most weeks the answer is "nothing changed" and a panel that
+          announces that loudly every visit is noise. */}
+      {data && data.changes && data.changes.length > 0 && (
+        <div className="font-mono rounded-lg" style={{ padding: "7px 10px",
+          background: "rgba(246,168,33,0.07)", border: `1px solid ${C.amber}44` }}>
+          <button onClick={() => setShowChanges((v) => !v)} className="w-full text-left"
+            style={{ fontSize: 11, color: C.amber }}>
+            {data.changes.length} site{data.changes.length === 1 ? "" : "s"} changed status
+            {" "}since {new Date(data.changes[data.changes.length - 1].on + "T00:00:00")
+              .toLocaleDateString(undefined, { day: "numeric", month: "long" })}
+            <span style={{ color: C.dim, marginLeft: 6, fontSize: 10 }}>
+              {showChanges ? "hide" : "show"}
+            </span>
+          </button>
+          {showChanges && (
+            <div style={{ marginTop: 6 }}>
+              {/* Ordered by capacity. A 10,000MW proposal being approved matters more than a small
+                  colocation site changing hands, and a date-ordered list buries it. */}
+              {[...data.changes]
+                .sort((a, b) => (b.powerMw || 0) - (a.powerMw || 0))
+                .slice(0, 40)
+                .map((c) => (
+                <div key={c.srcId + c.on} style={{ fontSize: 10.5, color: C.dim, padding: "3px 0",
+                  borderTop: `1px solid ${C.line}55` }}>
+                  <span style={{ color: C.text }}>{c.name || "unnamed"}</span>
+                  {c.operator ? <span style={{ color: C.faint }}> · {c.operator}</span> : null}
+                  {c.powerMw ? <span style={{ color: "#F6A821" }}> · {c.powerMw.toLocaleString()} MW</span> : null}
+                  <br />
+                  <span style={{ color: STATUS[c.from] ? STATUS[c.from].colour : C.faint }}>
+                    {STATUS[c.from] ? STATUS[c.from].label : c.from}
+                  </span>
+                  <span style={{ color: C.faint }}> {"\u2192"} </span>
+                  <span style={{ color: STATUS[c.to] ? STATUS[c.to].colour : C.faint }}>
+                    {STATUS[c.to] ? STATUS[c.to].label : c.to}
+                  </span>
+                  <span style={{ color: C.faint }}> · {c.on}</span>
+                  {c.ref && (
+                    <> · <a href={c.ref} target="_blank" rel="noreferrer" style={{ color: C.cyan }}>source ↗</a></>
+                  )}
+                </div>
+              ))}
+              <div style={{ fontSize: 9, color: C.faint, marginTop: 6, lineHeight: 1.45 }}>
+                Recorded by comparing each build against the previous one, kept for 90 days. A site
+                appearing for the first time is not listed as a change. Statuses come from
+                DataCentersExposed, who trace them through regulatory filings — the source link on
+                each row is the record.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center justify-center gap-1 font-mono">
         <button onClick={() => setShowCables((v) => !v)} className="rounded"
