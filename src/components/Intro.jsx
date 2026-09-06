@@ -88,7 +88,7 @@ export default function Intro({ open, onClose, feedCount = null }) {
             tracking" is a label; "16,000 satellites on a globe lit by the real sun" is a reason to
             press it. */}
 
-        <S icon={Plane} color={C.amber} title="Drones — the watch nobody else runs">
+        <S icon={Plane} color={C.amber} title="Military — the watch nobody else runs">
           A sweep patrols <b>{airspaceText} airspaces</b> around the clock — {namedText} named
           military airfields across {countryText}, plus a global grid that finds activity nobody
           thought to watch{cov && cov.gridPromoted ? ` (${cov.gridPromoted} grid cells have already been promoted for producing contacts)` : ""}.

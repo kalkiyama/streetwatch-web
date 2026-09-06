@@ -570,7 +570,12 @@ export default function StreetWatch() {
           )}
           <div className="tabpill flex items-center rounded-lg" style={{ border: `1px solid ${C.line}`, padding: 2, background: C.panel2,
             minWidth: 0, overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" }}>
-            {[{ k: "drones", label: "Drones", icon: Plane, hint: "military watch" },
+            {[// LABEL changed, KEY kept. "Drones" undersold it: UAVs are one contact type among several and
+              // rarely the largest — a typical sample is 71 military aircraft to 10 UAVs — and the panel's
+              // own subtitle has said "Military & UAV watch · air and sea" all along. The key stays
+              // "drones" because it is in the URL as ?tab=drones and in the feed-routing logic; renaming
+              // it would break every link anyone has saved.
+              { k: "drones", label: "Military", icon: Plane, hint: "air, sea and UAV" },
               { k: "world", label: "World", icon: Globe, hint: "all feeds" },
               { k: "cyber", label: "Cyber", icon: Shield, hint: "attacks & outages" },
               { k: "space", label: "Space", icon: Satellite, hint: "orbital tracking" },
