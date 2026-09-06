@@ -555,11 +555,20 @@ export default function SpaceView() {
 
       <div className="px-3 py-1.5 font-mono" style={{ fontSize: 9, color: C.faint, lineHeight: 1.5, background: "rgba(4,18,31,0.6)" }}>
         <div className="flex items-center justify-between gap-2">
+          {/* The COUNT was set 9px in C.faint — the quietest combination in the app — for the most
+              striking number in it. Sixteen thousand satellites computed for this instant is the
+              headline of this tab, not a footnote to it. The provenance stays small beneath,
+              where it reads as the qualifier it is. */}
           <span>
-            {count > 0
-              ? `${densityNote(density, count, available, densityAuto)} \u00b7 positions computed for this moment from orbital elements`
-              : "ISS tracked live · other objects computed from orbital elements"}
-
+            <span style={{ display: "block", fontSize: 15, fontWeight: 700, color: "#A78BFA",
+              letterSpacing: -0.1, fontVariantNumeric: "tabular-nums", lineHeight: 1.2 }}>
+              {count > 0 ? densityNote(density, count, available, densityAuto) : "ISS tracked live"}
+            </span>
+            <span style={{ display: "block", marginTop: 2 }}>
+              {count > 0
+                ? "positions computed for this moment from orbital elements"
+                : "other objects computed from orbital elements"}
+            </span>
           </span>
           <button onClick={() => setShowWhy((v) => !v)} className="rounded"
             style={{ fontSize: 9.5, padding: "1px 7px", color: C.cyan, background: "rgba(34,211,238,0.10)", border: `1px solid ${C.cyan}66`, whiteSpace: "nowrap" }}>
