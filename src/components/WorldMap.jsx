@@ -15,7 +15,7 @@ import { watchUserPan, keepInView } from "../mapFollow.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ aircraft = null, onView = null, onAirSelect = null, feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null, advAgeDays = null, hazards = null,
+export default function WorldMap({ aircraft = null, onView = null, onAirSelect = null, feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null, advAgeDays = null, advIndexes = null, hazards = null,
   // Added Aug 1 so HeatMap can delegate its map here instead of running a second Leaflet
   // instance. Defaults are WorldMap's existing behaviour, so no existing caller changes.
   // scrollWheelZoom MATTERS: the activity map sits in a scrolling panel and wheel-zoom
@@ -29,6 +29,10 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
   advisoriesRef.current = advisories;
   const advAgeRef = useRef(advAgeDays);
   advAgeRef.current = advAgeDays;
+  const advIdxRef = useRef(advIndexes);
+  advIdxRef.current = advIndexes;
+  const advCountRef = useRef(0);
+  advCountRef.current = (advisories || []).length;
   const hazardsRef = useRef(hazards);
   hazardsRef.current = hazards;
   const issMarkerRef = useRef(null);
@@ -188,6 +192,15 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
             ? `Compiled ${advAgeRef.current} days ago; the source documents are re-checked ` +
               `automatically and none has changed since. Verify before relying on it.<br>`
             : "") +
+          // THE UPSTREAM COUNT, where it exceeds what is carried. Two numbers rather than a
+          // warning word: "EASA lists 21, this carries 18" is something a reader can go and check,
+          // where "possibly incomplete" is a feeling. The difference may be bulletins published
+          // since compilation, or regions combined into one entry here, or withdrawn ones still
+          // indexed — the flag says look, not that something is wrong.
+          (advIdxRef.current || [])
+            .filter((i) => i.upstreamCount > advCountRef.current)
+            .map((i) => `<b style="color:#F6A821">${i.source} currently lists ${i.upstreamCount}; `
+              + `${advCountRef.current} are compiled here.</b><br>`).join("") +
           `Does NOT close the airspace to the overflown state's own aircraft, and does not bind ` +
           `military flights. Area shown is approximate — the source document is authoritative.` +
           (a.sourceChangedSinceCompiled ? `<br><b style="color:#F6A821">Source document has changed since this entry was compiled — verify.</b>` : "") +
