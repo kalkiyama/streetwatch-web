@@ -950,6 +950,18 @@ export default function StreetWatch() {
               deleted with the duplicate map — so viewerRef.current was null and the scroll-to-view
               silently did nothing. The radar is the right target anyway: it is what CHANGES when a
               contact is clicked. */}
+          {/* ABOVE the detail card. Nobody found this where it was: under the coordinates, the
+              source links and a full-width button, so reaching it meant scrolling past everything
+              else. Clicking a feed and getting two dozen nearby public cameras is one of the better
+              things this app does and it was invisible.
+
+              Still its own full-width row — expanding the grid has to grow the page downward, and
+              moving it inside the detail card would squeeze that card sideways, which is the
+              problem the original placement solved. */}
+          <section className="rounded-lg" style={{ border: `1px solid ${C.line}`, background: C.panel }}>
+            <NearbyCams lat={selected.lat} lon={selected.lng} name={selected.name} />
+          </section>
+
           <section ref={viewerRef} className="flex flex-col md:flex-row gap-4" style={{ scrollMarginTop: 8 }}>
             <div className="flex-1 min-w-0">
               {selected.layer === "aviation"
@@ -1018,13 +1030,6 @@ export default function StreetWatch() {
               </button>
               <div className="mt-2 font-mono break-all" style={{ fontSize: 10, color: C.faint }}>↗ {resolveUrl(selected)}</div>
             </div>
-          </section>
-
-          {/* Own full-width row: expanding the cam grid grows the page downward, and the radar
-              above keeps its size — previously cams shared the radar's flex row and opening
-              them squeezed the radar sideways. */}
-          <section className="rounded-lg" style={{ border: `1px solid ${C.line}`, background: C.panel }}>
-            <NearbyCams lat={selected.lat} lon={selected.lng} name={selected.name} />
           </section>
 
           <section className="rounded-lg p-4" style={{ background: C.panel, border: `1px solid ${C.line}` }}>
