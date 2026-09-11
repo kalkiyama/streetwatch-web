@@ -100,6 +100,16 @@ export default function DataCentres() {
   // downloaded either way.
   const [showCables, setShowCables] = useState(true);
   const [selCable, setSelCable] = useState(null);
+  // CABLE SHIPS AT WORK, from NGA navigational warnings. States are obliged to warn shipping
+  // before laying or repairing a cable, so these are the routes being worked RIGHT NOW — temporary
+  // activity beside the permanent infrastructure already on this map.
+  //
+  // Under the existing CABLES toggle rather than its own: someone who wants cables wants both.
+  // Drawn amber against the cables' violet, because a ship working this week is a different kind
+  // of fact from a cable that has been on the seabed for a decade.
+  const [ops, setOps] = useState(null);
+  const [selOp, setSelOp] = useState(null);
+  const opPanelRef = useRef(null);
   const cablePanelRef = useRef(null);
   // The draw function, held in a ref. A `moveend` listener is attached once when the map is
   // created, so a function passed to it directly would close over the FIRST render's `shown`,
@@ -131,6 +141,13 @@ export default function DataCentres() {
 
   useEffect(() => {
     let alive = true;
+    // Fetched separately and allowed to fail on its own. A navigational-warnings outage must not
+    // take the facility map down with it.
+    fetch(`${BACKEND_URL}/api/navwarnings`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive && j) setOps(j.items.filter((x) => x.kind === "cable")); })
+      .catch(() => { /* the map stands without it */ });
+
     fetch(`${BACKEND_URL}/api/datacentres`)
       .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
       .then((j) => { if (alive) { setData(j); setState("ok"); } })
@@ -375,6 +392,34 @@ export default function DataCentres() {
         }
         line.addTo(lg);
       });
+
+      // Operations on top of the cables, so a route being worked is not hidden under the cable
+      // it is being worked on.
+      (ops || []).forEach((o) => {
+        if (!o.coords.some((pt) => view.contains(pt))) return;
+        const shared = { color: "#F6A821", weight: 2.2, opacity: 0.9, dashArray: "5 4" };
+        // A TRACKLINE is the path a ship follows; an AREA is a zone to keep clear of. The warning
+        // text says which, and drawing a path as a filled polygon would claim a whole gulf was
+        // affected when the message describes a line through it.
+        const shape = o.shape === "area"
+          ? Leaflet.polygon(o.coords, { ...shared, fillColor: "#F6A821", fillOpacity: 0.08 })
+          : o.shape === "line"
+            ? Leaflet.polyline(o.coords, shared)
+            : Leaflet.circleMarker(o.coords[0], { ...shared, radius: 6, dashArray: null });
+        shape.bindTooltip(
+          `Cable ship working${o.when ? " \u00b7 " + o.when : ""}`,
+          { sticky: true, opacity: 0.9 }
+        );
+        shape.on("click", (e) => {
+          Leaflet.DomEvent.stopPropagation(e);
+          setSelOp(o); setSel(null); setSelCable(null);
+          setTimeout(() => {
+            const el = opPanelRef.current;
+            if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }, 60);
+        });
+        shape.addTo(lg);
+      });
     }
 
     // DRAW ONLY WHAT IS ON SCREEN. 8,728 circle markers redrawn on every pan is what made the map
@@ -467,7 +512,7 @@ export default function DataCentres() {
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 11, animate: true });
     }
     }
-  }, [shown, records.length, sel, basemap, showCables, data, country, region, srcFilter, q, statusFilter]);
+  }, [shown, records.length, sel, basemap, showCables, data, country, region, srcFilter, q, statusFilter, ops, selOp]);
 
   const fmtUnknown = (v) => (v == null || v === "" ? <span style={{ color: C.faint }}>unknown</span> : v);
 
@@ -686,6 +731,32 @@ export default function DataCentres() {
         )}
       </div>
 
+      {selOp && (
+        <div ref={opPanelRef} className="font-mono rounded-lg" style={{ padding: "10px 12px", marginTop: 6,
+          background: "rgba(4,18,31,0.95)", border: `1px solid ${C.amber}66` }}>
+          <div className="flex items-start justify-between gap-2">
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, color: C.amber }}>Cable ship at work</div>
+              <div style={{ fontSize: 10.5, color: C.dim, marginTop: 2 }}>
+                {selOp.when || "no dates given"} \u00b7 {selOp.shape === "area" ? "area to avoid" : "route being worked"}
+              </div>
+            </div>
+            <button onClick={() => setSelOp(null)} aria-label="Close" style={{ color: C.dim }}>
+              <X size={14} />
+            </button>
+          </div>
+          {/* THE MESSAGE VERBATIM. These are short and specific — the ship's name, the waters, the
+              dates — and any summary would lose the part a reader actually wants. */}
+          <pre style={{ fontSize: 10, color: C.text, marginTop: 8, whiteSpace: "pre-wrap",
+            fontFamily: "inherit", lineHeight: 1.45 }}>{selOp.text}</pre>
+          <div style={{ fontSize: 9, color: C.faint, marginTop: 8, lineHeight: 1.45 }}>
+            Navigational warning {selOp.id} issued by {selOp.authority || "the area coordinator"}.
+            A warning says a state DECLARED this work; it is not an observation of a ship.
+            <b> Not for navigation</b> — mariners must use official broadcast services.{" "}
+            <a href={selOp.ref} target="_blank" rel="noreferrer" style={{ color: C.amber }}>NGA source ↗</a>
+          </div>
+        </div>
+      )}
       {selCable && (
         <div ref={cablePanelRef} className="font-mono rounded-lg" style={{ padding: "10px 12px", marginTop: 6,
           background: "rgba(4,18,31,0.95)", border: "1px solid #A78BFA66" }}>
@@ -832,6 +903,12 @@ export default function DataCentres() {
         depends on whether a contributor mapped the area, so it is uneven by country. Around a
         quarter of the OSM records carry no name and a third no operator: a building someone
         surveyed without labelling is still a building, and the coordinates are the point.
+        {ops && ops.length > 0 && (
+          <>The <b style={{ color: C.amber }}>amber dashed lines</b> are cable ships at work right
+          now — {ops.length} routes with an active navigational warning, which states are obliged to
+          issue before laying or repairing a cable. They say the work was DECLARED, not that a ship
+          is currently observed there.{" "}</>
+        )}
         The violet lines are <b>submarine cables</b>, also from OpenStreetMap, and their coverage is
         <b> very uneven</b>: 72% of the mapped segments lie in the North Sea and Baltic, where OSM's
         contributors are most active. Southeast Asia has 30, the Caribbean 9, the mid-Atlantic 6.
