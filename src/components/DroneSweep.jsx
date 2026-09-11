@@ -54,6 +54,12 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
   const [kind, setKind] = useState("all");
   const [marine, setMarine] = useState(null);   // { usv, sub } — sea drones and sub support
   const [mode, setMode] = useState("live");
+
+  // LIVE only, and capped. 144 contacts rendered as four-line rows is a page nobody scrolls to the
+  // end of, and LIVE is the mode a visitor lands on. The other four modes are left alone: ARCHIVE
+  // and OPERATIONS are things you go looking through, where a long list is the point.
+  const LIVE_CAP = 20;
+  const [showAllLive, setShowAllLive] = useState(false);
   const [why, setWhy] = useState(false);   // the coverage explanation, on demand     // live | archive
   const [days, setDays] = useState(7);
   const [hist, setHist] = useState(null);       // archived contact list
@@ -379,7 +385,7 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
           </span>
         </button>
       ))}
-      {mode === "live" && state === "ok" && drones.map((d) => (
+      {mode === "live" && state === "ok" && (showAllLive ? drones : drones.slice(0, LIVE_CAP)).map((d) => (
         <button key={d.id} onClick={() => onOpen(d)}
           className="w-full text-left px-3 py-2 flex items-center gap-2"
           style={{ borderTop: "1px solid rgba(192,132,252,0.18)" }}>
@@ -423,6 +429,13 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
           </span>
         </button>
       ))}
+      {mode === "live" && state === "ok" && drones.length > LIVE_CAP && (
+        <button onClick={() => setShowAllLive((v) => !v)} className="w-full font-mono"
+          style={{ fontSize: 10, padding: "7px 10px", color: "#C084FC",
+            background: "rgba(192,132,252,0.08)", borderTop: "1px solid rgba(192,132,252,0.18)" }}>
+          {showAllLive ? `Show first ${LIVE_CAP}` : `Show all ${drones.length} contacts`}
+        </button>
+      )}
       {mode === "live" && state === "ok" && data.sweep && (
         <div className="px-3 py-1.5 font-mono" style={{ fontSize: 9, color: C.faint, borderTop: "1px solid rgba(192,132,252,0.18)" }}>
           {data.sweep.cycles} passes · {data.sweep.tracked24h} tracked in 24h
