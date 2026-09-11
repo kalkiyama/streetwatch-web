@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>I built a tool to find unlisted airfields from ADS-B. It found nothing.</title>
+<meta name="description" content="87% of clusters matched known airfields. The unmatched ones turned out to be helicopter transit corridors and units operating near their own bases — and the criterion that first said otherwise was measuring receiver coverage, not landings." />
+<link rel="canonical" href="https://streetwatch.earth/findings/airfield-detection.html" />
+<meta property="og:title" content="I built a tool to find unlisted airfields from ADS-B. It found nothing." />
+<meta property="og:description" content="A detection method, the criterion that was wrong, and why a negative result is the more useful one to publish." />
+<meta property="og:url" content="https://streetwatch.earth/findings/airfield-detection.html" />
+<meta property="og:type" content="article" />
+<meta name="twitter:card" content="summary_large_image" />
+<style>
+  body { background:#0E1116; color:#E8EAED; font-family:system-ui,sans-serif; line-height:1.7; margin:0; }
+  main { max-width:700px; margin:0 auto; padding:48px 24px 80px; }
+  h1 { font-size:27px; line-height:1.3; }
+  h2 { font-size:18px; margin-top:38px; color:#F6A821; }
+  p, li { color:#B7BCC4; font-size:16px; }
+  li { margin-bottom:8px; }
+  a { color:#22D3EE; } .meta { color:#7A8089; font-size:13px; }
+  .nav { font-size:13px; color:#7A8089; margin-bottom:28px; }
+  .foot { border-top:1px solid #2A303C; margin-top:44px; padding-top:18px; }
+  .foot p { font-size:13px; color:#7A8089; }
+</style>
+</head>
+<body>
+<main>
+  <p class="nav"><a href="/">← StreetWatch</a> · <a href="/methodology.html">Methodology</a></p>
+
+  <h1>I built a tool to find unlisted airfields from ADS-B. It found nothing, twice, and the second time was more useful.</h1>
+  <p class="meta">September 2026 · Every attribution below was checked against the archive's own
+  confidence fields. Where something is inferred rather than established, it says so.</p>
+
+  <p>For about two months I've been recording every military and UAV contact that appears in 1,081 watched airspaces, from public ADS-B. It's up to around 560,000 observations. The obvious question once you have that is whether it can find places that aren't on any map.</p>
+  <p>The idea is simple enough. An aircraft that lands stops transmitting. An aircraft that takes off starts. Collect the points where tracks end and begin, filter to the ones that are low and slow, cluster them, and you should get airfields. Anything that clusters but has no catalogued airfield nearby is a candidate for something the registers don't list — a range, a landing zone, a training area.</p>
+  <p>It works well enough to be worth testing. Against 72,444 catalogued open airfields, <b>875 of 1,005 clusters — 87% — matched a known field within 3nm.</b> That number is the one to watch: it says the clustering finds real places rather than noise. It says nothing about whether the unmatched remainder are discoveries.</p>
+  <p>The first thing it found that wasn't on a map was a weapons range in New Zealand, about 8nm from RNZAF Ohakea. Correctly absent from the airfield databases, because it isn't an airfield. It turned up again in a separate run six weeks later from independent data, which is the closest thing to validation this kind of method gets.</p>
+  <p>So far, so encouraging.</p>
+  <h2>The candidate that wasn't</h2>
+  <p>The biggest unmatched cluster in the September run was in Cedarville, Maryland. Four adjacent clusters, 49 aircraft between them, nothing catalogued within 4nm. Imagery showed cleared land inside a state forest, a tower, a small compound with about twenty cars — and access via a road named <b>Air Force Road</b>.</p>
+  <p>That looks like a finding. It was about three hours from being written up as one.</p>
+  <p>The test I hadn't run was whether the aircraft actually <i>dwell</i>. A landing means an aircraft disappears and reappears later at the same place. A coverage gap means it disappears and reappears somewhere else along its heading, because it flew low enough to drop below the horizon of every receiver that could hear it. Clustered endpoints, balanced arrivals and departures — both produce the same signature.</p>
+  <p>So I wrote the check: for every gap of 3 to 240 minutes, did the track resume within 1.5nm, or further away?</p>
+  <p><b>Cedarville: 60% resumed in the same place.</b> <b>Raumai, the known range, as a control: 69%.</b></p>
+  <p>Near enough identical. On that number, Cedarville was a find.</p>
+  <h2>Reading the rows instead of the summary</h2>
+  <p>The ratio was wrong, and the rows said so. Every Cedarville record resumed at <b>60 to 100 knots</b>. Nothing below 33kt anywhere in the "stopped" set. Raumai had readings at <b>1, 2 and 3 knots</b>.</p>
+  <p>A helicopter at 80kt that vanishes and returns half a mile later hasn't landed. It's flown behind a ridge. Distance alone can't tell those apart, and a ratio built on it will call a transit corridor an airfield every time.</p>
+  <p>Add a speed clause — a stop requires the track to resume in the same place <i>and</i> something under 10kt on one side of the gap — and the same data gives:</p>
+  <p><b>Cedarville: 0 stops. Raumai: 11.</b></p>
+  <p>The traffic confirmed it. Cedarville was almost entirely one callsign across sequential ICAO addresses ae6230 to ae6251, all Bell 212s: one unit, operating a few miles from its own base.</p>
+  <h2>Then I screened all of them</h2>
+  <p>With a criterion that meant something, I ran it across every unmatched cluster from a fresh run — 25 of them. Thirteen showed an aircraft genuinely stopping. Twelve were corridors.</p>
+  <p>Three had several distinct callsigns at rest, which is the pattern that separates a place from a single unit's patch. I checked all three against imagery from four providers.</p>
+  <p>Empty farmland. Trees and a creek. A car dealership.</p>
+  <p>Then I asked my own archive what the aircraft actually were, which should have been the first question rather than the last. Two of the three resolved immediately:</p>
+  <ul><li><b>Southern Alabama</b> — dozens of airframes in one ICAO block, every one a CH-47 Chinook, flagged</li><li><b>Near Patuxent River</b> — T-38s, T-6Bs, UH-60s, C-12s and EC145s sharing one callsign family, all</li></ul>
+  <p>I'm deliberately not naming the units. Both attributions are inference from aircraft type and geography — likely right, not confirmed, and being confidently wrong about who flies what is the easiest mistake to make in this hobby.</p>
+  <h2>The third one is still open</h2>
+  <p>Near Teesside in the north-east of England: <b>seven sequential ICAO addresses, 425300 to 425307, broadcasting ADS-B as unmanned.</b></p>
+  <p>Not military, and I initially assumed otherwise. My archive classifies them `self_declared` — the category B6 flag is the aircraft's own claim about itself, not a database's judgement. Those addresses fall in the UK's allocated range. They carry no registration and no type, and adsbexchange returns "Unassigned" for every one of them.</p>
+  <p>Multiple airframes, sequential addresses, operating in a cluster, self-identifying as drones, unknown to the public registries. That could be a survey contractor, a test programme, a university, or a military trial. <b>I have no idea, and I'd rather say so than pick the most interesting option.</b></p>
+  <p>It isn't an airfield, which is what I was looking for. It's just the one thing in the batch that didn't resolve.</p>
+  <h2>What I actually learned</h2>
+  <p><b>A summary statistic will hide the thing that distinguishes its members.</b> 60% against 69% concealed 0 against 11. The answer was in a column the ratio discarded. That's the third time this project has been misled the same way.</p>
+  <p><b>Four imagery sessions across four map providers established nothing that one database query resolved in seconds.</b> The aircraft type was sitting in my own archive the whole time. Identify the traffic before you interpret the place.</p>
+  <p><b>And the structural one: dense ADS-B coverage exists where the receivers are, which is where the people are, which is not where anything is hidden.</b> A method like this works best exactly where there is least to find. Where an unlisted site would actually be interesting there are few receivers to hear it, and anything that cared about being seen wouldn't be transmitting anyway.</p>
+  <p>The tool works. It found a real range, twice. It also correctly found nothing else, and that's the more useful result to publish.</p>
+
+  <div class="foot">
+  <p><i>Data from streetwatch.earth, which records this publicly. Method and known limits at streetwatch.earth/methodology.html. Corrections welcome — particularly on the Teesside addresses, if anyone recognises them.</i></p>
+  </div>
+</main>
+</body>
+</html>
