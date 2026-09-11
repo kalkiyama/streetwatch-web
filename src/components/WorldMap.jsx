@@ -167,6 +167,11 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
       })
         .bindPopup(
           `<b>${a.region}</b><br><span style="opacity:.75">${a.fir || ""}</span>` +
+          // SCROLLS, and constrained. The same overflow the hazard popups had: on a phone an
+          // advisory ran off the bottom with no way to reach the end. Capped rather than
+          // truncated — the "does not close the airspace" paragraph is the part that stops the
+          // whole thing being misread, and it sits at the BOTTOM.
+          `<div style="max-height:46vh;overflow-y:auto">` +
           `<table style="margin-top:6px;font-size:11px;border-collapse:collapse">` +
           `<tr><td style="padding:1px 8px 1px 0;opacity:.6">Applies to</td><td><b>${a.appliesTo === "civil" ? "CIVIL aviation" : a.appliesTo}</b></td></tr>` +
           `<tr><td style="padding:1px 8px 1px 0;opacity:.6">Binding on</td><td>${a.bindingOn}</td></tr>` +
@@ -178,7 +183,7 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
           `military flights. Area shown is approximate — the source document is authoritative.` +
           (a.sourceChangedSinceCompiled ? `<br><b style="color:#F6A821">Source document has changed since this entry was compiled — verify.</b>` : "") +
           `<br><a href="${a.source}" target="_blank" rel="noopener noreferrer" style="color:#37C46A">official source ↗</a>` +
-          `<br><b>NOT FOR FLIGHT PLANNING.</b></div>`
+          `<br><b>NOT FOR FLIGHT PLANNING.</b></div></div>`
         )
         .addTo(lg);
     });
@@ -221,7 +226,7 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
           // truncated, because the coordinates ARE the warning — a danger area quoted in part is
           // worse than one not quoted at all.
           `<div style="margin-top:6px;font-size:11px;white-space:pre-wrap;line-height:1.45;` +
-          `max-height:190px;overflow-y:auto">${(h.text || "").replace(/</g, "&lt;")}</div>` +
+          `max-height:34vh;overflow-y:auto">${(h.text || "").replace(/</g, "&lt;")}</div>` +
           `<div style="margin-top:6px;font-size:10px;opacity:.7;line-height:1.4">` +
           `Navigational warning ${h.id}${h.when ? ", " + h.when : ""}. A warning means a state ` +
           `DECLARED this area; it does not say what is happening inside it, and usually does not ` +
