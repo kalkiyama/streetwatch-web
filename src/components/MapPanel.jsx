@@ -33,6 +33,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   const [showHeat, setShowHeat] = useState(false);
   const [showAdv, setShowAdv] = useState(false);
   const [adv, setAdv] = useState(null);
+  const [hazards, setHazards] = useState(null);
   // Live aircraft on the WORLD map. A tester on Android reported that no traffic appeared anywhere
   // unless a site was selected, and that zooming elsewhere showed nothing while a competitor's map
   // had data everywhere. They were right: /api/aircraft was only ever called by AviationRadar,
@@ -69,8 +70,34 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
       .then((r) => r.json())
       .then((j) => { if (alive) setAdv(j); })
       .catch(() => {});
+
+
     return () => { alive = false; };
   }, [showAdv, adv]);
+
+  // ITS OWN EFFECT. This was folded into the advisories fetch above, which guards with
+  // `if (!showAdv || adv) return;` — so once the advisories had loaded, the whole effect returned
+  // early and the warnings fetch never ran again. Sharing an effect means sharing its guard, and
+  // that guard was written to run exactly once for exactly one thing.
+  useEffect(() => {
+    if (!showAdv || hazards) return;
+    let alive = true;
+    // MARITIME DANGER AREAS, under the same toggle.
+    //
+    // Before firing, testing a missile or laying cable at sea, a state is obliged to warn shipping.
+    // The NGA collects those warnings. Four of the 386 active ones declare a hazardous area with
+    // coordinates — and a declared danger area at sea is the same KIND of claim as a conflict-zone
+    // airspace advisory: an authority has announced something, over an approximate area, and has
+    // usually not said what.
+    //
+    // No separate chip. Four records do not justify a control, and anyone who wants to see declared
+    // danger areas wants both kinds rather than one.
+    fetch(`${BACKEND_URL}/api/navwarnings`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive && j) setHazards(j.items.filter((x) => x.kind === "hazard")); })
+      .catch(() => { /* the advisories stand without them */ });
+    return () => { alive = false; };
+  }, [showAdv, hazards]);
 
   const lastTab = useRef(tab);
   useEffect(() => {
@@ -306,6 +333,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           heatMeta={heatMeta}
           showIss={!isDrones}
           advisories={showAdv && adv ? adv.advisories : null}
+          hazards={showAdv ? hazards : null}
         />
       </div>
 
