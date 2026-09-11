@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Methodology — how StreetWatch knows what it shows, and what it cannot see</title>
+<meta name="description" content="Every source StreetWatch uses, what each one can and cannot see, how positions are qualified, and what the app refuses to infer. Live aircraft, ships, satellites, data centres and submarine cables from public feeds only." />
+<link rel="canonical" href="https://streetwatch.earth/methodology.html" />
+<meta property="og:title" content="Methodology — StreetWatch" />
+<meta property="og:description" content="Every source, what each cannot see, and what this app refuses to infer." />
+<meta property="og:url" content="https://streetwatch.earth/methodology.html" />
+<meta property="og:type" content="article" />
+<meta name="twitter:card" content="summary_large_image" />
+<style>
+  body { background:#0E1116; color:#E8EAED; font-family:system-ui,sans-serif; line-height:1.65; margin:0; }
+  main { max-width:760px; margin:0 auto; padding:48px 24px 80px; }
+  h1 { font-size:26px; } h2 { font-size:18px; margin-top:36px; color:#F6A821; }
+  h3 { font-size:15px; margin-top:24px; color:#E8EAED; }
+  p, li { color:#B7BCC4; font-size:15px; }
+  a { color:#22D3EE; } .meta { color:#7A8089; font-size:13px; }
+  code { background:#1C2029; padding:1px 6px; border-radius:4px; font-size:13px; }
+  table { border-collapse:collapse; width:100%; margin:14px 0; font-size:14px; }
+  th, td { text-align:left; padding:7px 10px; border-bottom:1px solid #2A303C; color:#B7BCC4; vertical-align:top; }
+  th { color:#7A8089; font-weight:500; font-size:12px; letter-spacing:0.5px; text-transform:uppercase; }
+  .cant { border-left:2px solid #F0553B; padding-left:14px; margin:16px 0; }
+  .nav { font-size:13px; color:#7A8089; margin-bottom:28px; }
+</style>
+</head>
+<body>
+<main>
+  <p class="nav"><a href="/">← StreetWatch</a> · <a href="/privacy.html">Privacy</a></p>
+
+  <h1>How StreetWatch knows what it shows</h1>
+  <p class="meta">Last reviewed: September 2026. StreetWatch is an independent, non-commercial
+  project. It has no relationship with any government, military or intelligence organisation, and
+  it uses no non-public data.</p>
+
+  <p>Every figure on this site comes from a feed anyone can read. This page names each source, says
+  what it can and cannot see, and sets out what the app refuses to do with it. It exists because a
+  number is only as useful as your ability to check it.</p>
+
+  <h2>The short version</h2>
+  <ul>
+    <li><b>Only public feeds.</b> Aircraft that broadcast their own position, ships on AIS,
+      published orbital elements, government registers, OpenStreetMap.</li>
+    <li><b>Nothing is estimated.</b> Where a figure is not published, the app says
+      <i>unknown</i> rather than filling it in.</li>
+    <li><b>Sources are never merged.</b> When two sources disagree about a place, both are shown.</li>
+    <li><b>Nothing is predicted.</b> The app reports what was observed and what has been declared.
+      It makes no forecasts.</li>
+    <li><b>Absence is not evidence.</b> An empty map usually means nothing was heard there, not
+      that nothing was present.</li>
+  </ul>
+
+  <h2>Sources</h2>
+  <table>
+    <tr><th>What</th><th>Source</th><th>What it is</th></tr>
+    <tr><td>Aircraft</td><td>airplanes.live, adsb.lol</td><td>ADS-B and MLAT from volunteer receivers</td></tr>
+    <tr><td>Ships</td><td>AISStream, Kystverket, Fintraffic</td><td>AIS broadcast by vessels</td></tr>
+    <tr><td>Satellites</td><td>CelesTrak</td><td>Orbital elements from US Space Force's 18th/19th Space Defense Squadron</td></tr>
+    <tr><td>ISS position</td><td>wheretheiss.at</td><td>Reported position, not computed</td></tr>
+    <tr><td>Data centres</td><td>PeeringDB, OpenStreetMap, DataCentersExposed</td><td>Operator listings, surveyed buildings, regulatory filings</td></tr>
+    <tr><td>Submarine cables</td><td>OpenStreetMap</td><td>Routes as contributors drew them</td></tr>
+    <tr><td>Cyber</td><td>Cloudflare Radar, CISA KEV</td><td>Filtered request statistics, known exploited vulnerabilities</td></tr>
+    <tr><td>Navigational warnings</td><td>US NGA</td><td>Danger areas and works declared to shipping</td></tr>
+    <tr><td>Imagery</td><td>NASA GIBS, Esri</td><td>Satellite and aerial imagery with per-tile acquisition dates</td></tr>
+  </table>
+
+  <h2>What each source cannot see</h2>
+  <p>This is the part most maps leave out, and it matters more than the coverage itself.</p>
+
+  <h3>Aircraft</h3>
+  <div class="cant">
+    <p>ADS-B is a broadcast: an aircraft transmits its own position and anyone with a receiver hears
+    it. <b>An aircraft that does not transmit is simply absent.</b> Military traffic frequently
+    operates without it, so quiet airspace is not evidence of an empty sky.</p>
+    <p>Coverage depends on where volunteers run receivers, which is dense over North America and
+    western Europe and sparse elsewhere. A sample taken within 250nm returned 1,194 aircraft over
+    London and 66 over Delhi. That difference is about receivers, not aviation.</p>
+    <p>Positions carry how they were derived. A <b>broadcast fix</b> is the aircraft's own GPS. An
+    <b>MLAT</b> position is triangulated from signal arrival times across several receivers — an
+    estimate, not a fix — and is labelled as computed wherever it appears.</p>
+  </div>
+
+  <h3>Ships</h3>
+  <div class="cant">
+    <p>AIS exists for collision avoidance between civilian vessels. <b>Warships generally do not
+    transmit it</b>, and switch it off when operating. What appears at sea here is commercial
+    traffic, naval support and auxiliary vessels — tenders, rescue ships, submersible motherships —
+    and a small number of sea drones.</p>
+    <p>Submarines cannot be tracked at all. AIS is VHF radio and does not travel through seawater.</p>
+  </div>
+
+  <h3>Satellites</h3>
+  <div class="cant">
+    <p>Satellite positions are <b>computed, not observed</b>. Each is propagated from a published
+    orbital element set using SGP4. Accuracy degrades as the elements age: most are refreshed daily,
+    but high-orbit objects deviate little from prediction and are updated less often, so a small
+    number on screen may be weeks old.</p>
+    <p>The catalogue lists what is published. Objects that are not published are not here.</p>
+  </div>
+
+  <h3>Data centres and cables</h3>
+  <div class="cant">
+    <p>Three sources see different things. <b>PeeringDB</b> is maintained by operators selling
+    interconnection, so it covers colocation well and largely omits the campuses hyperscalers build
+    for themselves. <b>OpenStreetMap</b> fills much of that gap but its coverage depends on whether
+    a contributor mapped the area. <b>DataCentersExposed</b> traces campuses through regulatory
+    filings, which is where capacity figures come from — and its planning data is United States only.</p>
+    <p>Capacity, water use and power sourcing are published per site by almost nobody. They are shown
+    as <i>unknown</i> rather than estimated, which is most of the time.</p>
+    <p>Submarine cable coverage is <b>very uneven</b>: 72% of the mapped segments lie in the North
+    Sea and Baltic, where OpenStreetMap's contributors are most active. This is a map of what has
+    been mapped, not of where cables are.</p>
+  </div>
+
+  <h3>Cyber</h3>
+  <div class="cant">
+    <p>Attack flows are Cloudflare's measurement of HTTP requests their filters classified as attack
+    traffic, aggregated by country over 24 hours. <b>They are not intrusions, not breaches, and not
+    attributed to anyone</b> — only where requests came from and went.</p>
+  </div>
+
+  <h2>What this app will not do</h2>
+  <ul>
+    <li><b>It will not merge two sources.</b> A data centre campus may appear more than once under
+      different names at slightly different coordinates. That two independent sources disagree about
+      a place is information, and collapsing them would destroy it.</li>
+    <li><b>It will not estimate a figure that is not published.</b> No inferred capacity, no
+      guessed water use, no supply chain drawn from proximity.</li>
+    <li><b>It will not infer a route.</b> ADS-B carries no origin or destination. Trackers showing
+      routes license schedule data; this one does not, so it shows none.</li>
+    <li><b>It will not present a proposal as a place.</b> Half the data centre campuses from
+      regulatory filings do not exist — proposals, sites under construction, and ones that were
+      refused or abandoned. Each is drawn differently and labelled in words.</li>
+    <li><b>It will not predict.</b> No threat levels, no forecasts, no assessments of intent.</li>
+    <li><b>It will not show private cameras.</b> Only feeds their operators published deliberately.</li>
+  </ul>
+
+  <h2>The archive</h2>
+  <p>Contacts detected by the airspace sweep are recorded and kept for 90 days. As of September 2026
+  that is over 560,000 observations. This is the part of StreetWatch that has no equivalent
+  elsewhere: live feeds show what is happening now, and nothing accumulates.</p>
+  <p>The archive supports one question in particular — <b>is this week unusual?</b> Week-over-week
+  comparison is shown where the archive reaches back far enough to support it, and suppressed where
+  it does not, because a young archive makes every site look like a dramatic riser when the truth is
+  that the earlier window predates the recording.</p>
+
+  <h2>Inferred landings</h2>
+  <p>A tool reads the archive for places where aircraft repeatedly reach ground level and slow down,
+  and compares them against 72,444 catalogued airfields. In a September 2026 run, <b>875 of 1,005
+  clusters — 87% — matched a known airfield within 3nm</b>, which is the figure that says the method
+  finds real places rather than noise.</p>
+  <p>Unmatched clusters are read as <b>ground-level activity with no airfield to explain it</b>,
+  never as an airfield the databases missed. Ranges, landing zones and training areas are
+  legitimately absent from airfield registers. Candidates are held for human review and are not
+  published as findings until imagery or another source confirms what they are.</p>
+
+  <h2>Corrections</h2>
+  <p>Errors found and fixed are kept in the project record. Recent examples: 424 facilities were
+  labelled as being in the United States because a source's export was headed "US" and was not;
+  a satellite freshness figure reported the stalest object of 16,068 as though it characterised the
+  set; and 657 submarine cable segments disappeared for several days when an upstream timeout wrote
+  an empty list and an automated size check that watched only facility counts let it through.</p>
+  <p>If something here is wrong, it is worth telling us:
+  <a href="https://docs.google.com/forms/d/e/1FAIpQLSeg3Xj8j48amg8CAB1k14Wgkd88MRe6oWvNK6p6mVzQfmXMEg/viewform">report a problem</a>.</p>
+
+  <h2>Not for operational use</h2>
+  <p>StreetWatch is a public-interest observation tool. It is <b>not</b> for flight planning, for
+  navigation, or for any decision where being wrong carries a cost. Pilots must use official NOTAM
+  and AIP sources; mariners must use official broadcast services. Data here may be delayed,
+  incomplete or wrong, and the sections above describe the specific ways in which it is.</p>
+
+  <p class="meta" style="margin-top:40px">StreetWatch · public feeds only ·
+  <a href="/">streetwatch.earth</a></p>
+</main>
+</body>
+</html>

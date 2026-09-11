@@ -1064,7 +1064,16 @@ export default function StreetWatch() {
           <a href="https://www.esri.com/en-us/legal/terms/data-attributions" target="_blank" rel="noreferrer" style={{ color: C.dim }}>Esri</a> ·{" "}
           <a href="https://www.openseamap.org" target="_blank" rel="noreferrer" style={{ color: C.dim }}>OpenSeaMap</a>
         </span>
-        <span>PUBLIC FEEDS ONLY · © 2026 STREETWATCH · v1.0</span>
+        {/* Both static pages existed and neither was linked from anywhere in the app — the
+            methodology page is the whole basis for trusting anything here, and a reader had no
+            way to reach it. */}
+        <span>
+          <a href="/methodology.html" style={{ color: C.cyan }}>How this works</a>
+          {" \u00b7 "}
+          <a href="/privacy.html" style={{ color: C.dim }}>Privacy</a>
+          {" \u00b7 "}
+          PUBLIC FEEDS ONLY · © 2026 STREETWATCH · v1.0
+        </span>
       </footer>
     </div>
   );
