@@ -192,17 +192,30 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
     const list = hazardsRef.current;
     if (!list || !list.length) return;
     list.forEach((h) => {
-      if (!h.coords || h.coords.length < 3) return;
+      if (!h.coords || !h.coords.length) return;
       // The first line of a broadcast warning is the sea, the second usually the state. Taken as
       // the title rather than parsed further — these are teleprinter messages and any cleverness
       // about their structure will be wrong for some of them.
       const lines = (h.text || "").split("\n").map((x) => x.trim()).filter(Boolean);
       const where = lines.slice(0, 2).join(" \u00b7 ");
-      Leaflet.polygon(h.coords, {
-        color: "#F6A821", weight: 1, dashArray: "5 4", fillColor: "#F6A821", fillOpacity: 0.07,
-      })
+      // A WARNING WITH ONE COORDINATE IS STILL A WARNING. Requiring three points to draw a polygon
+      // silently dropped a Black Sea notice that names a single position — a real declared point,
+      // invisible because it was not shaped like the others. Drawn as a marked circle instead: the
+      // same amber, and honest about being a point rather than an area.
+      const shape = h.coords.length >= 3
+        ? Leaflet.polygon(h.coords, {
+            color: "#F6A821", weight: 1, dashArray: "5 4", fillColor: "#F6A821", fillOpacity: 0.07,
+          })
+        : Leaflet.circleMarker(h.coords[0], {
+            radius: 7, color: "#F6A821", weight: 1.4, dashArray: "3 3",
+            fillColor: "#F6A821", fillOpacity: 0.12,
+          });
+      shape
         .bindPopup(
           `<b>${where || "Declared danger area"}</b>` +
+          (h.coords.length < 3
+            ? `<div style="font-size:10px;opacity:.7;margin-top:2px">declared as a position, not a boundary \u2014 read the text for its extent</div>`
+            : "") +
           // SCROLLS. The North Pacific warning lists seventeen coordinate pairs and the popup ran
           // off the screen with no way to reach the end of it. Capped and scrollable rather than
           // truncated, because the coordinates ARE the warning — a danger area quoted in part is
