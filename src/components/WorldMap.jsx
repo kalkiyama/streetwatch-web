@@ -15,7 +15,7 @@ import { watchUserPan, keepInView } from "../mapFollow.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ aircraft = null, onView = null, onAirSelect = null, feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null,
+export default function WorldMap({ aircraft = null, onView = null, onAirSelect = null, feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null, hazards = null,
   // Added Aug 1 so HeatMap can delegate its map here instead of running a second Leaflet
   // instance. Defaults are WorldMap's existing behaviour, so no existing caller changes.
   // scrollWheelZoom MATTERS: the activity map sits in a scrolling panel and wheel-zoom
@@ -27,6 +27,8 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
   const advLayerRef = useRef(null);
   const advisoriesRef = useRef(advisories);
   advisoriesRef.current = advisories;
+  const hazardsRef = useRef(hazards);
+  hazardsRef.current = hazards;
   const issMarkerRef = useRef(null);
   const [issPos, setIssPos] = useState(null);
   const showIssRef = useRef(showIss);
@@ -182,6 +184,42 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
     });
   };
 
+  // Maritime danger areas, drawn in the same family as the airspace advisories above: hatched, not
+  // solid, because the claim is the same shape — an authority has DECLARED something over an
+  // approximate area. Amber rather than red so the two are distinguishable at a glance without
+  // implying one matters more.
+  const drawHazards = (lg) => {
+    const list = hazardsRef.current;
+    if (!list || !list.length) return;
+    list.forEach((h) => {
+      if (!h.coords || h.coords.length < 3) return;
+      // The first line of a broadcast warning is the sea, the second usually the state. Taken as
+      // the title rather than parsed further — these are teleprinter messages and any cleverness
+      // about their structure will be wrong for some of them.
+      const lines = (h.text || "").split("\n").map((x) => x.trim()).filter(Boolean);
+      const where = lines.slice(0, 2).join(" \u00b7 ");
+      Leaflet.polygon(h.coords, {
+        color: "#F6A821", weight: 1, dashArray: "5 4", fillColor: "#F6A821", fillOpacity: 0.07,
+      })
+        .bindPopup(
+          `<b>${where || "Declared danger area"}</b>` +
+          // SCROLLS. The North Pacific warning lists seventeen coordinate pairs and the popup ran
+          // off the screen with no way to reach the end of it. Capped and scrollable rather than
+          // truncated, because the coordinates ARE the warning — a danger area quoted in part is
+          // worse than one not quoted at all.
+          `<div style="margin-top:6px;font-size:11px;white-space:pre-wrap;line-height:1.45;` +
+          `max-height:190px;overflow-y:auto">${(h.text || "").replace(/</g, "&lt;")}</div>` +
+          `<div style="margin-top:6px;font-size:10px;opacity:.7;line-height:1.4">` +
+          `Navigational warning ${h.id}${h.when ? ", " + h.when : ""}. A warning means a state ` +
+          `DECLARED this area; it does not say what is happening inside it, and usually does not ` +
+          `say why. Area as published — approximate on any map.` +
+          `<br><a href="${h.ref}" target="_blank" rel="noopener noreferrer" style="color:#37C46A">NGA source \u2197</a>` +
+          `<br><b>NOT FOR NAVIGATION.</b> Mariners must use official broadcast services.</div>`
+        )
+        .addTo(lg);
+    });
+  };
+
   // Advisories live in their own layer group and are rebuilt ONLY when the data or the toggle
   // changes — never on the live-data redraw cycle. Otherwise an open popup is destroyed with its
   // rectangle a moment after it opens, which is exactly what "the banner disappears immediately"
@@ -191,7 +229,8 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
     if (!lg) return;
     lg.clearLayers();
     drawAdvisories(lg);
-  }, [advisories]);
+    drawHazards(lg);
+  }, [advisories, hazards]);
 
   // Follow the selected live contact. Selecting centres the map once; without this the aircraft
   // then flies off the edge and the one thing you asked to watch is the one you cannot see.
