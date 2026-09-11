@@ -333,6 +333,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           heatMeta={heatMeta}
           showIss={!isDrones}
           advisories={showAdv && adv ? adv.advisories : null}
+          advAgeDays={adv ? adv.compiledAgeDays : null}
           hazards={showAdv ? hazards : null}
         />
       </div>

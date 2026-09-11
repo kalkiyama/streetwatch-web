@@ -15,7 +15,7 @@ import { watchUserPan, keepInView } from "../mapFollow.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ aircraft = null, onView = null, onAirSelect = null, feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null, hazards = null,
+export default function WorldMap({ aircraft = null, onView = null, onAirSelect = null, feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null, advAgeDays = null, hazards = null,
   // Added Aug 1 so HeatMap can delegate its map here instead of running a second Leaflet
   // instance. Defaults are WorldMap's existing behaviour, so no existing caller changes.
   // scrollWheelZoom MATTERS: the activity map sits in a scrolling panel and wheel-zoom
@@ -27,6 +27,8 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
   const advLayerRef = useRef(null);
   const advisoriesRef = useRef(advisories);
   advisoriesRef.current = advisories;
+  const advAgeRef = useRef(advAgeDays);
+  advAgeRef.current = advAgeDays;
   const hazardsRef = useRef(hazards);
   hazardsRef.current = hazards;
   const issMarkerRef = useRef(null);
@@ -179,6 +181,13 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
           `<tr><td style="padding:1px 8px 1px 0;opacity:.6">Authority</td><td>${a.authority}</td></tr>` +
           `</table>` +
           `<div style="margin-top:6px;font-size:10px;opacity:.7;line-height:1.4">` +
+          // HOW OLD THIS IS. The module computes it, the API returns it, and nothing showed it —
+          // so eighteen hand-compiled advisories read as current when the newest was transcribed
+          // fifty days ago. A list that cannot say its own age is asking to be trusted on faith.
+          (advAgeRef.current != null
+            ? `Compiled ${advAgeRef.current} days ago; the source documents are re-checked ` +
+              `automatically and none has changed since. Verify before relying on it.<br>`
+            : "") +
           `Does NOT close the airspace to the overflown state's own aircraft, and does not bind ` +
           `military flights. Area shown is approximate — the source document is authoritative.` +
           (a.sourceChangedSinceCompiled ? `<br><b style="color:#F6A821">Source document has changed since this entry was compiled — verify.</b>` : "") +
