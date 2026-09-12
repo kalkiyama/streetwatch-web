@@ -128,6 +128,16 @@ export default function DataCentres() {
   // choice away, and by the time someone selects "proposed" the meaning of a hollow grey ring is
   // obvious from context rather than needing a key.
   const [statusFilter, setStatusFilter] = useState("operating");
+
+  // WHAT KIND OF FACILITY, as DataCentersExposed classifies it. This exists because the question
+  // asked was "where is the AI buildout" — and the answer is that nobody publishes it. Their export
+  // is headed "AI data center export" and carries no AI category, because a hyperscale campus might
+  // be training models or serving email and no outside observer can tell.
+  //
+  // So the filter says "Hyperscale", not "AI facilities". The 137 hyperscale campuses with capacity
+  // figures are the closest public proxy for that buildout, and calling them something the source
+  // does not is the whole failure mode this app exists to avoid.
+  const [typeFilter, setTypeFilter] = useState("All");
   const [showChanges, setShowChanges] = useState(false);
   const [whyList, setWhyList] = useState(false);
 
@@ -170,6 +180,7 @@ export default function DataCentres() {
       if (statusFilter === "planned" && !["proposed", "under_construction", "permitted"].includes(r.status)) return false;
       if (statusFilter === "stopped" && !["blocked", "withdrawn"].includes(r.status)) return false;
     }
+    if (skip !== "type" && typeFilter !== "All" && (r.type || "unknown") !== typeFilter) return false;
     if (skip !== "src" && srcFilter !== "All" && r.src !== srcFilter) return false;
     if (skip !== "country" && country !== "All" && r.country !== country) return false;
     // Skipping "country" has to skip REGION as well. A region cannot outlive its country: with
@@ -226,33 +237,16 @@ export default function DataCentres() {
   // says how many are shown of how many exist, so a thin result reads as the data being thin
   // rather than as a filter that broke.
 
-  const shown = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return records.filter((r) => {
-      // Records with NO status are the PeeringDB and OSM ones — buildings that exist, listed by
-      // their operator or surveyed by a mapper. They belong with "operating" rather than being
-      // filtered out by a control that does not describe them.
-      if (statusFilter === "operating" && r.status && r.status !== "operating") return false;
-      if (statusFilter === "planned" && !["proposed", "under_construction", "permitted"].includes(r.status)) return false;
-      if (statusFilter === "stopped" && !["blocked", "withdrawn"].includes(r.status)) return false;
-      if (srcFilter !== "All" && r.src !== srcFilter) return false;
-      if (country !== "All" && r.country !== country) return false;
-      // Compared on the displayed name too, so a record storing "NY" and one storing "New York"
-      // both match the single "New York" option.
-      if (region !== "All" && subdivisionName(r.country, r.state) !== region) return false;
-      if (needle) {
-        // The country and state NAMES are searchable too. Someone typing "Germany" or "Maryland"
-        // should find them; matching only the stored codes would mean the search understood less
-        // than the dropdown beside it displays.
-        // toLowerCase() must wrap BOTH literals. With the call on the second only it lowercased
-        // the country and state and nothing else — so "germany" matched while "equinix" did not.
-        const hay = (`${r.name || ""} ${r.operator || ""} ${r.city || ""} ${r.address || ""} `
-          + `${countryName(r.country) || ""} ${subdivisionName(r.country, r.state) || ""}`).toLowerCase();
-        if (!hay.includes(needle)) return false;
-      }
-      return true;
-    });
-  }, [records, country, region, q, srcFilter, statusFilter]);
+  // ONE FILTER, not two. This memo carried its own copy of the conditions while the dropdown
+  // counts used `matches()` — and the two drifted the moment a filter was added to one of them.
+  // The KIND filter reached the counts and not the map, so the dropdown said 29 and 9,688 dots
+  // stayed on screen. Any filter added from here reaches both, because there is only one to add
+  // it to.
+  const shown = useMemo(
+    () => records.filter((r) => matches(r, null)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [records, country, region, q, srcFilter, statusFilter, typeFilter]
+  );
 
   useEffect(() => {
     if (mapRef.current || !elRef.current) return;
@@ -506,13 +500,13 @@ export default function DataCentres() {
     // above (so the reticle repaints) would otherwise re-run the fit on every click, throwing the
     // view back out and undoing whatever zoom someone had chosen to get there — and keying on the
     // result count meant a country switch sometimes did not move the map at all.
-    const fitKey = `${country}|${region}|${srcFilter}|${q}|${statusFilter}`;
+    const fitKey = `${country}|${region}|${srcFilter}|${q}|${statusFilter}|${typeFilter}`;
     if (bounds.length && fitKey !== lastFitRef.current) {
       lastFitRef.current = fitKey;
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 11, animate: true });
     }
     }
-  }, [shown, records.length, sel, basemap, showCables, data, country, region, srcFilter, q, statusFilter, ops, selOp]);
+  }, [shown, records.length, sel, basemap, showCables, data, country, region, srcFilter, q, statusFilter, typeFilter, ops, selOp]);
 
   const fmtUnknown = (v) => (v == null || v === "" ? <span style={{ color: C.faint }}>unknown</span> : v);
 
@@ -590,6 +584,27 @@ export default function DataCentres() {
                   : sn === "dcx" ? "Traced through filings" : sn} ({n})
               </option>
             ))}
+          </select></label>
+        )}
+        {/* Counted against the OTHER filters, like every control here — "if I pick this, I get
+            that". Only shown once the source carrying a type is in the file. */}
+        {records.some((r) => r.type) && (
+          <label className="inline-flex items-center gap-1">
+          <span style={{ color: C.faint, letterSpacing: 1 }}>KIND</span>
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+            className="px-2 rounded font-mono"
+            style={{ fontSize: 10, height: 26, color: C.dim, background: C.ink, border: `1px solid ${C.line}` }}>
+            <option value="All" style={{ background: C.panel }}>
+              Any kind ({records.filter((r) => matches(r, "type")).length.toLocaleString()})
+            </option>
+            {[["hyperscale", "Hyperscale"], ["colocation", "Colocation"], ["edge", "Edge"],
+              ["crypto", "Crypto mining"], ["unknown", "Unclassified"]].map(([v, label]) => {
+              const n = records.filter((r) => matches(r, "type") && (r.type || "unknown") === v).length;
+              if (!n) return null;
+              return (
+                <option key={v} value={v} style={{ background: C.panel }}>{label} ({n.toLocaleString()})</option>
+              );
+            })}
           </select></label>
         )}
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="operator, name or city"
@@ -849,6 +864,9 @@ export default function DataCentres() {
                 : sel.substations === false ? "single substation"
                 : fmtUnknown(null)}</div>
             <div><span style={{ color: C.faint }}>networks present </span>{fmtUnknown(sel.networks)}</div>
+            {sel.type && sel.type !== "unknown" && (
+              <div><span style={{ color: C.faint }}>kind </span>{sel.type}</div>
+            )}
             {sel.parent && <div><span style={{ color: C.faint }}>owner </span>{sel.parent}</div>}
             {sel.sqft && <div><span style={{ color: C.faint }}>floor area </span>{sel.sqft.toLocaleString()} sq ft</div>}
             {sel.year && <div><span style={{ color: C.faint }}>operational </span>{sel.year}</div>}
@@ -924,6 +942,12 @@ export default function DataCentres() {
         TeleGeography's map is far more complete and was not used: it is licensed NonCommercial-
         ShareAlike, which does not fit an app whose other data is ODbL, and they state that their
         routes are stylised too.{" "}
+        <b>Kind</b> is the source's own classification — colocation, hyperscale, edge or crypto —
+        and most records carry none, so <i>Unclassified</i> is the largest group rather than a
+        residue. <b>There is no AI category</b>, and that is not an omission: a hyperscale campus
+        may be training models or serving email, and no outside observer can tell which. The
+        hyperscale sites with published capacity are the closest thing to a public view of the AI
+        buildout, and they are labelled as what the source says they are.{" "}
         Records are never merged, so one site may appear more than once under different names and
         at slightly different coordinates. Each keeps the source it came from — that two
         independent sources disagree about a place is itself worth seeing.
