@@ -212,6 +212,19 @@ export default function CyberView() {
   const [view, setView] = useState("globe");
   const [flows, setFlows] = useState(null);
   const [outages, setOutages] = useState(null);
+  // A SECOND, INDEPENDENT DETECTOR of the same phenomenon — not a replacement for the Cloudflare
+  // outages above it.
+  //
+  // Cloudflare sees traffic to ITS OWN network stop, and curates a cause: government-directed,
+  // cable cut, power failure. Authoritative on why, limited to what reaches Cloudflare.
+  //
+  // IODA measures from OUTSIDE, with three signals that fail differently — BGP routes withdrawn,
+  // /24 blocks that stop answering probes, and telescope traffic — and never says why.
+  //
+  // Where both report a country, two methods agree. Where one sees something the other does not,
+  // that is worth seeing too. Same principle as the data centre sources: never merged, because the
+  // disagreement is information.
+  const [ioda, setIoda] = useState(null);
   const [kev, setKev] = useState(null);
   const [err, setErr] = useState(null);
   const [why, setWhy] = useState(false);
@@ -232,6 +245,10 @@ export default function CyberView() {
         .catch((e) => { if (alive) setErr(e.message); });
     get("flows?limit=12", setFlows);
     get("outages?days=7&limit=8", setOutages);
+    fetch(`${BACKEND_URL}/api/cyber/outages-ioda?days=7`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j) setIoda(j); })
+      .catch(() => { /* the Cloudflare panel stands without it */ });
     get("kev?limit=12", setKev);
     // Cloudflare recomputes hourly and the proxy caches for 15 minutes, so polling faster would
     // only re-fetch identical answers.
@@ -451,6 +468,49 @@ export default function CyberView() {
             <span className="font-mono" style={{ fontSize: 10, color: C.faint }}>{v.added}</span>
           </a>
         ))}
+        {ioda && ioda.events && ioda.events.length > 0 && (
+          <div style={{ borderTop: `1px solid ${C.line}` }}>
+            <div className="px-3 py-2 font-mono">
+              <div style={{ fontSize: 10, color: "#37C46A", letterSpacing: 1 }}>
+                MEASURED FROM OUTSIDE · {ioda.count} in 7 days
+                {ioda.ongoing > 0 ? ` \u00b7 ${ioda.ongoing} ongoing` : ""}
+              </div>
+              <div style={{ fontSize: 9.5, color: C.faint, marginTop: 2, lineHeight: 1.45 }}>
+                IODA watches countries from the outside — routes withdrawn, addresses that stop
+                answering, background traffic. An alert means its threshold was crossed. It does
+                not mean a country is offline and it does not say why.
+              </div>
+            </div>
+            {ioda.events.slice(0, 8).map((e, i) => (
+              <div key={`${e.country}-${e.startedAt}-${i}`} className="px-3 py-1.5"
+                style={{ borderTop: `1px solid ${C.line}`, fontSize: 11.5, color: C.text }}>
+                <span>{e.country}</span>
+                {/* ONGOING IS THE ONE WORTH SEEING. An outage that ended is history; one that has
+                    not is happening now, and a flat list would bury it among the recovered. */}
+                {e.ongoing
+                  ? <span className="font-mono" style={{ fontSize: 9.5, color: "#F0553B", marginLeft: 6 }}>ONGOING</span>
+                  : <span className="font-mono" style={{ fontSize: 9.5, color: C.faint, marginLeft: 6 }}>
+                      {e.minutes} min
+                    </span>}
+                <span className="font-mono" style={{ fontSize: 9.5, color: C.faint, marginLeft: 6 }}>
+                  {e.signal === "bgp" ? "routes withdrawn" : e.signal === "ping-slash24" ? "stopped answering" : e.signal}
+                  {" \u00b7 "}{new Date(e.startedAt).toISOString().slice(5, 16).replace("T", " ")}Z
+                </span>
+              </div>
+            ))}
+            {/* SAY WHICH COUNTRIES TRIP OFTEN. Cape Verde raised five alerts in one morning — a
+                small country sitting near the threshold, not a network failing five times. Without
+                this the list reads as a reliability ranking, which it is not. */}
+            {ioda.repeatOffenders && ioda.repeatOffenders.length > 0 && (
+              <div className="px-3 py-2 font-mono" style={{ fontSize: 9, color: C.faint, lineHeight: 1.5, borderTop: `1px solid ${C.line}` }}>
+                Alerting repeatedly this week: {ioda.repeatOffenders.slice(0, 5).map((r) => `${r.country} (${r.alerts})`).join(", ")}.
+                A country with few networks crosses the threshold easily, so frequency here reflects
+                how finely a place is measured as much as how reliable it is.
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="px-3 py-2" style={{ fontSize: 10, color: C.faint, lineHeight: 1.5 }}>
           {/* NOT a list of vulnerabilities that exist — a list CISA has CONFIRMED are being used.
               That distinction is the entire value of the KEV catalogue. */}
@@ -462,7 +522,8 @@ export default function CyberView() {
       <div className="flex items-start gap-1.5" style={{ fontSize: 10, color: C.faint, lineHeight: 1.5 }}>
         <Info size={11} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>
-          Cloudflare Radar (CC BY-NC 4.0) and CISA KEV (US Government public domain). StreetWatch
+          Cloudflare Radar (CC BY-NC 4.0), CISA KEV (US Government public domain) and IODA
+          (Georgia Tech). StreetWatch
           adds no attribution of its own and infers nothing about who is responsible.
         </span>
       </div>
