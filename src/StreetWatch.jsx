@@ -899,9 +899,11 @@ export default function StreetWatch() {
                   those would say the opposite. */}
               <StrategicWatch onShowOnMap={(a) => {
                 if (a.lat == null || a.lon == null) return;
-                window.dispatchEvent(new CustomEvent("sw:flyto", {
-                  detail: { lat: a.lat, lon: a.lon, zoom: 7, label: a.label },
-                }));
+                // THE WHOLE AIRCRAFT, not four fields of it. The receiver needs the icao to fetch
+                // the track and the first/last timestamps to trim it to this sighting; sending a
+                // position and a label meant the handler returned on its first line and nothing
+                // was ever fetched.
+                window.dispatchEvent(new CustomEvent("sw:flyto", { detail: a }));
                 const el = document.querySelector("[data-mappanel]") || document.querySelector("main");
                 if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
               }} />
