@@ -34,6 +34,34 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   const [showAdv, setShowAdv] = useState(false);
   const [adv, setAdv] = useState(null);
   const [hazards, setHazards] = useState(null);
+  // Fetched on request from the strategic panel above, not on load: it is one airframe's history
+  // and nobody needs it until they ask for it.
+  const [strategicTrack, setStrategicTrack] = useState(null);
+
+  useEffect(() => {
+    const onAsk = (e) => {
+      const a = e.detail;
+      if (!a || !a.icao) return;
+      fetch(`${BACKEND_URL}/api/drones/track?id=${encodeURIComponent(a.icao)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          if (!j || !j.points) return;
+          // Trimmed to the sighting's own window. The archive holds every observation of an
+          // airframe — 207 points across 51 days for one aircraft — and drawing all of them would
+          // join separate sorties weeks apart into one line.
+          const from = a.firstSeen ? +new Date(a.firstSeen) : 0;
+          const to = a.lastSeen ? +new Date(a.lastSeen) : Date.now();
+          const pts = j.points.filter((p) => {
+            const t = +new Date(p.ts);
+            return t >= from - 60000 && t <= to + 60000;
+          });
+          setStrategicTrack({ ...a, points: pts.length ? pts : j.points.slice(-40) });
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("sw:flyto", onAsk);
+    return () => window.removeEventListener("sw:flyto", onAsk);
+  }, []);
   // Live aircraft on the WORLD map. A tester on Android reported that no traffic appeared anywhere
   // unless a site was selected, and that zooming elsewhere showed nothing while a competitor's map
   // had data everywhere. They were right: /api/aircraft was only ever called by AviationRadar,
@@ -336,6 +364,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
           advAgeDays={adv ? adv.compiledAgeDays : null}
           advIndexes={adv ? adv.indexes : null}
           hazards={showAdv ? hazards : null}
+          strategicTrack={strategicTrack}
         />
       </div>
 

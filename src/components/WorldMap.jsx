@@ -3,7 +3,7 @@ import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { guardTouchScroll } from "./mapTouch.js";
 import { LAYERS, heatColor, heatIntensity, addBaseTiles, fmtTs } from "../theme.js";
-import { droneIcon, stationIcon } from "../mapIcons.js";
+import { droneIcon, stationIcon, bomberIcon } from "../mapIcons.js";
 import { watchUserPan, keepInView } from "../mapFollow.js";
 
 // Viewport clustering, no extra dependency.
@@ -15,7 +15,7 @@ import { watchUserPan, keepInView } from "../mapFollow.js";
 const DETAIL_ZOOM = 8;        // at or beyond this, draw individual feeds
 const CELL_PX = 64;           // approximate cluster cell size on screen
 
-export default function WorldMap({ aircraft = null, onView = null, onAirSelect = null, feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null, advAgeDays = null, advIndexes = null, hazards = null,
+export default function WorldMap({ aircraft = null, onView = null, onAirSelect = null, feeds, selectedId, onSelect, onOpenSighting, onOpenVessel, liveContacts = null, heatSites = null, heatRadius = 250, heatMeta = null, userLoc = null, usvContacts = null, subContacts = null, showFeeds = true, showIss = true, advisories = null, advAgeDays = null, advIndexes = null, hazards = null, strategicTrack = null,
   // Added Aug 1 so HeatMap can delegate its map here instead of running a second Leaflet
   // instance. Defaults are WorldMap's existing behaviour, so no existing caller changes.
   // scrollWheelZoom MATTERS: the activity map sits in a scrolling panel and wheel-zoom
@@ -35,6 +35,9 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
   advCountRef.current = (advisories || []).length;
   const hazardsRef = useRef(hazards);
   hazardsRef.current = hazards;
+  const trackRef = useRef(strategicTrack);
+  trackRef.current = strategicTrack;
+  const trackLayerRef = useRef(null);
   const issMarkerRef = useRef(null);
   const [issPos, setIssPos] = useState(null);
   const showIssRef = useRef(showIss);
@@ -259,6 +262,82 @@ export default function WorldMap({ aircraft = null, onView = null, onAirSelect =
         .addTo(lg);
     });
   };
+
+  // ONE AIRFRAME'S OBSERVED POSITIONS, drawn when a strategic sighting is opened from the panel.
+  //
+  // DASHED, AND DELIBERATELY. The sweep rotates across 1,081 airspaces, so a given aircraft is seen
+  // roughly every 20 minutes at best — at 400kt that is 130nm between observations. A solid line
+  // through those points would draw a flight path the aircraft did not fly. The dashes say: these
+  // are sightings, and we joined them.
+  //
+  // Each point carries the RADAR that heard it. A position seen by a named site is that site's
+  // observation; the grid cells are unnamed by design.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!trackLayerRef.current) trackLayerRef.current = Leaflet.layerGroup().addTo(map);
+    const lg = trackLayerRef.current;
+    lg.clearLayers();
+
+    const t = strategicTrack;
+    if (!t || !t.points || !t.points.length) return;
+
+    const pts = t.points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+    if (!pts.length) return;
+
+    const line = pts.map((p) => [p.lat, p.lon]);
+    if (line.length > 1) {
+      Leaflet.polyline(line, {
+        color: "#F6A821", weight: 1.6, opacity: 0.75, dashArray: "6 5", interactive: false,
+      }).addTo(lg);
+    }
+
+    // Every observation as a small mark, with what heard it and when.
+    pts.forEach((p, i) => {
+      const named = p.site && !String(p.site).startsWith("Deep sweep");
+      Leaflet.circleMarker([p.lat, p.lon], {
+        radius: named ? 4 : 2.5,
+        color: "#F6A821", weight: 1.2, opacity: 0.9,
+        fillColor: named ? "#F6A821" : "#0A0E14", fillOpacity: named ? 0.85 : 0.6,
+      })
+        .bindTooltip(
+          `${p.site || "unnamed cell"}`
+          + `${p.alt_ft != null ? ` · ${Number(p.alt_ft).toLocaleString()}ft` : ""}`
+          + `${p.speed_kt != null ? ` · ${p.speed_kt}kt` : ""}`
+          + `<br><span style="opacity:.7">${new Date(p.ts).toISOString().slice(0, 16).replace("T", " ")}Z</span>`,
+          { opacity: 0.9 }
+        )
+        .addTo(lg);
+      void i;
+    });
+
+    // THE AIRFRAME at its last observed position — hollow, because this is a record of where it
+    // was rather than a claim about where it is.
+    const last = pts[pts.length - 1];
+    Leaflet.marker([last.lat, last.lon], {
+      icon: bomberIcon(Leaflet, {
+        heading: Number(last.heading) || 0,
+        color: "#F6A821", size: 24, past: true,
+      }),
+      zIndexOffset: 900,
+    })
+      .bindPopup(
+        `<b>${t.label || t.typeCode || "aircraft"}</b>`
+        + `<div style="font-size:11px;margin-top:3px">${t.callsign || (t.icao || "").toUpperCase()}`
+        + `${t.nuclearCapableType ? ` · <b style="color:#F6A821">nuclear-capable type</b>` : " · conventional type"}</div>`
+        + `<div style="font-size:10px;opacity:.75;margin-top:4px;line-height:1.45">`
+        + `${pts.length} observation${pts.length === 1 ? "" : "s"} across `
+        + `${new Set(pts.map((p) => p.site).filter(Boolean)).size} watched area`
+        + `${new Set(pts.map((p) => p.site).filter(Boolean)).size === 1 ? "" : "s"}.<br>`
+        + `Last seen ${new Date(last.ts).toISOString().slice(0, 16).replace("T", " ")}Z.<br>`
+        + `<b>Dashes join sightings, they are not a flown route</b> — the sweep rotates, so there `
+        + `are minutes between observations. Whether anything was aboard is not broadcast and is `
+        + `not claimed.</div>`
+      )
+      .addTo(lg);
+
+    map.setView([last.lat, last.lon], Math.max(map.getZoom(), 6), { animate: true });
+  }, [strategicTrack]);
 
   // Advisories live in their own layer group and are rebuilt ONLY when the data or the toggle
   // changes — never on the live-data redraw cycle. Otherwise an open popup is destroyed with its
