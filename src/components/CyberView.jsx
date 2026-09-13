@@ -448,26 +448,9 @@ export default function CyberView() {
         </div>
       </Panel>
 
-      <Panel icon={Bug} title="BEING EXPLOITED NOW"
-        note={kev ? `${kev.total?.toLocaleString()} in catalogue` : "loading…"}>
-        {/* A CVE has no position, so there is nowhere on the map to send it. The useful action is
-            the authoritative record — NVD, not a StreetWatch page, because we add nothing to it
-            and should not pretend otherwise. */}
-        {(kev?.vulnerabilities || []).map((v) => (
-          <a key={v.cve} href={`https://nvd.nist.gov/vuln/detail/${v.cve}`}
-            target="_blank" rel="noopener noreferrer"
-            className="sw-row px-3 py-1.5 flex items-baseline gap-2"
-            style={{ borderBottom: `1px solid ${C.line}`, textDecoration: "none" }}>
-            <span className="font-mono" style={{ fontSize: 11, color: "#C084FC", minWidth: 120 }}>{v.cve}</span>
-            <span style={{ fontSize: 11.5, color: C.text, flex: 1, minWidth: 0 }}>
-              {v.vendor} {v.product}
-              {v.ransomware && (
-                <span className="font-mono" style={{ fontSize: 9, color: "#F0553B", marginLeft: 6 }}>RANSOMWARE</span>
-              )}
-            </span>
-            <span className="font-mono" style={{ fontSize: 10, color: C.faint }}>{v.added}</span>
-          </a>
-        ))}
+{/* DIRECTLY UNDER THE CLOUDFLARE OUTAGES, because it measures the same thing by another
+          method. It had landed below the vulnerability list, which put two readings of one
+          phenomenon either side of an unrelated panel. */}
         {ioda && ioda.events && ioda.events.length > 0 && (
           <div style={{ borderTop: `1px solid ${C.line}` }}>
             <div className="px-3 py-2 font-mono">
@@ -511,6 +494,26 @@ export default function CyberView() {
           </div>
         )}
 
+      <Panel icon={Bug} title="BEING EXPLOITED NOW"
+        note={kev ? `${kev.total?.toLocaleString()} in catalogue` : "loading…"}>
+        {/* A CVE has no position, so there is nowhere on the map to send it. The useful action is
+            the authoritative record — NVD, not a StreetWatch page, because we add nothing to it
+            and should not pretend otherwise. */}
+        {(kev?.vulnerabilities || []).map((v) => (
+          <a key={v.cve} href={`https://nvd.nist.gov/vuln/detail/${v.cve}`}
+            target="_blank" rel="noopener noreferrer"
+            className="sw-row px-3 py-1.5 flex items-baseline gap-2"
+            style={{ borderBottom: `1px solid ${C.line}`, textDecoration: "none" }}>
+            <span className="font-mono" style={{ fontSize: 11, color: "#C084FC", minWidth: 120 }}>{v.cve}</span>
+            <span style={{ fontSize: 11.5, color: C.text, flex: 1, minWidth: 0 }}>
+              {v.vendor} {v.product}
+              {v.ransomware && (
+                <span className="font-mono" style={{ fontSize: 9, color: "#F0553B", marginLeft: 6 }}>RANSOMWARE</span>
+              )}
+            </span>
+            <span className="font-mono" style={{ fontSize: 10, color: C.faint }}>{v.added}</span>
+          </a>
+        ))}
         <div className="px-3 py-2" style={{ fontSize: 10, color: C.faint, lineHeight: 1.5 }}>
           {/* NOT a list of vulnerabilities that exist — a list CISA has CONFIRMED are being used.
               That distinction is the entire value of the KEV catalogue. */}
