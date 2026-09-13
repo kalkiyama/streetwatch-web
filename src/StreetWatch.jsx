@@ -17,6 +17,7 @@ import EarthView from "./components/EarthView.jsx";
 import SpaceView from "./components/SpaceView.jsx";
 import DataCentres from "./components/DataCentres.jsx";
 import StartHere from "./components/StartHere.jsx";
+import StrategicWatch from "./components/StrategicWatch.jsx";
 import DroneSweep from "./components/DroneSweep.jsx";
 import CyberView from "./components/CyberView.jsx";
 
@@ -891,6 +892,21 @@ export default function StreetWatch() {
               container. It was rendering INSIDE a box capped at 46vh with its own scroll — so the
               tab's main feature was squeezed into a scrolling panel, narrower than the map beside
               it, and below a 240-row feed list. Nothing told a reader it was there at all. */}
+          {tab === "drones" && (
+            <div style={{ marginBottom: 8 }}>
+              {/* TOP of the Military tab, above the sweep. A strategic sighting is rarer and more
+                  consequential than the hundred routine contacts below it, and burying it under
+                  those would say the opposite. */}
+              <StrategicWatch onShowOnMap={(a) => {
+                if (a.lat == null || a.lon == null) return;
+                window.dispatchEvent(new CustomEvent("sw:flyto", {
+                  detail: { lat: a.lat, lon: a.lon, zoom: 7, label: a.label },
+                }));
+                const el = document.querySelector("[data-mappanel]") || document.querySelector("main");
+                if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }} />
+            </div>
+          )}
           {tab === "drones" && <div data-sweep><DroneSweep onOpen={openSighting} onOpenVessel={openVesselFromList} /></div>}
 
           <div style={{ maxHeight: "46vh", overflowY: "auto" }} className="lg:max-h-none">
