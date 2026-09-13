@@ -38,6 +38,7 @@ export default function StrategicWatch({ onShowOnMap }) {
   const [data, setData] = useState(null);
   const [state, setState] = useState("loading");
   const [why, setWhy] = useState(false);
+  const [showAll, setAll] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -95,7 +96,7 @@ export default function StrategicWatch({ onShowOnMap }) {
 
       {state === "ok" && list.length > 0 && (
         <div style={{ marginTop: 6 }}>
-          {list.slice(0, 8).map((a) => (
+          {(showAll ? list : list.slice(0, 8)).map((a) => (
             <div key={a.icao} style={{ padding: "5px 0", borderTop: `1px solid ${C.amber}22` }}>
               <div className="flex items-baseline gap-2 flex-wrap">
                 <span style={{ fontSize: 12.5, fontWeight: 700, color: C.text }}>{a.label}</span>
@@ -110,9 +111,13 @@ export default function StrategicWatch({ onShowOnMap }) {
                   : <span style={{ fontSize: 9.5, color: C.faint }}>conventional type</span>}
               </div>
               <div style={{ fontSize: 10.5, color: C.dim, marginTop: 2, lineHeight: 1.5 }}>
+                {/* "HEARD BY", not "seen at". A site name is the WATCHING airspace, and the sweep
+                    reaches 250nm — so an aircraft over Bristol is recorded under a cell named for
+                    its centre near Brussels, 200 miles away. "Last at Deep sweep 50.6N 4.2E" read
+                    as the aircraft's position and was the radar's. */}
                 {a.firstSite && a.lastSite && a.firstSite !== a.lastSite
-                  ? <>first seen at <b style={{ color: C.text }}>{a.firstSite}</b>, last at <b style={{ color: C.text }}>{a.lastSite}</b></>
-                  : <>seen at <b style={{ color: C.text }}>{a.lastSite || a.firstSite || "an unnamed cell"}</b></>}
+                  ? <>first heard by <b style={{ color: C.text }}>{a.firstSite}</b>, then <b style={{ color: C.text }}>{a.lastSite}</b></>
+                  : <>heard by <b style={{ color: C.text }}>{a.lastSite || a.firstSite || "an unnamed cell"}</b></>}
                 {" · "}{a.radars} radar{a.radars === 1 ? "" : "s"}
                 {a.altFt != null ? ` · ${a.altFt.toLocaleString()}ft` : ""}
                 {" · "}{ago(a.lastSeen)}
@@ -128,9 +133,11 @@ export default function StrategicWatch({ onShowOnMap }) {
             </div>
           ))}
           {list.length > 8 && (
-            <div style={{ fontSize: 9.5, color: C.faint, marginTop: 4 }}>
-              and {list.length - 8} more in this window
-            </div>
+            <button onClick={() => setAll((v) => !v)} className="rounded w-full"
+              style={{ fontSize: 9.5, padding: "4px 8px", marginTop: 4, color: C.amber,
+                background: "rgba(246,168,33,0.08)", border: `1px solid ${C.amber}44` }}>
+              {showAll ? "Show fewer" : `Show all ${list.length} in this window`}
+            </button>
           )}
         </div>
       )}
