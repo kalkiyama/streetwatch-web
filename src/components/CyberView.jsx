@@ -453,12 +453,16 @@ export default function CyberView() {
           phenomenon either side of an unrelated panel. */}
         {ioda && ioda.events && ioda.events.length > 0 && (
           <div style={{ borderTop: `1px solid ${C.line}` }}>
-            <div className="px-3 py-2 font-mono">
-              <div style={{ fontSize: 10, color: "#37C46A", letterSpacing: 1 }}>
-                MEASURED FROM OUTSIDE · {ioda.count} in 7 days
-                {ioda.ongoing > 0 ? ` \u00b7 ${ioda.ongoing} ongoing` : ""}
-              </div>
-              <div style={{ fontSize: 9.5, color: C.faint, marginTop: 2, lineHeight: 1.45 }}>
+            <div className="px-3 py-2.5 font-mono flex items-baseline gap-2">
+              <span style={{ fontSize: 11, color: C.text, letterSpacing: 1.2, fontWeight: 600 }}>
+                MEASURED FROM OUTSIDE
+              </span>
+              <span style={{ fontSize: 9.5, color: C.faint }}>
+                {ioda.count} in 7 days{ioda.ongoing > 0 ? ` \u00b7 ${ioda.ongoing} ongoing` : ""}
+              </span>
+            </div>
+            <div className="px-3 pb-2 font-mono">
+              <div style={{ fontSize: 9.5, color: C.faint, lineHeight: 1.45 }}>
                 IODA watches countries from the outside — routes withdrawn, addresses that stop
                 answering, background traffic. An alert means its threshold was crossed. It does
                 not mean a country is offline and it does not say why.
