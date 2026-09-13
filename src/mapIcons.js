@@ -40,6 +40,15 @@ const DRONE = `<path d="M12 4 L13 11 L23 14 L23 15.5 L13 14.4 L12.7 18 L15 20 L1
 // A surface vessel, bow up.
 const SHIP = `<path d="M12 2 C13.6 4 14 6 14 9 L14 17 C14 18.5 13.2 20 12 21 C10.8 20 10 18.5 10 17 L10 9 C10 6 10.4 4 12 2 Z"/><rect x="10.6" y="9" width="2.8" height="1.4" fill="rgba(4,13,18,0.85)"/>`;
 
+// A strategic bomber: long swept wing, distinct from the airliner glyph at a glance.
+//
+// UNLIKE the drone shape, this one is NOT a category guess. The file's rule above is that a
+// silhouette hints at a category rather than identifying an airframe — because a UAV classification
+// comes from a broadcast category code and cannot distinguish one drone from another. A bomber here
+// is drawn because `type_code` says B52 or B1, which is a database statement about that specific
+// airframe, not an inference from its behaviour.
+const BOMBER = `<path d="M12 1.5 L13.2 7 L21.5 11.5 L22.5 15 L13.4 12.8 L13.1 18.5 L15.5 21 L15.5 22.5 L12 21.2 L8.5 22.5 L8.5 21 L10.9 18.5 L10.6 12.8 L1.5 15 L2.5 11.5 L10.8 7 Z"/>`;
+
 // The ISS: central module with two solar-array wings.
 const STATION = `<rect x="10.5" y="8" width="3" height="8" rx="0.6"/><rect x="2" y="10.5" width="6.5" height="3" rx="0.4"/><rect x="15.5" y="10.5" width="6.5" height="3" rx="0.4"/><line x1="12" y1="8" x2="12" y2="4" stroke="currentColor" stroke-width="1.2"/>`;
 
@@ -52,6 +61,15 @@ export function droneIcon(Leaflet, { heading = 0, color = "#C084FC", size = 18, 
 export function shipIcon(Leaflet, { heading = 0, color = "#2563EB", size = 18, selected = false } = {}) {
   return Leaflet.divIcon({ className: "", html: svg(SHIP, { size, rot: heading, color: selected ? SEL_GREEN : color, glow: selected ? SEL_GREEN : null, glowR: 6 }), iconSize: [0, 0] });
 }
+export function bomberIcon(Leaflet, { heading = 0, color = "#F6A821", size = 22, past = false } = {}) {
+  // `past` renders it hollow, the same way `estimated` does elsewhere: a strategic sighting from
+  // ten days ago is not a position, it is a record of one, and a solid shape would read as "it is
+  // here".
+  return Leaflet.divIcon({ className: "", html: svg(BOMBER, {
+    size, rot: heading, color, glow: color, glowR: past ? 3 : 7, estimated: past,
+  }), iconSize: [0, 0] });
+}
+
 export function stationIcon(Leaflet, { color = "#F472B6", size = 22 } = {}) {
   return Leaflet.divIcon({ className: "", html: svg(STATION, { size, color, glow: color }), iconSize: [0, 0] });
 }
