@@ -430,7 +430,14 @@ export default function CyberView() {
                     nationwide blackout when one ISP dropped. */}
                 {o.scopedTo === "network" ? "one network" : o.scope === "NATIONWIDE" ? "nationwide" : o.scopedTo}
                 {o.cause ? ` · ${String(o.cause).toLowerCase().replace(/_/g, " ")}` : ""}
-                {!o.end ? " · ongoing" : ""}
+                {/* THE DATE, because without it four Iraq rows read as one repeated four times.
+                    They are four separate 15-minute shutdowns at 03:30 on consecutive mornings,
+                    which is the shape of an exam shutdown — and the pattern was invisible while
+                    every row looked identical. */}
+                {o.start ? ` · ${new Date(o.start).toISOString().slice(5, 16).replace("T", " ")}Z` : ""}
+                {o.end && o.start
+                  ? ` · ${Math.round((new Date(o.end) - new Date(o.start)) / 60000)} min`
+                  : !o.end ? " · ongoing" : ""}
               </span>
             </div>
             {o.description && (
