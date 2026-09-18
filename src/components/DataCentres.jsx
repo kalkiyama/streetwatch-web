@@ -518,7 +518,7 @@ export default function DataCentres() {
     // Padded by 30% so markers exist slightly beyond the edge and a short pan does not reveal
     // empty space before the redraw lands.
     const bounds = [];
-    shown.forEach((r, i) => {
+    shown.forEach((r) => {
       const n = Number.isFinite(r.networks) ? r.networks : 0;
       // Bigger, and bigger again over imagery. The floor moved from 3px to 5px because the
       // smallest dots are the records with no network count — a third of the OSM set — so the
