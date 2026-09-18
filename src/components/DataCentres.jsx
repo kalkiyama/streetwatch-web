@@ -99,6 +99,24 @@ export default function DataCentres() {
   // Drawing 656 polylines is cheap next to 8,728 markers, and the file carrying them is already
   // downloaded either way.
   const [showCables, setShowCables] = useState(true);
+
+  // ALPR CAMERAS — where automatic plate readers are, from OpenStreetMap via the DeFlock project.
+  //
+  // OFF BY DEFAULT, and not because of clutter. 139,524 points is more than Leaflet can draw and
+  // more than a phone should fetch, so the layer asks the server only for the window on screen and
+  // only when switched on. A reader who never touches the toggle pays nothing for it.
+  //
+  // WHAT IT IS AND IS NOT. These are camera POSITIONS. Nothing here reads a camera, and nothing
+  // will: what a plate reader collects is a record of where named individuals drove, which is the
+  // one category this project has always refused. The camera is infrastructure; what it sees is
+  // not our business.
+  const [showCams, setShowCams] = useState(false);
+  const [cams, setCams] = useState(null);
+  const [camsState, setCamsState] = useState("idle");
+  const [selCam, setSelCam] = useState(null);
+  // Below this the window is bigger than any useful answer — at zoom 8 a bbox covers a subcontinent
+  // and the server would return tens of thousands of points to draw as an unreadable smear.
+  const CAM_MIN_ZOOM = 9;
   const [selCable, setSelCable] = useState(null);
   // CABLE SHIPS AT WORK, from NGA navigational warnings. States are obliged to warn shipping
   // before laying or repairing a cable, so these are the routes being worked RIGHT NOW — temporary
@@ -153,6 +171,9 @@ export default function DataCentres() {
     let alive = true;
     // Fetched separately and allowed to fail on its own. A navigational-warnings outage must not
     // take the facility map down with it.
+    // Cameras are fetched by the map-move handler instead, since what to ask for depends on where
+    // the map is looking. See the effect below.
+
     fetch(`${BACKEND_URL}/api/navwarnings`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive && j) setOps(j.items.filter((x) => x.kind === "cable")); })
@@ -331,6 +352,35 @@ export default function DataCentres() {
     return () => { alive = false; };
   }, [sel]);
 
+  // ASK FOR THE WINDOW, NOT THE WORLD. Re-fetched whenever the map settles or the toggle changes.
+  // The server takes a bbox and returns what falls inside it along with the global total, so the
+  // footnote can say "812 of 139,524 in view" rather than implying the window is everything.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !showCams) { setCams(null); setCamsState("idle"); return; }
+    let alive = true;
+
+    const load = () => {
+      if (!mapRef.current) return;
+      // COUNT AT ANY ZOOM, DRAW ONLY WHEN CLOSE. Pressing a button and seeing nothing change is a
+      // broken control regardless of the reason — at country zoom the old code fetched nothing and
+      // said "zoom in", which reads as a refusal rather than an answer. The server can count a
+      // window it cannot usefully draw, so the number arrives immediately and the dots follow.
+      const tooWide = mapRef.current.getZoom() < CAM_MIN_ZOOM;
+      const b = mapRef.current.getBounds();
+      const bbox = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((n) => n.toFixed(4)).join(",");
+      setCamsState("loading");
+      fetch(`${BACKEND_URL}/api/cameras?bbox=${bbox}${tooWide ? "&countOnly=1" : ""}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => { if (alive && j) { setCams(j); setCamsState(tooWide ? "counted" : "ok"); } })
+        .catch(() => { if (alive) setCamsState("error"); });
+    };
+
+    load();
+    map.on("moveend zoomend", load);
+    return () => { alive = false; map.off("moveend zoomend", load); };
+  }, [showCams]);
+
   useEffect(() => {
     drawRef.current = draw;
     draw();
@@ -386,6 +436,40 @@ export default function DataCentres() {
         }
         line.addTo(lg);
       });
+
+      // CAMERAS UNDER EVERYTHING ELSE. There can be thousands in one window and they are the
+      // least specific thing on the map — a facility, a cable or a declared operation should never
+      // be hidden beneath a plate reader.
+      //
+      // Plain circle markers, 2px, red. Not an icon: at this density an icon is a blob, and 2px
+      // of red beside cyan facilities and violet cables is legible without shouting.
+      if (showCams && cams && cams.cameras) {
+        cams.cameras.forEach((cam) => {
+          if (!view.contains([cam.lat, cam.lon])) return;
+          const flock = cam.make === "Flock Safety";
+          Leaflet.circleMarker([cam.lat, cam.lon], {
+            // BIGGER, AND OUTLINED AGAINST THE BASEMAP. At 2.2px with a same-colour stroke these
+            // were invisible on every background — red vanishes into satellite imagery and both
+            // colours disappear into terrain. The facility markers above solved this already: the
+            // OUTLINE carries the visibility and the fill carries the meaning, and the outline
+            // flips with the basemap. Same rule here rather than a second approach.
+            radius: 3.6,
+            color: basemap === "satellite" ? "#FFFFFF" : "#0A1220",
+            weight: 1.1,
+            opacity: 0.95,
+            fillColor: flock ? "#F0553B" : "#F6A821",
+            fillOpacity: 0.95,
+          })
+            .bindTooltip(
+              `${cam.make || "unrecorded make"}`
+              + `${cam.operator ? ` \u00b7 ${cam.operator}` : ""}`
+              + `${cam.dir ? ` \u00b7 facing ${cam.dir}\u00b0` : ""}`,
+              { opacity: 0.9 }
+            )
+            .on("click", (e) => { Leaflet.DomEvent.stopPropagation(e); setSelCam(cam); setSel(null); })
+            .addTo(lg);
+        });
+      }
 
       // Operations on top of the cables, so a route being worked is not hidden under the cable
       // it is being worked on.
@@ -506,7 +590,7 @@ export default function DataCentres() {
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 11, animate: true });
     }
     }
-  }, [shown, records.length, sel, basemap, showCables, data, country, region, srcFilter, q, statusFilter, typeFilter, ops, selOp]);
+  }, [shown, records.length, sel, basemap, showCables, data, country, region, srcFilter, q, statusFilter, typeFilter, ops, selOp, showCams, cams, selCam]);
 
   const fmtUnknown = (v) => (v == null || v === "" ? <span style={{ color: C.faint }}>unknown</span> : v);
 
@@ -689,7 +773,14 @@ export default function DataCentres() {
         </button>
         </span>
         <span className="inline-flex items-center gap-1.5">
-        <span style={{ fontSize: 8.5, color: C.faint, letterSpacing: 1 }}>BACKGROUND</span>
+<button onClick={() => setShowCams((v) => !v)} className="rounded"
+          style={{ fontSize: 8.5, letterSpacing: 0.5, padding: "3px 8px", marginLeft: 6,
+            border: `1px solid ${showCams ? "#F0553B" : C.line}`,
+            background: showCams ? "#F0553B" : "transparent",
+            color: showCams ? "#0A0E14" : C.dim }}>
+          ALPR
+        </button>
+                <span style={{ fontSize: 8.5, color: C.faint, letterSpacing: 1 }}>BACKGROUND</span>
         {Object.entries(BASEMAPS).map(([k, b]) => (
           <button key={k} onClick={() => setBasemap(k)} className="rounded"
             style={{ fontSize: 8.5, padding: "3px 8px",
@@ -746,6 +837,47 @@ export default function DataCentres() {
         )}
       </div>
 
+      {selCam && (
+        <div className="font-mono rounded-lg" style={{ padding: "10px 12px", marginTop: 6,
+          background: "rgba(4,18,31,0.95)", border: `1px solid #F0553B66` }}>
+          <div className="flex items-start justify-between gap-2">
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, color: "#F0553B" }}>
+                {selCam.make || "Plate reader, make unrecorded"}
+              </div>
+              <div style={{ fontSize: 10.5, color: C.dim, marginTop: 2 }}>
+                automatic licence plate reader
+                {selCam.dir ? ` \u00b7 facing ${selCam.dir}\u00b0` : ""}
+                {selCam.mount ? ` \u00b7 ${selCam.mount}` : ""}
+              </div>
+            </div>
+            <button onClick={() => setSelCam(null)} aria-label="Close" style={{ color: C.dim }}>
+              <X size={14} />
+            </button>
+          </div>
+          <div style={{ fontSize: 10.5, color: C.text, marginTop: 8, lineHeight: 1.6 }}>
+            {selCam.operator && (
+              <div><span style={{ color: C.faint }}>operator </span>{selCam.operator}</div>
+            )}
+            <div><span style={{ color: C.faint }}>position </span>{selCam.lat.toFixed(5)}, {selCam.lon.toFixed(5)}</div>
+            {!selCam.operator && (
+              <div style={{ color: C.faint }}>no operator recorded by the mapper</div>
+            )}
+          </div>
+          {/* WHAT IS NOT HERE, said rather than left to inference. A reader looking at a plate
+              reader on a map reasonably wonders what it has seen — the answer is that this project
+              does not know and will not find out. */}
+          <div style={{ fontSize: 9, color: C.faint, marginTop: 8, lineHeight: 1.45 }}>
+            This is a camera POSITION, spotted from a public road by a volunteer and tagged in
+            OpenStreetMap. <b>Nothing here reads this camera or records what it saw</b>, and nothing
+            will: what a plate reader collects is a record of where named individuals drove.
+            Whether it is still installed is not known — a camera removed is not necessarily
+            unmapped.{" "}
+            <a href={`https://www.openstreetmap.org/${selCam.id.startsWith("n") ? "node" : "way"}/${selCam.id.slice(1)}`}
+              target="_blank" rel="noreferrer" style={{ color: "#F0553B" }}>OSM record ↗</a>
+          </div>
+        </div>
+      )}
       {selOp && (
         <div ref={opPanelRef} className="font-mono rounded-lg" style={{ padding: "10px 12px", marginTop: 6,
           background: "rgba(4,18,31,0.95)", border: `1px solid ${C.amber}66` }}>
@@ -896,6 +1028,17 @@ export default function DataCentres() {
 
       <div className="font-mono" style={{ fontSize: 9, color: C.faint, lineHeight: 1.5 }}>
         {shown.length.toLocaleString()} of {records.length.toLocaleString()} facilities shown
+        {/* THE LIVE COUNT GOES WHERE IT CAN BE SEEN. It was written inside the collapsed "Why?"
+            block, between two paragraphs of static explanation — so pressing ALPR produced a
+            number nobody would find, and the control read as doing nothing. Same mistake as the
+            advisories' compiled-age: computed, returned, and never surfaced. */}
+        {showCams && camsState === "counted" && cams ? (
+          <> · <b style={{ color: "#F0553B" }}>{cams.count.toLocaleString()} plate readers here</b>, too many to draw — zoom in</>
+        ) : showCams && camsState === "ok" && cams ? (
+          <> · <b style={{ color: "#F0553B" }}>{cams.count.toLocaleString()} plate readers</b> of {cams.total.toLocaleString()} mapped</>
+        ) : showCams && camsState === "loading" ? (
+          <> · looking for plate readers…</>
+        ) : null}
         {statusFilter === "operating"
           && records.filter((r) => ["proposed","under_construction","permitted","blocked","withdrawn"].includes(r.status) && matches(r, "status")).length > 0 && (
           <>{" · "}<span style={{ color: C.amber }}>
@@ -921,6 +1064,32 @@ export default function DataCentres() {
         depends on whether a contributor mapped the area, so it is uneven by country. Around a
         quarter of the OSM records carry no name and a third no operator: a building someone
         surveyed without labelling is still a building, and the coordinates are the point.
+        {showCams && (
+          <>
+            {/* THE WINDOW AND THE WORLD, both stated. A count of what is on screen reads as a
+                total unless the total is beside it — and "812 cameras" where there are 139,524
+                would be a wrong impression made out of two true numbers. */}
+            {camsState === "counted" && cams && (
+              <>
+                <b style={{ color: "#F0553B" }}>{cams.count.toLocaleString()} plate readers</b> are
+                mapped in this view, of {cams.total.toLocaleString()} worldwide — too many to draw at
+                this zoom. <b>Zoom in and they appear.</b>{" "}
+              </>
+            )}
+            {camsState === "loading" && <>Looking for plate readers in this window…{" "}</>}
+            {camsState === "error" && <>The camera list is not answering right now.{" "}</>}
+            {camsState === "ok" && cams && (
+              <>
+                Red is Flock Safety, amber is another make or none recorded.
+                These are camera POSITIONS: nothing here reads a camera
+                or records what one saw. Every position was spotted from a public road by a volunteer
+                and tagged in OpenStreetMap, largely through the DeFlock project — so this is a floor,
+                not a census. Cameras exist that nobody has mapped, coverage follows contributors
+                rather than deployments, and a camera removed is not necessarily unmapped.{" "}
+              </>
+            )}
+          </>
+        )}
         {ops && ops.length > 0 && (
           <>The <b style={{ color: C.amber }}>amber dashed lines</b> are cable ships at work right
           now — {ops.length} routes with an active navigational warning, which states are obliged to
