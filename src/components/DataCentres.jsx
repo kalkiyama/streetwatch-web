@@ -114,6 +114,7 @@ export default function DataCentres() {
   const [cams, setCams] = useState(null);
   const [camsState, setCamsState] = useState("idle");
   const [selCam, setSelCam] = useState(null);
+  const camPanelRef = useRef(null);
   // Below this the window is bigger than any useful answer — at zoom 8 a bbox covers a subcontinent
   // and the server would return tens of thousands of points to draw as an unreadable smear.
   const CAM_MIN_ZOOM = 9;
@@ -466,7 +467,17 @@ export default function DataCentres() {
               + `${cam.dir ? ` \u00b7 facing ${cam.dir}\u00b0` : ""}`,
               { opacity: 0.9 }
             )
-            .on("click", (e) => { Leaflet.DomEvent.stopPropagation(e); setSelCam(cam); setSel(null); })
+            .on("click", (e) => {
+              Leaflet.DomEvent.stopPropagation(e);
+              setSelCam(cam); setSel(null);
+              // SCROLL TO THE PANEL. A click that opens something below the fold is a click that
+              // appears to do nothing — the cable-operations panel already solved this and the
+              // cameras should not behave differently.
+              setTimeout(() => {
+                const el = camPanelRef.current;
+                if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+              }, 60);
+            })
             .addTo(lg);
         });
       }
@@ -838,7 +849,7 @@ export default function DataCentres() {
       </div>
 
       {selCam && (
-        <div className="font-mono rounded-lg" style={{ padding: "10px 12px", marginTop: 6,
+        <div ref={camPanelRef} className="font-mono rounded-lg" style={{ padding: "10px 12px", marginTop: 6,
           background: "rgba(4,18,31,0.95)", border: `1px solid #F0553B66` }}>
           <div className="flex items-start justify-between gap-2">
             <div style={{ minWidth: 0 }}>
