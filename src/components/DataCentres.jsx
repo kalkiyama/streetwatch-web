@@ -782,16 +782,24 @@ export default function DataCentres() {
             border: "1px solid #A78BFA66" }}>
           CABLES
         </button>
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-<button onClick={() => setShowCams((v) => !v)} className="rounded"
-          style={{ fontSize: 8.5, letterSpacing: 0.5, padding: "3px 8px", marginLeft: 6,
+        {/* INSIDE THE LAYER GROUP, where it belongs. The patch that added this chip anchored on
+            the BACKGROUND label and inserted the button before it, which put it after the
+            BACKGROUND group's opening tag — so a data layer rendered among the three exclusive
+            basemap choices, the same confusion CABLES was moved out of.
+
+            And not "ALPR": the acronym tells a reader who knows it nothing new and one who does
+            not nothing at all. It sits beside CABLES, which is plain; the term is defined in the
+            panel, where there is room. */}
+        <button onClick={() => setShowCams((v) => !v)} className="rounded"
+          style={{ fontSize: 8.5, padding: "3px 8px", marginRight: 6,
             border: `1px solid ${showCams ? "#F0553B" : C.line}`,
             background: showCams ? "#F0553B" : "transparent",
             color: showCams ? "#0A0E14" : C.dim }}>
-          ALPR
+          PLATE READERS
         </button>
-                <span style={{ fontSize: 8.5, color: C.faint, letterSpacing: 1 }}>BACKGROUND</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+        <span style={{ fontSize: 8.5, color: C.faint, letterSpacing: 1 }}>BACKGROUND</span>
         {Object.entries(BASEMAPS).map(([k, b]) => (
           <button key={k} onClick={() => setBasemap(k)} className="rounded"
             style={{ fontSize: 8.5, padding: "3px 8px",
