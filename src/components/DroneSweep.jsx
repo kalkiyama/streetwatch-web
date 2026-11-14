@@ -259,8 +259,11 @@ export default function DroneSweep({ onOpen, onOpenVessel }) {
       {/* Only shown when running on a FALLBACK upstream. Silent when normal, because a notice that
           is always on is wallpaper. A different provider means a different receiver network, so
           coverage differs — "nothing visible here" means something different, and that has to be
-          said rather than quietly absorbed. */}
-      {mode === "live" && state === "ok" && data.upstream && data.upstream !== "airplanes.live" && (
+          said rather than quietly absorbed.
+          Compared against the primary the PROXY reports, not a name written here: when airplanes.live
+          was paused in Nov 2026 and adsb.lol made primary, a hard-coded "airplanes.live" would have
+          called the intended source a fallback forever. No upstreamPrimary, no claim either way. */}
+      {mode === "live" && state === "ok" && data.upstream && data.upstreamPrimary && data.upstream !== data.upstreamPrimary && (
         <div className="px-3 pb-1.5" style={{ fontSize: 10, color: "#F6A821", lineHeight: 1.5 }}>
           Serving from fallback source <b>{data.upstream}</b> — the primary feed is unavailable.
           Coverage differs between receiver networks, so counts may not match earlier readings.

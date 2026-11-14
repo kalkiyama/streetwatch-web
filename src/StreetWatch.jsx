@@ -1072,7 +1072,8 @@ export default function StreetWatch() {
         style={{ borderTop: `1px solid ${C.line}`, fontSize: 9.5, color: C.faint, letterSpacing: 0.4 }}>
         <span>
           DATA&nbsp;
-          <a href="https://airplanes.live" target="_blank" rel="noreferrer" style={{ color: C.dim }}>airplanes.live</a> ·{" "}
+          <a href="https://adsb.lol" target="_blank" rel="noreferrer" style={{ color: C.dim }}>adsb.lol</a> ·{" "}
+          <a href="https://adsb.fi" target="_blank" rel="noreferrer" style={{ color: C.dim }}>adsb.fi</a> ·{" "}
           <a href="https://aisstream.io" target="_blank" rel="noreferrer" style={{ color: C.dim }}>aisstream.io</a> ·{" "}
           <a href="https://www.digitraffic.fi" target="_blank" rel="noreferrer" style={{ color: C.dim }}>Fintraffic</a> ·{" "}
           <a href="https://worldview.earthdata.nasa.gov" target="_blank" rel="noreferrer" style={{ color: C.dim }}>NASA</a> ·{" "}
