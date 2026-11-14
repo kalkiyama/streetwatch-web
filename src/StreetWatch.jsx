@@ -177,23 +177,10 @@ export default function StreetWatch() {
   const closeIntro = () => { setIntroOpen(false); try { localStorage.setItem("sw-intro-seen", "1"); } catch { /* private mode */ } };
   // First-run coach mark pointing at the World/Drones switch. Shows once, after the welcome
   // guide is closed, and disappears the moment the user switches mode or dismisses it.
-  const [coachSeen, setCoachSeen] = useState(() => {
-    try { return !!localStorage.getItem("sw-coach-seen"); } catch { return true; }
-  });
-  const dismissCoach = () => { setCoachSeen(true); try { localStorage.setItem("sw-coach-seen", "1"); } catch { /* */ } };
+  // The coach mark itself is gone; nothing reads a "seen" state any more. dismissCoach is still
+  // called on mode switch, so it keeps recording the flag in case the mark returns.
+  const dismissCoach = () => { try { localStorage.setItem("sw-coach-seen", "1"); } catch { /* */ } };
 
-  // Feedback banner for the CLOSED TEST. A link buried among ten attribution links in the footer
-  // is not a feedback mechanism — testers never saw it. Dismissal persists so it asks once rather
-  // than nagging, and the footer link remains afterwards as the permanent path.
-  // Remove this banner (not the footer link) when the app leaves closed testing.
-  // Dismissal lasts a WEEK, not for ever: over a 14-day closed test that prompts each tester
-  // twice, which is a reminder rather than a nag. The header flag is the permanent path.
-  const [feedbackHidden, setFeedbackHidden] = useState(() => {
-    try {
-      const t = Number(localStorage.getItem("sw-feedback-seen"));
-      return Number.isFinite(t) && t > 0 && Date.now() - t < 7 * 86400000;
-    } catch { return true; }
-  });
   // Dismissed for a week, not for ever — the fact changes, so an invitation someone declined on a
   // quiet Tuesday is worth offering again when something is actually happening.
   const [startHidden, setStartHidden] = useState(() => {
@@ -205,11 +192,6 @@ export default function StreetWatch() {
   const dismissStart = () => {
     setStartHidden(true);
     try { localStorage.setItem("sw-start-seen", String(Date.now())); } catch { /* private mode */ }
-  };
-
-  const dismissFeedback = () => {
-    setFeedbackHidden(true);
-    try { localStorage.setItem("sw-feedback-seen", String(Date.now())); } catch { /* private mode */ }
   };
   const urlRadius = React.useRef(
     typeof window !== "undefined" ? Number(new URLSearchParams(window.location.search).get("r")) || null : null

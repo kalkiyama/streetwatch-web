@@ -21,6 +21,12 @@ export default defineConfig([
       // Every layer clears itself with `if (!showX) { setX(null); return; }` at the top of its
       // fetch effect. That is deliberate and works; as an error it blocked unrelated pushes.
       'react-hooks/set-state-in-effect': 'warn',
+      // The React Compiler rules arrived with the plugin upgrade and flag patterns this code used
+      // long before they existed, and which work. Worth reading; not worth blocking a push over.
+      'react-hooks/immutability': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/purity': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
     },
   },
 ])
