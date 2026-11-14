@@ -34,6 +34,7 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
   const [showAdv, setShowAdv] = useState(false);
   const [adv, setAdv] = useState(null);
   const [hazards, setHazards] = useState(null);
+  const [hazardsDown, setHazardsDown] = useState(false);
   // Fetched on request from the strategic panel above, not on load: it is one airframe's history
   // and nobody needs it until they ask for it.
   const [strategicTrack, setStrategicTrack] = useState(null);
@@ -121,9 +122,9 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
     // No separate chip. Four records do not justify a control, and anyone who wants to see declared
     // danger areas wants both kinds rather than one.
     fetch(`${BACKEND_URL}/api/navwarnings`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (alive && j) setHazards(j.items.filter((x) => x.kind === "hazard")); })
-      .catch(() => { /* the advisories stand without them */ });
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then((j) => { if (alive) { setHazards(j.items.filter((x) => x.kind === "hazard")); setHazardsDown(false); } })
+      .catch(() => { if (alive) setHazardsDown(true); /* the advisories stand without them, and say so */ });
     return () => { alive = false; };
   }, [showAdv, hazards]);
 
@@ -287,6 +288,13 @@ export default function MapPanel({ feeds, selectedId, onSelect, onOpenSighting, 
         {chip(showUsv, "SEA", () => setShowUsv(!showUsv), "#2DD4BF")}
         {chip(showSub, "SUB", () => setShowSub(!showSub), "#F0553B")}
       </div>
+      {/* An NGA outage removed the maritime danger areas silently, which read as "none declared". */}
+      {showAdv && hazardsDown && (
+        <div className="text-center" style={{ fontSize: 9, color: C.amber, marginBottom: 5 }}>
+          Maritime danger areas unavailable — NGA's warning service is not answering. Airspace
+          advisories are unaffected.
+        </div>
+      )}
 
       {/* SIXTY WORDS, PERMANENTLY ON SCREEN, in the same styling as the controls above it. The
           distinction it draws is real and worth stating — a contact here may not be on the radar

@@ -127,6 +127,9 @@ export default function DataCentres() {
   // Drawn amber against the cables' violet, because a ship working this week is a different kind
   // of fact from a cable that has been on the seabed for a decade.
   const [ops, setOps] = useState(null);
+  // Set when NGA's service fails, so the caption can say the warnings are MISSING. Without it an
+  // outage looked exactly like a quiet day at sea: no amber lines, and nothing to say why.
+  const [opsDown, setOpsDown] = useState(false);
   const [selOp, setSelOp] = useState(null);
   const opPanelRef = useRef(null);
   const cablePanelRef = useRef(null);
@@ -176,9 +179,9 @@ export default function DataCentres() {
     // the map is looking. See the effect below.
 
     fetch(`${BACKEND_URL}/api/navwarnings`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (alive && j) setOps(j.items.filter((x) => x.kind === "cable")); })
-      .catch(() => { /* the map stands without it */ });
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then((j) => { if (alive) setOps(j.items.filter((x) => x.kind === "cable")); })
+      .catch(() => { if (alive) setOpsDown(true); /* the map stands without it, and says so */ });
 
     fetch(`${BACKEND_URL}/api/datacentres`)
       .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
@@ -1066,6 +1069,9 @@ export default function DataCentres() {
           </span></>
         )}
         {data && data.built ? ` · list built ${data.built.slice(0, 10)}` : ""}
+        {opsDown && showCables && (
+          <span style={{ color: C.amber }}> · cable-ship warnings unavailable — NGA is down</span>
+        )}
         {" · "}larger circles carry more networks.{" "}
         <button onClick={() => setWhyList((v) => !v)} className="rounded"
           style={{ fontSize: 9, padding: "0 5px", marginLeft: 2, color: C.cyan,
@@ -1114,6 +1120,12 @@ export default function DataCentres() {
           now — {ops.length} routes with an active navigational warning, which states are obliged to
           issue before laying or repairing a cable. They say the work was DECLARED, not that a ship
           is currently observed there.{" "}</>
+        )}
+        {opsDown && showCables && (
+          <><b style={{ color: C.amber }}>Cable-ship warnings are unavailable right now.</b> They
+          come from the US NGA's navigational-warning service, which is not answering — so no amber
+          lines means we cannot see them, not that no cable work is declared. The cables themselves
+          are unaffected.{" "}</>
         )}
         The violet lines are <b>submarine cables</b>, also from OpenStreetMap, and their coverage is
         <b> very uneven</b>: 72% of the mapped segments lie in the North Sea and Baltic, where OSM's
