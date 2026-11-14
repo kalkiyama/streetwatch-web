@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Server, X } from "lucide-react";
-import { C, addBaseTiles } from "../theme.js";
+import { X } from "lucide-react";
+import { C } from "../theme.js";
 import { guardTouchScroll } from "./mapTouch.js";
 import { BACKEND_URL } from "../config.js";
 import { countryName, subdivisionName } from "../placeNames.js";
